@@ -148,7 +148,7 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 
 
 
-const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (res,_rej)=> {
+const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (res,rej)=> {
 
 	// currently is only main level firestore collections. will add subcollections soon
 
@@ -165,7 +165,7 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 	if (newpathspecs.length === 0) { res(1); return; }
 
 	const r = await datasetter(newpathspecs, {}, false, false)
-	if (r === null) { res(null); return; }
+	if (r === null) { rej(); return; }
 
 	_activepaths = [..._activepaths, ...newpathspecs]
 

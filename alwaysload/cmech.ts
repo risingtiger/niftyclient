@@ -16,15 +16,17 @@ type LoadBFuncT = (pathparams:GenericRowT, old_searchparams:URLSearchParams, new
 
 // these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 
+let _lazyload_data_funcs:GenericRowT = {}
+
 let _loadeddata:Map<str, CMechLoadedDataT> = new Map() // map by view name of Map by path name with data
 let _searchparams:Map<str, GenericRowT> = new Map() // map by view name
 let _pathparams:Map<str, GenericRowT> = new Map() // map by view name
-let _load_b_funcs:Map<str, LoadBFuncT> = new Map() // map by view name
 
 
 
 
-const Init = () => {
+const Init = (lazyload_data_funcs:GenericRowT) => {
+	_lazyload_data_funcs = lazyload_data_funcs
 }
 
 
@@ -36,35 +38,34 @@ const AddView = (
 	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
 	views_attach_point:"beforeend"|"afterbegin", 
-	load_a:LoadAFuncT,
-	load_b:LoadBFuncT,
-) => new Promise<num|null>(async (res, _rej)=> {
+) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
 	for (const [key, value] of searchparams_raw.entries()) { searchparams_genericrowt[key] = value; }
 
 	{
 		const promises:Promise<any>[] = []
+		let   promises_r:any[] = []
 		
 		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
 
 
 		promises.push( localdbsync_promise )
-		promises.push( load_a(pathparams, searchparams_raw) )
+		promises.push( _lazyload_data_funcs[componentname+"_other"](pathparams, new URLSearchParams, searchparams_raw) )
 
 		promises.push( new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej)=> {
 			await localdbsync_promise
-			const r = await load_b(pathparams, new URLSearchParams, searchparams_raw)
+			const r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
 			res(r);
 		}));
 
-		const r = await Promise.all(promises)
+		try   { promises_r = await Promise.all(promises); }
+		catch { rej(); return; }
 
-		if (r[0] === null || r[1] === null || r[2] === null) { res(null); return; }
 
 		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [path, val] of r[1].entries())   loadeddata.set(path, val)
-		for (const [path, val] of r[2].entries())   loadeddata.set(path, val)
+		for (const [path, val] of promises_r[1].entries())   loadeddata.set(path, val)
+		for (const [path, val] of promises_r[2].entries())   loadeddata.set(path, val)
 
 		_loadeddata.set(componentname, loadeddata)
 	}
@@ -72,7 +73,6 @@ const AddView = (
 	
 	_searchparams.set(componentname, searchparams_genericrowt)
 	_pathparams.set(componentname, pathparams)
-	_load_b_funcs.set(componentname, load_b)
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML(views_attach_point, `<v-${componentname} class='view'></v-${componentname}>`);
@@ -86,7 +86,6 @@ const AddView = (
 		_loadeddata.delete(componentname)
 		_searchparams.delete(componentname)
 		_pathparams.delete(componentname)
-		_load_b_funcs.delete(componentname)
 		el.remove()
 		res(null); 
 	})
@@ -243,7 +242,6 @@ const ViewDisconnectedCallback = (component:HTMLElement) => {
 	_loadeddata.delete(componentname) 
 	_searchparams.delete(componentname) 
 	_pathparams.delete(componentname) 
-	_load_b_funcs.delete(componentname)
 }
 
 
@@ -272,7 +270,6 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 	const loadeddata        = _loadeddata.get(componentname)!
 	const pathparams        = _pathparams.get(componentname)!
 	const oldsearchparams   = _searchparams.get(componentname)!
-	const load_b_func       = _load_b_funcs.get(componentname)!
 
 	const newsearchparams:GenericRowT = {}
 	for (const [key, value] of newsearchparams_raw.entries()) newsearchparams[key] = value
@@ -282,7 +279,7 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 	const oldsearchparams_urlparams:URLSearchParams = new URLSearchParams()
 	for (const [key, value] of Object.entries(oldsearchparams)) { oldsearchparams_urlparams.append(key, value); }
 
-	const r = await load_b_func(pathparams, oldsearchparams_urlparams, newsearchparams_raw)
+	const r = await _lazyload_data_funcs[componentname+"indexeddb"](pathparams, oldsearchparams_urlparams, newsearchparams_raw)
 	if (r === null) { res(); return; }
 
 	for (const [path, val] of r.entries())   loadeddata.set(path, val)   

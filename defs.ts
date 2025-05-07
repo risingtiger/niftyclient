@@ -192,6 +192,11 @@ export type $NT = {
 		NavigateBack: (opts:{default:str}) => void,
 		NavigateToSearchParams: (newsearchparams:GenericRowT) => void
 	}
+
+	IDB: {
+		GetAll: (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
+		GetOne: (objectstore_name:str, id:str) => Promise<GenericRowT>,
+	}
 }
  
 
@@ -206,4 +211,5 @@ export type INSTANCE_T = {
 		localdb_objectstores: {name:str,indexes?:str[]}[],
 	},
 	LAZYLOADS: LazyLoadT[],
+	LAZYLOAD_DATA_FUNCS: { [key:string]: any }
 }

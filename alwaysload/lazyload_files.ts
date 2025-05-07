@@ -15,7 +15,7 @@ let timeoutWaitingAnimateId:any = null
 
 
 
-function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, _rej)=> {
+function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, rej)=> {
 
 	if (loads.length === 0) { res(1); return; }
 
@@ -32,7 +32,7 @@ function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, 
 	setBackgroundOverlay(false)
 	setWaitingAnimate(false)
 
-	if (r === null) { res(null); return; }
+	if (r === null) { rej(); return; }
 
     res(1)
 })}

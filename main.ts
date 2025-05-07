@@ -13,11 +13,12 @@ import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
 import { Init as LocalDBSyncInit } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
-import { Init as LazyLoadInit } from './alwaysload/lazyload.js';
+import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
 import './alwaysload/logger.js';
 import './alwaysload/engagementlisten.js';
 import {Init as CMechInit} from './alwaysload/cmech.js';
+import {Init as IDBInit } from './alwaysload/indexeddb.js';
 import './alwaysload/utils.js';
 
 
@@ -175,17 +176,18 @@ window.addEventListener("load", async (_e) => {
 	//const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, "__localwrites" ]
 
 	{
-		LazyLoadInit(lazyloads)
+		LazyLoadFilesInit(lazyloads)
 		$N.EngagementListen.Init()
 		LocalDBSyncInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-		CMechInit()
+		CMechInit(INSTANCE.LAZYLOAD_DATA_FUNCS)
 	}
 
 	if ((window as any).APPVERSION > 0) await setup_service_worker()
 
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
-	SwitchStationInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion);
+	SwitchStationInit();
+	IDBInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 
 	SSEInit()
 })
