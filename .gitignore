@@ -1,0 +1,7 @@
+.aider*
+node_modules/
+.vscode/
+
+defs_server_symlink.ts
+
+**/.DS_Store
