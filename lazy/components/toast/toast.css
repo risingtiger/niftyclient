@@ -1,0 +1,50 @@
+
+
+:host {
+    display: none;
+    position: absolute;
+    left: 50%;
+    margin-left: -175px;
+    box-sizing: border-box;
+    width: 350px;
+    height: 40px;
+    bottom: 20px;
+    padding: var(--padding-container);
+    z-index: 10000;
+    background-color: #333;
+    border-radius: 8px;
+    box-shadow: 0 0 20px 7px rgb(0 0 0 / 16%);
+    opacity: 0;
+    transform: translate3d(0, 30px, 14px) perspective(300px) rotateX(72deg);
+    transition-duration: 0.5s;
+    transition-property: transform opacity;
+    transition-timing-function: cubic-bezier(0.75, 0, 0.52, 1.51);
+}
+:host(.active) {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) perspective(300px) rotateX(0deg);
+}
+:host(.level_info) {
+    background-color: #007bff;
+}
+:host(.level_warning) {
+    background-color: #ffc107;
+}
+:host(.level_error) {
+    background-color: #dc3545;
+}
+:host(.level_success) {
+    background-color: #28a745;
+}
+:host(.level_saved) {
+    background-color: #0eb8ab;
+}
+
+:host > #msg {
+    color: white;
+    font-size: 14px;
+    FONT-WEIGHT: 700;
+    text-align: center;
+}
+
+

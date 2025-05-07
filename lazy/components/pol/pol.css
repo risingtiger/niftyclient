@@ -1,0 +1,115 @@
+:host {
+	height: 100%;
+	left: 0;
+	pointer-events: none;
+	position: absolute;
+	top: 0;
+	width: 100%;
+	z-index: 1000;
+}
+
+.wrapper {
+	background: white;
+	border: 0px solid rgb(40 171 214 / 47%);
+	border-radius: 8px 8px 0px 0px;
+	box-shadow: 0 0 12px -4px rgba(0, 0, 0, 0.5);
+	box-sizing: border-box;
+	opacity: 0;
+	pointer-events: all;
+	position: absolute;
+	z-index: 2;
+
+	& header .collapse,
+	& header .expand {
+		display: none;
+		height: 20px;
+		width: 20px;
+	}
+
+	&.minimizable header {
+		cursor: pointer;
+
+		& .collapse,
+		& .expand {
+			display: block;
+		}
+
+		& .collapse {
+			background: url("/assets/media/chevron_down.svg") center/20px no-repeat;
+		}
+
+		& .expand {
+			background: url("/assets/media/chevron_up.svg") center/20px no-repeat;
+		}
+	}
+
+	&.minimizable.collapsed header {
+		& .collapse {
+			display: none;
+		}
+
+		& .expand {
+			display: block;
+		}
+	}
+
+	&.minimizable.expanded header {
+		& .collapsed {
+			display: block;
+		}
+
+		& .expand {
+			display: none;
+		}
+	}
+}
+
+.wrapper.mobile_centric {
+	box-shadow: none;
+}
+
+.wrapper > header {
+	box-sizing: border-box;
+	display: flex;
+	padding: 10px 12px;
+	width: 100%;
+
+	& .left {
+		color: var(--actioncolor);
+		display: block;
+		font-family: var(--fontfamily);
+		font-size: 16px;
+		font-weight: 400;
+		width: 20%;
+	}
+
+	& .middle {
+		display: block;
+		width: 60%;
+
+		& h1 {
+			color: var(--textcolor);
+			font-family: var(--fontfamily);
+			font-size: 18px;
+			-webkit-font-smoothing: antialiased;
+			font-weight: bold;
+			margin: 0;
+			padding: 0;
+			text-align: center;
+		}
+	}
+
+	& .right {
+		color: var(--actioncolor);
+		display: block;
+		font-size: 16px;
+		font-weight: 400;
+		text-align: right;
+		width: 20%;
+	}
+}
+
+.wrapper > slot {
+	display: block;
+	overflow-y: auto;
+}

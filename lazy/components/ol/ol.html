@@ -1,0 +1,36 @@
+
+
+<!--
+
+<div 
+
+    class="wrapper 
+
+        ${_s.iswrapper_full_width ? 'fullwidth' : ''} 
+        ${_s.wrapper_round_bottom_corners ? 'roundbottom' : ''}" 
+
+    style="
+        ${'width:'+_s.width+';'} 
+        ${'height:'+_s.height+';'} 
+        ${'left:'+_s.left+';'} 
+        ${'top:'+_s.top+';'} 
+        ${_s.margin_left ? 'margin-left:' + _s.margin_left : ''}">
+
+-->
+
+<div class="wrapper">
+  ${_s.show_header ? html`
+	<header>
+	  <div class="left">${_s.show_closebtn ? html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
+		<div class="middle"><h1>${_s.title}</h1></div>
+	  <div class="right">&nbsp;</div>
+	</header>
+  ` : ''}
+  <slot></slot>
+</div>
+<div class="emptyspace snapel"></div>
+
+<div class="backgroundcover" @click="${()=>this.close()}">
+    <div class="topcover"></div>
+    <div class="bottomcover"></div>
+</div>

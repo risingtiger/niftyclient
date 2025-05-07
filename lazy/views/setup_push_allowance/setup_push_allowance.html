@@ -1,0 +1,28 @@
+
+
+<header class="viewheader">
+    <a class="left" @click="${()=>$N.SwitchStation.NavigateBack({default:'home'})}"><span>‸</span></a>
+    <div class="middle"><h1>Notifications</h1></div>
+    <div class="right">
+        &nbsp;
+    </div>
+</header>
+
+
+<div class="content">
+    <div style="text-align:center; padding-top: 30px;">
+
+        ${_s.is_subscribed ? html`
+            <h2>This Device is subscribed to notifications</h2>
+            <c-btn @click="${(e)=>this.Unsubscribe(e.target)}">Unsubscribe</c-btn>
+        ` : html`
+            <h2>This Device is not subscribed to notifications</h2>
+            <c-btn @click="${(e)=>this.Subscribe(e.target)}">Subscribe</c-btn>
+        `}
+
+    </div>
+
+</div>
+
+
+

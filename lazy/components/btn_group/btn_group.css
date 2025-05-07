@@ -1,0 +1,31 @@
+
+
+:host {
+    display: inline-flex;
+}
+
+.btn-group {
+    display: inline-flex;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+::slotted(*) {
+    margin: 0;
+    border-radius: 0;
+    border-right-width: 0;
+}
+
+::slotted(*:first-child) {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+::slotted(*:last-child) {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-right-width: 1px;
+}
+
+
+

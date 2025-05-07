@@ -1,0 +1,15 @@
+<div class="wrapper ${_state.isMinimizable ? 'minimizable' : ''} ${_state.isMinimized ? 'collapsed' : 'expanded'}">
+	${_state.showHeader ? html`
+	<header @click="${ () => this.toggleCollapseExpand() }">
+		<div class="left">${_state.isMinimizable ? html`
+			<div class="collapse">
+			</div>
+			<div class="expand">
+			</div>
+		` : ''} <slot name="headerleft"></slot></div>
+		<div class="middle"><h1>${_state.title}</h1></div>
+		<div class="right">&nbsp;</div>
+	</header>
+	` : ''}
+	<slot></slot>
+</div>

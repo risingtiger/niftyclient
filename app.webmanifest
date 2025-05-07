@@ -1,0 +1,26 @@
+{
+  "name": "to be filled in by build process according to app",
+  "short_name": "to be filled in by build process according to app",
+  "description": "to be filled in by build process according to app",
+  "theme_color": "to be filled in by build process according to app",
+  "background_color": "to be filled in by build process according to app",
+    "icons": [
+        {
+			"purpose": "to be filled in by build process according to app",
+            "src": "to be filled in by build process according to app",
+            "sizes": "to be filled in by build process according to app"
+        }
+    ],
+	"screenshots": [
+		{
+			"src": "to be filled in",
+			"type": "to be filled in",
+			"sizes": "to be filled in",
+			"form_factor": "to be filled in"
+		}
+	],
+  "scope": "/",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "version":"0"
+}

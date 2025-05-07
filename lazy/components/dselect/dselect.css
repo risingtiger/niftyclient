@@ -1,0 +1,129 @@
+:host {
+    display: inline-block;
+}
+
+:host > #instigator {
+	display: flex;
+	justify-content: space-between;
+    cursor: pointer;
+    position: relative;
+    padding: 7px 5px 8px 8px;
+    border: 1px solid #cecece;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    background: white;
+	outline: none;
+	cursor:pointer;
+
+    & > [name='instigator'] > .cnt {
+        color: #6d6d6d;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+    }
+
+    & > [name='instigator'] > .crt {
+        position: absolute;
+        transform: rotate(90deg);
+        top: 0;
+        right: 0;
+    }
+
+    & > [name='instigator'] > svg {
+        color: #7e7e7e;
+        width: 1rem;
+        height: 1rem;
+        position: relative;
+        top: 1px;
+    }
+}
+:host > #instigator:hover {
+	background: var(--background-highlight);
+}
+
+::part(instigator) {
+}
+
+
+
+:host > dialog {
+    position: relative;
+    margin: 0;
+    background-color: white;
+    box-shadow: 0 3px 5px 0px rgb(0 0 0 / 10%);
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid #dfdfdf;
+    padding: 0;
+    inset: 0;
+    outline: none;
+    opacity: 0;
+	transform: translateY(-40px) scale(0.73);
+	transition: 0.25s cubic-bezier(0.13, 0.15, 0.35, 1);
+	transition-property: opacity, transform;
+
+    &[open] {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        @starting-style {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.96);
+        }
+    }
+
+    &.closing {
+        opacity: 0;
+        transform: translateY(8px) scale(0.96);
+    }
+
+    & > #dialog_wrap {
+        width: 100%;
+
+        & > ul.options {
+            list-style-type: none;
+            padding: 5px 4px;
+            margin: 0;
+            max-height: 500px;
+            overflow-y: scroll;
+
+            & > li {
+                display: flex;
+                justify-content: space-between;
+                padding: 7px 4px 9px 8px;
+                cursor: pointer;
+
+                & > .postpend {
+                    width: 18px;
+                    min-height: 10px;
+                    display: block;
+                }
+
+                & > h5 {
+                    margin: 0;
+                    font-size: 13px;
+                    color: #787878;
+                    padding-top: 2px;
+                    -webkit-font-smoothing: antialiased;
+                    text-wrap: nowrap;
+                }
+                margin-bottom: 4px;
+            }
+            & > li:hover {
+                background-color: #f3f3f3;
+            }
+            & > li.selected {
+                background-color: #f3f3f3;
+                border-radius: 5px;
+
+                & > .postpend::before {
+                    content: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2019%2019%22%20fill%3D%22none%22%20stroke%3D%22gray%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2013l4%204L19%207%22/%3E%3C/svg%3E");
+                }
+            }
+        }
+    }
+}
+:host > dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0);
+}
