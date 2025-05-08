@@ -55,22 +55,33 @@ const Add = (db:IDBDatabase, objecstorepath:PathSpecT, data:GenericRowT) => new 
 
 const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<GenericRowT>(async (main_res, main_rej) => {  
 
-	if (!path.docid) {main_rej(new Error('docid in path is required for Patch')); return; }
+	if (!path.docid) {
+		main_rej(new Error('docid in path is required for Patch'));
+		return;
+	}
 
-	const newts                 = Math.floor( Date.now() / 1000 )
-	let oldts                   = 0
-	const tx:IDBTransaction     = db.transaction([path.syncobjectstore.name], "readwrite", { durability: "relaxed" })
-	const objectStore           = tx.objectStore(path.syncobjectstore.name)
+	const newts = Math.floor(Date.now() / 1000);
+	let oldts = 0;
+	const cname = path.syncobjectstore.name;
+	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
+	const objectStore = tx.objectStore(cname);
+	let workingdata: GenericRowT; // Will be assigned if document is found and processed
 
 	try {
-		let workingdata = await get_one_promise(objectStore, path.docid);
-		if (!workingdata) {
-			throw new Error(`LocalDB Patch: Document with id ${path.docid} not found in ${path.syncobjectstore.name}.`);
-		}
+		// 1. Get existing document
+		const getRequest = objectStore.get(path.docid);
+		const doc = await new Promise<GenericRowT | undefined>((resolve, reject) => {
+			getRequest.onsuccess = () => resolve(getRequest.result);
+			getRequest.onerror = (event) => reject((event.target as IDBRequest).error || new Error("Get operation failed"));
+		});
 
+		if (!doc) {
+			throw new Error(`LocalDB Patch: Document with id ${path.docid} not found in ${cname}.`);
+		}
+		workingdata = doc; // Assign to workingdata
 		oldts = workingdata.ts || 0;
 
-		// Apply updates from input 'data' (the patch) to 'workingdata'
+		// 2. Apply updates from input 'data' (the patch) to 'workingdata'
 		for (const key in data) {
 			if (Object.prototype.hasOwnProperty.call(data, key)) {
 				if (key.includes(".")) { // Handle dot notation for nested updates
@@ -97,49 +108,47 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 		}
 		workingdata.ts = newts; // Update timestamp
 
-		// Promisify the put operation
+		// 3. Put updated document
+		const putRequest = objectStore.put(workingdata);
 		await new Promise<void>((resolve_put, reject_put) => {
-			const putrequest = objectStore.put(workingdata);
-			putrequest.onsuccess = () => resolve_put();
-			putrequest.onerror = (event) => reject_put((event.target as IDBRequest).error || new Error("Put operation failed"));
+			putRequest.onsuccess = () => resolve_put();
+			putRequest.onerror = (event) => reject_put((event.target as IDBRequest).error || new Error("Put operation failed"));
 		});
 		
-		await tx_promise(tx); // Wait for the transaction to complete
+		// 4. Commit transaction
+		await $N.IDB.TXResult(tx); // Assumes this helper handles commit and waits for oncomplete/onerror, throwing on error
 
-		main_res(workingdata); // Resolve with the updated data
-
-		// Now, perform server-side operations
-		// Send the original 'data' (patch payload) to the server
-		const body = { path:path.path, data, oldts, newts} 
-		const opts:{method:'POST',body:string} = {   
-			method: "POST",  
-			body: JSON.stringify(body),
-		}
-
-		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
-		if (!r.ok) {   
-			await record_failed_sync_operation(
-				db,
-				'patch',
-				path.syncobjectstore.name,
-				path.docid as string,
-				newts,
-				oldts,
-				data // record the original patch payload
-			)
-		}
 	} catch (error) {
-        if (tx && tx.error) { 
-             main_rej(tx.error);
-        } else {
-             main_rej(error);
-        }
-        // Ensure transaction is aborted if not already done
+        // Ensure transaction is aborted if an error occurred and it's not already done.
         if (tx && tx.readyState !== 'done' && tx.readyState !== 'aborted') {
             tx.abort();
         }
-    }
-})
+		main_rej(error instanceof Error ? error : new Error(`LocalDB Patch: Operation failed. ${String(error)}`));
+		return;
+	}
+
+	main_res(workingdata); // Resolve with the updated data
+
+	// Server-side operations
+	const body = { path:path.path, data, oldts, newts} 
+	const opts:{method:'POST',body:string} = {   
+		method: "POST",  
+		body: JSON.stringify(body),
+	}
+
+	const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
+	if (!r.ok) {   
+		await record_failed_sync_operation(
+			db,
+			'patch',
+			cname, // path.syncobjectstore.name
+			path.docid as string,
+			newts,
+			oldts,
+			data // record the original patch payload
+		);
+	}
+});
 
 
 
@@ -147,49 +156,57 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 const Delete = (db:IDBDatabase, path:PathSpecT) => new Promise<num|null>(async (main_res, main_rej) => {  
 
 	if (!path.docid) {
-		main_rej(new Error('docid in path is required for Delete'))
-		return
+		main_rej(new Error('docid in path is required for Delete'));
+		return;
 	}
 
-	let aye_errs = false
-	const tx:IDBTransaction = db.transaction([path.syncobjectstore.name], "readwrite", { durability: "relaxed" })
-	const pathos = tx.objectStore(path.syncobjectstore.name)
-	const p_db_delete = pathos.delete(path.docid)
-	p_db_delete.onerror = () => aye_errs = true
+	const cname = path.syncobjectstore.name;
+	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
+	const objectStore = tx.objectStore(cname);
 
-	const txr = await new Promise<num|null>((res)=> {
-		tx.onerror    = () => { res(null) }
-		tx.oncomplete = () => { 
-			if (aye_errs) { res(null); return }    
-			else          { res(1); return }
-		}
-	})
+	try {
+		// 1. Delete document
+		const deleteRequest = objectStore.delete(path.docid);
+		await new Promise<void>((resolve, reject) => {
+			deleteRequest.onsuccess = () => resolve(); // .delete() onsuccess result is undefined
+			deleteRequest.onerror = (event) => reject((event.target as IDBRequest).error || new Error("Delete operation failed"));
+		});
 
-	if (!txr) {   main_rej(new Error("LocalDB Delete: Failed to delete data in IndexedDB.")); return   }
+		// 2. Commit transaction
+		await $N.IDB.TXResult(tx); // Assumes this helper handles commit and waits for oncomplete/onerror, throwing on error
 
-	main_res(1)
+	} catch (error) {
+        // Ensure transaction is aborted if an error occurred and it's not already done.
+        if (tx && tx.readyState !== 'done' && tx.readyState !== 'aborted') {
+            tx.abort();
+        }
+		main_rej(error instanceof Error ? error : new Error(`LocalDB Delete: Operation failed. ${String(error)}`));
+		return;
+	}
 
-	// Now, perform server-side operations
-	const body = { path:path.path } 
+	main_res(1); // Resolve with 1 to indicate success (document deleted locally)
+
+	// Server-side operations
+	const body = { path:path.path };
 	const opts:{method:'POST',body:string} = {   
 		method: "POST",  
 		body: JSON.stringify(body),
-	}
+	};
 
-	const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
+	const r = await $N.FetchLassie('/api/firestore_delete', opts, null);
 	if (!r.ok) {   
-		const deleteTimestamp = Math.floor(Date.now() / 1000)
+		const deleteTimestamp = Math.floor(Date.now() / 1000);
 		await record_failed_sync_operation(
 			db,
 			'delete',
-			path.syncobjectstore.name,
+			cname, // path.syncobjectstore.name
 			path.docid as string,
 			deleteTimestamp,
-			0 
-            // No payload for delete
-		)
+			0, // oldts is not applicable or can be set to 0 for delete
+            undefined // No payload for delete
+		);
 	}
-})
+});
 
 
 
