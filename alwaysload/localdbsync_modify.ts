@@ -68,21 +68,21 @@ const Add = (db:IDBDatabase, objecstorepath:PathSpecT, data:GenericRowT) => new 
 
 
 
-const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<GenericRowT>(async (res,_rej)=> {  
+const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<GenericRowT>(async (main_res, main_rej) => {  
 
-	if (!path.docid) throw new Error('docid in path is required for Patch')
+	if (!path.docid) {
+		main_rej(new Error('docid in path is required for Patch'))
+		return
+	}
 
-
+	const newts = Math.floor( Date.now() / 1000 )
+	let oldts = 0
+	let aye_errs = false
 	let workingdata:GenericRowT = {}
-	let newts = Math.floor( Date.now() / 1000 )
-	let oldts = 0;
-	let are_there_any_put_errors = false
-	let objectstores = [path.syncobjectstore.name]
-
-	const tx:IDBTransaction = db.transaction(objectstores, "readwrite", { durability: "relaxed" })
+	
+	const tx:IDBTransaction = db.transaction([path.syncobjectstore.name], "readwrite", { durability: "relaxed" })
 	const pathos = tx.objectStore(path.syncobjectstore.name)
 	
-
 	const getrequest = pathos.get(path.docid)
 	
 	getrequest.onsuccess = (event: any) => {
@@ -103,152 +103,90 @@ const Patch = (db:IDBDatabase, path:PathSpecT, data:GenericRowT) => new Promise<
 		workingdata.ts = newts
 		
 		const putrequest = pathos.put(workingdata)
-		putrequest.onerror = (_event: any) => are_there_any_put_errors = true
+		putrequest.onerror = () => aye_errs = true
 	}
 	
-	getrequest.onerror = (_event: any) => {
-		are_there_any_put_errors = true
+	getrequest.onerror = () => aye_errs = true
+
+	const txr = await new Promise<GenericRowT|null>((res)=> {
+		tx.onerror    = () => { res(null) }
+		tx.oncomplete = () => { 
+			if (aye_errs) { res(null); return }    
+			else          { res(workingdata); return }
+		}
+	})
+
+	if (!txr) {   main_rej(new Error("LocalDB Patch: Failed to get or put data in IndexedDB.")); return   }
+
+	main_res(txr)
+
+	// Now, perform server-side operations
+	const body = { path:path.path, data, oldts, newts} 
+	const opts:{method:'POST',body:string} = {   
+		method: "POST",  
+		body: JSON.stringify(body),
 	}
 
-	tx.onerror = (event: any) => {
-		console.error("LocalDB Patch: Transaction error.", event);
-		_rej(new Error("LocalDB Patch: Transaction failed."));
-	}
-
-	tx.oncomplete = async (_event: any) => { 
-		if (are_there_any_put_errors) {
-			// If get or put failed locally, reject the promise
-			_rej(new Error("LocalDB Patch: Failed to get or put data in IndexedDB."));
-			return;
-		}
-
-		// Resolve the promise immediately after local success
-		res(workingdata);
-
-		// Now, perform server-side operations
-		const body = { path:path.path, data, oldts, newts} 
-		const opts:any = {   
-			method: "POST",  
-			body: JSON.stringify(body),
-		}
-
-		try {
-			const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
-			if (!r.ok) {   
-				// Log the failure for retry
-				try {
-					await record_failed_sync_operation(
-						db,
-						'patch',
-						path.syncobjectstore.name,
-						path.docid as string, // path.docid is checked not null at the start
-						newts,
-						oldts, // previousDataTimestamp - the timestamp before the patch
-						data // This is the original 'data' (changeset) argument to Patch
-					);
-					console.warn(`LocalDB Patch: Server sync failed for ${path.path}. Recorded for retry.`);
-				} catch (logError) {
-					console.error('LocalDB Patch: Failed to record sync operation for retry:', logError);
-				}
-			}
-		} catch (serverError) {
-			console.error(`LocalDB Patch: Error during server sync for ${path.path}:`, serverError);
-			// Record a failed sync operation if FetchLassie itself throws
-			try {
-				await record_failed_sync_operation(
-					db,
-					'patch',
-					path.syncobjectstore.name,
-					path.docid as string,
-					newts,
-					oldts,
-					data
-				);
-				console.warn(`LocalDB Patch: Server sync critically failed (exception) for ${path.path}. Recorded for retry.`);
-			} catch (logError) {
-				console.error('LocalDB Patch: Failed to record critical sync operation for retry:', logError);
-			}
-		}
+	const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
+	if (!r.ok) {   
+		await record_failed_sync_operation(
+			db,
+			'patch',
+			path.syncobjectstore.name,
+			path.docid as string,
+			newts,
+			oldts,
+			data
+		)
 	}
 })
 
 
 
 
-const Delete = (db:IDBDatabase, path:PathSpecT) => new Promise<num|null>(async (res,_rej)=> {  
+const Delete = (db:IDBDatabase, path:PathSpecT) => new Promise<num|null>(async (main_res, main_rej) => {  
 
-	if (!path.docid) throw new Error('docid in path is required for Patch')
-
-
-	let are_there_any_put_errors = false
-	let objectstores             = [path.syncobjectstore.name]
-
-	const tx:IDBTransaction      = db.transaction(objectstores, "readwrite", { durability: "relaxed" })
-
-	const pathos                 = tx.objectStore(path.syncobjectstore.name)
-	const p_db_put               = pathos.delete(path.docid)
-	p_db_put.onerror             = (_event:any) => are_there_any_put_errors = true
-
-	tx.onerror = (event: any) => {
-		console.error("LocalDB Delete: Transaction error.", event);
-		_rej(new Error("LocalDB Delete: Transaction failed."));
+	if (!path.docid) {
+		main_rej(new Error('docid in path is required for Delete'))
+		return
 	}
 
-	tx.oncomplete = async (_event:any) => { 
-		if (are_there_any_put_errors) {
-			// If local delete failed, reject the promise
-			_rej(new Error("LocalDB Delete: Failed to delete data in IndexedDB."));
-			return;
-		}
+	let aye_errs = false
+	const tx:IDBTransaction = db.transaction([path.syncobjectstore.name], "readwrite", { durability: "relaxed" })
+	const pathos = tx.objectStore(path.syncobjectstore.name)
+	const p_db_delete = pathos.delete(path.docid)
+	p_db_delete.onerror = () => aye_errs = true
 
-		// Resolve the promise immediately after local success
-		res(1);
-
-		// Now, perform server-side operations
-		const body = { path } 
-		const opts:any = {   
-			method: "POST",  
-			body: JSON.stringify(body),
+	const txr = await new Promise<num|null>((res)=> {
+		tx.onerror    = () => { res(null) }
+		tx.oncomplete = () => { 
+			if (aye_errs) { res(null); return }    
+			else          { res(1); return }
 		}
+	})
 
-		try {
-			const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
-			if (!r.ok) {   
-				// Log the failure for retry
-				try {
-					const deleteTimestamp = Math.floor(Date.now() / 1000);
-					await record_failed_sync_operation(
-						db,
-						'delete',
-						path.syncobjectstore.name,
-						path.docid as string, // path.docid is checked not null at the start
-						deleteTimestamp,
-						0 // previousDataTimestamp not applicable for delete
-						// No payload for delete
-					);
-					console.warn(`LocalDB Delete: Server sync failed for ${path.path}. Recorded for retry.`);
-				} catch (logError) {
-					console.error('LocalDB Delete: Failed to record sync operation for retry:', logError);
-				}
-			}
-		} catch (serverError) {
-			console.error(`LocalDB Delete: Error during server sync for ${path.path}:`, serverError);
-			// Record a failed sync operation if FetchLassie itself throws
-			try {
-				const deleteTimestamp = Math.floor(Date.now() / 1000);
-				await record_failed_sync_operation(
-					db,
-					'delete',
-					path.syncobjectstore.name,
-					path.docid as string,
-					deleteTimestamp,
-					0
-				);
-				console.warn(`LocalDB Delete: Server sync critically failed (exception) for ${path.path}. Recorded for retry.`);
-			} catch (logError) {
-				console.error('LocalDB Delete: Failed to record critical sync operation for retry:', logError);
-			}
-		}
+	if (!txr) {   main_rej(new Error("LocalDB Delete: Failed to delete data in IndexedDB.")); return   }
+
+	main_res(1)
+
+	// Now, perform server-side operations
+	const body = { path:path.path } 
+	const opts:{method:'POST',body:string} = {   
+		method: "POST",  
+		body: JSON.stringify(body),
+	}
+
+	const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
+	if (!r.ok) {   
+		const deleteTimestamp = Math.floor(Date.now() / 1000)
+		await record_failed_sync_operation(
+			db,
+			'delete',
+			path.syncobjectstore.name,
+			path.docid as string,
+			deleteTimestamp,
+			0
+		)
 	}
 })
 
