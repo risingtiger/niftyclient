@@ -70,8 +70,8 @@ export type CMechViewT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	subelshldr?:HTMLElement[]
-	opts?: {kdonvisibled?:boolean, kdonlateloaded?:boolean}
+	subelshldr:HTMLElement[]
+	opts: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
 	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE)=>void,
@@ -80,7 +80,7 @@ export type CMechViewT = {
 export type CMechViewPartT = {
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	hostview?:CMechViewT,
+	hostview:CMechViewT,
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
@@ -194,8 +194,15 @@ export type $NT = {
 	}
 
 	IDB: {
-		GetAll: (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
 		GetOne: (objectstore_name:str, id:str) => Promise<GenericRowT>,
+		GetAll: (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
+		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		GetOne_S: (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
+		GetAll_S: (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
+		AddOne_S: (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		PutOne_S: (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		DeleteOne_S: (objectstore:IDBObjectStore, id:string) => Promise<string>,
+		TXResult: (tx:IDBTransaction) => Promise<num>,
 	}
 }
  

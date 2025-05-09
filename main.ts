@@ -172,13 +172,12 @@ const LAZYLOADS: LazyLoadT[] = [
 window.addEventListener("load", async (_e) => {
 
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
-
-	//const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, "__localwrites" ]
+	const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, {name:"pending_sync_operations",indexes:[]} ]
 
 	{
 		LazyLoadFilesInit(lazyloads)
 		$N.EngagementListen.Init()
-		LocalDBSyncInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+		LocalDBSyncInit(localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 		CMechInit(INSTANCE.LAZYLOAD_DATA_FUNCS)
 	}
 
@@ -187,7 +186,7 @@ window.addEventListener("load", async (_e) => {
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
 	SwitchStationInit();
-	IDBInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+	IDBInit(localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 
 	SSEInit()
 })

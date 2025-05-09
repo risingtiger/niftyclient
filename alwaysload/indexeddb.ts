@@ -23,6 +23,20 @@ const Init = async (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: 
 
 
 const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
+	if (!_db) _db = await openindexeddb()
+
+	if (_db === null) { rej(); return; }
+
+	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
+	const objectStore = transaction.objectStore(objectstore_name);
+	let   result      = {}
+	
+	try   { result = await GetOne_S(objectStore, id) }
+	catch { rej() }
+	
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => res(result);
+
 })
 
 
@@ -31,34 +45,108 @@ const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async 
 const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
 
 	if (!_db) _db = await openindexeddb()
-
-	const t1 = performance.now()
-
 	if (_db === null) { rej(); return; }
 
 	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
 
-	const transaction             = ( _db as IDBDatabase ).transaction(objectstore_names, 'readonly');
+	const transaction = ( _db as IDBDatabase ).transaction(objectstore_names, 'readonly');
 
 	const promises:Promise<any>[] = []
 
 	for (const objectstore_name of objectstore_names) {
 		const objectstore = transaction.objectStore(objectstore_name)
-		promises.push(get_all_promise(objectstore))
+		promises.push(GetAll_S(objectstore))
 	}
 
-	const r = await Promise.all(promises).catch(_ => null);
+	const r = await Promise.all(promises).catch(() => null);
 	if (r === null) { rej(); return; }
 
 	for (let i=0; i<r.length; i++) {
 		returns.set(objectstore_names[i], r[i])
 	}
 
-	const t2 = performance.now()
-	transaction.onerror = (_event:any) => rej();
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => res(returns);
+})
 
-	console.log("IndexedDB Grab All took " + (t2 - t1) + " milliseconds.")
-	res(returns)
+
+
+
+const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(async (res, rej) => {
+
+	if (!_db) _db = await openindexeddb()
+	if (_db === null) { rej(); return; }
+
+	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
+	const objectstore = transaction.objectStore(objectstore_name);
+	let   keystring   = ""
+	
+	try   { keystring = await AddOne_S(objectstore, data.id) }
+	catch { rej() }
+	
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => res(keystring); 
+})
+
+
+
+
+const GetAll_S = (objectstore:IDBObjectStore) => new Promise<GenericRowT[]>((res, rej) => {
+	const request = objectstore.getAll();
+	request.onsuccess = (ev:any) => res(ev.target.result);
+	request.onerror   = (ev:any) => rej(ev.target.error);
+})
+
+
+
+
+const GetOne_S = (objectstore:IDBObjectStore, id:str) => new Promise<GenericRowT>((res, rej) => {
+	const request = objectstore.get(id);
+	request.onsuccess = (ev:any) => res(ev.target.result);
+	request.onerror   = (ev:any) => rej(ev.target.error);
+})
+
+
+
+
+const AddOne_S = (objectstore:IDBObjectStore, data:GenericRowT) => new Promise<string>((res, rej) => {
+	const request     = objectstore.add(data);
+
+	request.onsuccess = (ev:any) => res(ev.target.result); // result of add is the key of the added item
+	request.onerror   = (ev:any) => rej((ev.target as IDBRequest).error);
+})
+
+
+
+
+const PutOne_S = (objectstore:IDBObjectStore, data:GenericRowT) => new Promise<string>((res, rej) => {
+	const request     = objectstore.put(data);
+
+	request.onsuccess = (ev:any) => res(ev.target.result); // result of add is the key of the added item
+	request.onerror   = (ev:any) => rej((ev.target as IDBRequest).error);
+})
+
+
+
+
+const DeleteOne_S = (objectstore:IDBObjectStore, id:string) => new Promise<string>((res, rej) => {
+	const request     = objectstore.delete(id);
+
+	request.onsuccess = (ev:any) => res(ev.target.result); // result of add is the key of the added item
+	request.onerror   = (ev:any) => rej((ev.target as IDBRequest).error);
+})
+
+
+
+
+const TXResult = (tx:IDBTransaction) => new Promise<num>((res, rej) => {
+	tx.onerror    = (event) => { rej((event.target as IDBTransaction).error) }
+	tx.oncomplete = () => { 
+		res(1);
+	}
+    tx.onabort = (event) => { 
+        rej((event.target as IDBTransaction).error || new Error("Transaction aborted"));
+    }
 })
 
 
@@ -98,11 +186,6 @@ const openindexeddb = () => new Promise<IDBDatabase|null>(async (res,_rej)=> {
 
 
 
-const get_all_promise = (objectStore:IDBObjectStore) => new Promise((res, rej) => {
-	const request = objectStore.getAll();
-	request.onsuccess = (ev:any) => res(ev.target.result);
-	request.onerror   = (ev:any) => rej(ev.target.error);
-})
 
 
 
@@ -112,7 +195,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetOne, GetAll };
+((window as any).$N as any).IDB = { GetOne, GetAll, AddOne, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
 
 
 

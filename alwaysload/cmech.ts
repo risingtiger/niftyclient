@@ -1,23 +1,19 @@
 
 
-import { num, str, bool } from "../defs_server_symlink.js"
+import { num, str } from "../defs_server_symlink.js"
 import { $NT, GenericRowT, CMechLoadStateE, CMechViewT, CMechViewPartT, CMechLoadedDataT, EngagementListenerTypeT } from "../defs.js"
 import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
 
-type LoadAFuncT = (pathparams:GenericRowT, searchparams:URLSearchParams)=>Promise<Map<str,GenericRowT[]>|null>
-type LoadBFuncT = (pathparams:GenericRowT, old_searchparams:URLSearchParams, new_searchparams:URLSearchParams)=>Promise<Map<str,GenericRowT[]>|null>
 
 
 
-//const _viewloadspecs:Map<string, FirestoreLoadSpecT> = new Map() // key is view tagname sans 'v-'
-//const _viewloadeddata:Map<string, FirestoreFetchResultT> = new Map() // key is view tagname sans 'v-'
 
-// these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
-
+// these are loaded on Init and stay loaded indefinitely
 let _lazyload_data_funcs:GenericRowT = {}
 
+// these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 let _loadeddata:Map<str, CMechLoadedDataT> = new Map() // map by view name of Map by path name with data
 let _searchparams:Map<str, GenericRowT> = new Map() // map by view name
 let _pathparams:Map<str, GenericRowT> = new Map() // map by view name
@@ -133,11 +129,7 @@ const AddView = (
 
 
 
-
-
-
-
-const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:GenericRowT = {kdonvisibled:false, kdonlateloaded:false}) => new Promise<void>(async (res, _rej)=> {
+const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:any = {kdonvisibled:false, kdonlateloaded:false}) => new Promise<void>(async (res, _rej)=> {
 
 	const tagname                            = component.tagName.toLowerCase()
 	const tagname_split                      = tagname.split("-")
@@ -200,9 +192,7 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 	component.kd(loadeddata, CMechLoadStateE.INITIAL)
 	component.sc()
 
-	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {
-		component.sc()
-	})
+	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {component.sc()})
 
 	res()
 })
@@ -212,8 +202,7 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 
 const AttributeChangedCallback = (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
 
-	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
-	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
+	console.log("I THINK THIS IS FIXED. JUST DONT PASS DATA TO ATTRIBUTE FUNCTION DUMB ASS. .... need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
 
 	if (oldval === null) return
 
@@ -251,7 +240,6 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 	if (!component.tagName.startsWith("VP-")) throw new Error("Not a view part component")
 
-
 	const index = component.hostview!.subelshldr!.indexOf(component)
 	component.hostview!.subelshldr!.splice(index, 1)
 }
@@ -259,35 +247,41 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 
 
-const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise<void>(async (res, _rej)=> {
-
-	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
-	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
+const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise<void>(async (res, rej)=> {
 
 	const activeviewel      = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
 	const componentname     = activeviewel.tagName.toLowerCase().split("-")[1]
-	const loadeddata        = _loadeddata.get(componentname)!
 	const pathparams        = _pathparams.get(componentname)!
 	const oldsearchparams   = _searchparams.get(componentname)!
 
 	const newsearchparams:GenericRowT = {}
 	for (const [key, value] of newsearchparams_raw.entries()) newsearchparams[key] = value
 
-	//TODO: Either put in load_a_func or figure out why I didn't put it in already 
+	const promises:Promise<any>[] = []
+	let   promises_r:any[] = []
 
-	const oldsearchparams_urlparams:URLSearchParams = new URLSearchParams()
-	for (const [key, value] of Object.entries(oldsearchparams)) { oldsearchparams_urlparams.append(key, value); }
+	promises.push( _lazyload_data_funcs[componentname+"_other"](pathparams, oldsearchparams, newsearchparams) )
+	promises.push( _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, oldsearchparams, newsearchparams) )
 
-	const r = await _lazyload_data_funcs[componentname+"indexeddb"](pathparams, oldsearchparams_urlparams, newsearchparams_raw)
-	if (r === null) { res(); return; }
+	try   { promises_r = await Promise.all(promises); }
+	catch { rej(); return; }
 
-	for (const [path, val] of r.entries())   loadeddata.set(path, val)   
+	_searchparams.set(componentname, newsearchparams)
+
+	const loadeddata = new Map<str, GenericRowT[]>();
+	for (const [path, val] of promises_r[1].entries())   loadeddata.set(path, val)
+	for (const [path, val] of promises_r[2].entries())   loadeddata.set(path, val)
+
+	_loadeddata.set(componentname, loadeddata)
 
 	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED)
 	activeviewel.sc()
 
-	_searchparams.set(componentname, newsearchparams)
+	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+		subel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED)
+		subel.sc()
+	}
 
 	res()
 })
@@ -320,10 +314,14 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 
 		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED)		
 		viewel.sc()
+
+		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+			subel.kd(loadeddata, CMechLoadStateE.DATACHANGED)
+			subel.sc()
+		}
 	}
 
-	//TODO: Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc
-	console.log("Need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
+	console.log("I THINK ITS SOLVED. ....need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
 
 	res()
 })
