@@ -1,11 +1,10 @@
 import { num, str } from '../defs_server_symlink.js'
-import { $NT, GenericRowT } from '../defs.js'
+import { $NT, GenericRowT, LoggerSubjectE, LoggerTypeE } from '../defs.js'
 import { PathSpecT } from "./localdbsync.ts"
 
 declare var $N: $NT
 
 
-const PENDING_SYNC_STORE_NAME = 'pending_sync_operations';
 type OperationTypeT = 'add' | 'patch' | 'delete';
 type PendingSyncOperationT = {
 	id: str;
@@ -18,10 +17,23 @@ type PendingSyncOperationT = {
 };
 
 
+const PENDING_SYNC_STORE_NAME = '__pending_sync_operations';
+const INITIAL_SYNC_INTERVAL = 5000; 
+const MAX_SYNC_INTERVAL = 1800000; // 30 minutes
+const BACKOFF_FACTOR = 2; 
+
+let _pending_sync_operations_count = -1; // -1 means not set yet -- initially in app pull from indexeddb to find out how many pending sync operations there are
+let _current_sync_interval = INITIAL_SYNC_INTERVAL;
+
+
 // keep in mind fetchlassie and service worker are handling a lot.
 // - handling errors
 // - handling if network is down and returning not ok immediately if so
 // - so if user is offline this will immediately fail instead of hanging on sync writes to server
+
+
+const StartTickTock = () => { setTimeout(()=> ticktock(), _current_sync_interval); }
+
 
 
 
@@ -145,10 +157,13 @@ const record_failed_sync_operation = (
 	}
 
 	const r = await $N.IDB.AddOne(PENDING_SYNC_STORE_NAME, pendingOp).catch(()=>null)
-	if (!r) { rej(); return; }
+	if (!r) { 
+		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.localdbsync_error, 'Failed to add pending sync operation to local database')
+		rej(); 
+		return; 
+	}
 
-	const pending_sync_operations_count = Number(localStorage.getItem('pending_sync_operations_count')) || 0
-	localStorage.setItem('pending_sync_operations_count', (pending_sync_operations_count + 1).toString())
+	_pending_sync_operations_count++
 
 	res()
 })
@@ -183,16 +198,85 @@ const process_data = (data: GenericRowT, newpatchdata:GenericRowT|null) => {
 
 
 
+const ticktock = async () => {
+
+	if (_pending_sync_operations_count === 0) {
+		// No pending sync operations, reset the sync interval
+		_current_sync_interval = INITIAL_SYNC_INTERVAL;
+		return;
+	}
+
+	const hpr = await handle_periodic()
+	if (hpr === 0) {
+		_current_sync_interval = Math.min(
+			_current_sync_interval * BACKOFF_FACTOR,
+			MAX_SYNC_INTERVAL
+		);
+		return;
+	}
+	_current_sync_interval = INITIAL_SYNC_INTERVAL;
+
+	setTimeout(() => ticktock(), _current_sync_interval)
+}
 
 
 
 
+const handle_periodic = async () => new Promise<num>(async (res, _rej) => {
+
+	if (_pending_sync_operations_count === -1) {
+		// if Count fails, default to 0, which will delay until the next sync which is no big deal
+		_pending_sync_operations_count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(()=>0)
+
+		if (_pending_sync_operations_count === 0) { res(1); return; }
+	}
+
+	let dbmap: Map<str, GenericRowT[]>
+
+	const capture_pending_sync_operations_count = _pending_sync_operations_count
+
+	try   { dbmap = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]); }
+	catch { res(0); return; }
+
+	const pending_sync_operations = dbmap.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
+
+	if (pending_sync_operations.length === 0) { 
+		_pending_sync_operations_count = 0
+		res(1); 
+		return; 
+	} 
+
+
+	const opts = { method: 'POST', body: JSON.stringify(pending_sync_operations) }
+	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
+
+	if (capture_pending_sync_operations_count !== _pending_sync_operations_count) {
+		// if the count changed, it means we added more pending sync operations while this was running
+		// so we'll return and let the next ticktock handle it
+		res(0);
+		return;
+	}
+
+	if (r.ok) {
+		// Sync was successful, clear the pending operations from local database
+		try { await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME); } 
+		catch { 
+			$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.localdbsync_error, 'Failed to clear pending sync operations from local database')
+			// server will receive same items on next sync but should reject them now
+		}
+
+		_pending_sync_operations_count = 0
+		res(1)
+	}
+
+	else {
+		res(0)
+	}
+})
 
 
 
-
-
-export { Add, Patch, Delete }
+export { Add, Patch, Delete, StartTickTock }
 /*
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { EnsureObjectStoresActive };

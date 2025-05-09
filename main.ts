@@ -1,5 +1,6 @@
 import {  } from "./defs_server_symlink.js";
 import { LazyLoadT, $NT, INSTANCE_T, LoggerTypeE, LoggerSubjectE } from "./defs.js";
+import LAZYLOAD_DATA_FUNCS from "./lazyload_data_funcs.js";
 
 
 declare var INSTANCE:INSTANCE_T; // set here for LSP support only
@@ -32,6 +33,26 @@ let serviceworker_reg: ServiceWorkerRegistration|null;
 const LAZYLOADS: LazyLoadT[] = [
 
 	// VIEWS
+
+	{
+		type: "view",
+		urlmatch: "^appmsgs$",
+		name: "appmsgs",
+		is_instance: false,
+		dependencies: [
+		],
+		auth: []
+	},
+
+	{
+		type: "view",
+		urlmatch: "^login$",
+		name: "login",
+		is_instance: false,
+		dependencies: [
+		],
+		auth: []
+	},
 
 	{
 		type: "view",
@@ -171,14 +192,15 @@ const LAZYLOADS: LazyLoadT[] = [
 
 window.addEventListener("load", async (_e) => {
 
+	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE.LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
-	const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, {name:"pending_sync_operations",indexes:[]} ]
+	const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, {name:"__pending_sync_operations",indexes:[]} ]
 
 	{
 		LazyLoadFilesInit(lazyloads)
 		$N.EngagementListen.Init()
 		LocalDBSyncInit(localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
-		CMechInit(INSTANCE.LAZYLOAD_DATA_FUNCS)
+		CMechInit(lazyload_data_funcs)
 	}
 
 	if ((window as any).APPVERSION > 0) await setup_service_worker()
@@ -305,7 +327,7 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 			}
 
 			else if (event.data.action === 'error_out') {
-				$N.LocalDBSync.ClearAllObjectStores()
+				$N.LocalDBSync.ClearAllSyncObjectStores()
 				Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg)
 			}
 
@@ -326,7 +348,7 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 				hasPreviousController = true
 				return;
 			}
-			$N.LocalDBSync.ClearAllObjectStores()
+			$N.LocalDBSync.ClearAllSyncObjectStores()
 
 			 
 			{   // set alertbox and log it

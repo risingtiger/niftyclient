@@ -1,0 +1,24 @@
+    <header class="viewheader">
+        <a class="left" @click="${()=>$N.SwitchStation.NavigateBack({default:'home'})}"><span>‸</span></a>
+        <div class="middle"><h1>Login</h1></div>
+        <div class="right">
+            &nbsp;
+        </div>
+    </header>
+
+    <div class="content">
+        <div style="text-align:center; padding-top: 30px;">
+            <h2>Enter your credentials</h2>
+            <div class="login-form">
+                ${_s.errorMessage ? html`<div class="error-message">${_s.errorMessage}</div>` : ''}
+                <input label="Email" id="email" type="email" value="${_s.email}"></input>
+                <input label="Password" type="password" id="password"></c-in>
+                <button @click="${()=>this.Login()}" ?disabled="${_s.isLoading}">
+                    ${_s.isLoading ? 'Logging in...' : 'Login'}
+                </button>
+                <div class="forgot-password">
+                    <a href="#" @click="${()=>this.ResetPassword()}">Forgot password?</a>
+                </div>
+            </div>
+        </div>
+    </div>

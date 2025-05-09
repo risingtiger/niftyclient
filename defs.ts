@@ -74,7 +74,7 @@ export type CMechViewT = {
 	opts: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
@@ -84,7 +84,7 @@ export type CMechViewPartT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE, pathparams: GenericRowT, searchparams:GenericRowT)=>void,
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
@@ -105,6 +105,7 @@ export const enum LoggerSubjectE {
 	sse_listener_error = "sse",
 	sw_fetch_not_authorized = "sw4",
 	sw_fetch_error = "swe",
+	localdbsync_error = "lde",
 	app_update = "aup",
 	engagement_pageview = "epv",
 	engagement_overlayview = "eov",
@@ -159,7 +160,7 @@ export type $NT = {
 		Add:   (path:string, newdocs:any[]) => Promise<any>,
 		Patch: (path:string, data:GenericRowT) => Promise<any>,
 		Delete:(path:string, id:string) => Promise<any>,
-		ClearAllObjectStores: () => Promise<num>,
+		ClearAllSyncObjectStores: () => Promise<num>,
 	}
 
 	CMech: {
@@ -168,10 +169,10 @@ export type $NT = {
 		AttributeChangedCallback: (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => void
 		ViewDisconnectedCallback: (component:HTMLElement) => void
 		ViewPartDisconnectedCallback: (component:HTMLElement) => void,
-		GetViewParams: (component:HTMLElement) => { path:GenericRowT, search:GenericRowT }
 	}
 
 	FetchLassie: (url:string, http_optsP?:FetchLassieHttpOptsT|undefined|null, opts?:FetchLassieOptsT|null|undefined) => Promise<FetchResultT>
+	FetchLassie_IsOffline: () => boolean
 
 	Logger: {
 		Log: (type:LoggerTypeE, subject:LoggerSubjectE, message:str) => void,
@@ -194,9 +195,11 @@ export type $NT = {
 	}
 
 	IDB: {
-		GetOne: (objectstore_name:str, id:str) => Promise<GenericRowT>,
-		GetAll: (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
+		GetOne:  (objectstore_name:str, id:str) => Promise<GenericRowT>,
+		GetAll:  (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
+		ClearAll:(objectstore_name:str) => Promise<num>,
 		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		Count:  (objectstore_name:str) => Promise<number>,
 		GetOne_S: (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
 		GetAll_S: (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
 		AddOne_S: (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,

@@ -4,17 +4,21 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
-const EXITDELAY = 12000 // just the default. can be overridden in the fetch request
+const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
+const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max backoff
+const CHECK_CONNECTIVITY_TIMEOUT          = 3000;
+const EXITDELAY                           = 12000 // just the default. can be overridden in the fetch request
 
-let cache_name = 'cacheV__0__';
-let _cache_version = Number(cache_name.split("__")[1])
-let _id_token = ""
+let cache_name        = 'cacheV__0__';
+let _cache_version    = Number(cache_name.split("__")[1])
+let _id_token         = ""
 let _token_expires_at = 0
-let refresh_token = ""
-let user_email = ""
-let _isoffline = false
+let refresh_token     = ""
+let user_email        = ""
+let _isoffline        = !navigator.onLine; // Initialize based on navigator.onLine
 
-setInterval(()=> { check_connectivity(); }, 5000)
+let _connectivityCheckTimerId: any | null = null;
+let _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 
 
 
@@ -38,6 +42,22 @@ self.addEventListener('install', (event:any) => {
 });
 
 
+self.addEventListener('online', () => {
+    if (_isoffline) {
+        // Don't start full backoff, just one check. If it fails, normal failure logic will take over.
+        perform_connectivity_check(false); 
+    }
+});
+
+self.addEventListener('offline', () => {
+    if (!_isoffline) {
+        _isoffline = true;
+        // Potentially notify clients here if needed
+    }
+    // If a connectivity check was scheduled, cancel it as navigator says we're offline.
+    stop_connectivity_checks_and_reset_interval();
+});
+
 self.addEventListener('activate', (event:any) => {
 	event.waitUntil((async () => {
 		console.log("sw.ts activate")
@@ -50,6 +70,11 @@ self.addEventListener('activate', (event:any) => {
 		}
 
 		await (self as any).clients.claim();
+        // After claiming clients, if navigator says we're online but our flag says offline,
+        // (e.g. from a previous session or initial state), try a check.
+        if (navigator.onLine && _isoffline) {
+            perform_connectivity_check(false);
+        }
 	})());
 });
 
@@ -186,7 +211,7 @@ async function check_update_polling() {
 const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
 	if (_isoffline && !r.headers.get('call_even_if_offline')) {
-		res(new Response(null, { status: 503, statusText: 'Network error' }))
+		res(new Response(null, { status: 503, statusText: 'Network error - App Offline' }))
 		return
 	}
 
@@ -219,7 +244,18 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	fetch(new_request)
 		.then(async (server_response:any)=> {
 			
-			_isoffline = false;
+            // If a request succeeds, we are definitely online.
+            if (_isoffline) {
+                _isoffline = false;
+                stop_connectivity_checks_and_reset_interval();
+
+            } else {
+                // If we were already online, but a check was running, clear it.
+                // This handles cases where a regular fetch succeeds while a backoff check was scheduled.
+                if (_connectivityCheckTimerId) {
+                    stop_connectivity_checks_and_reset_interval();
+                }
+            }
 			clearTimeout(abortsignal_timeoutid)
 
 			if (is_appapi && server_response.status === 401) { // unauthorized
@@ -244,7 +280,13 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		})
 		.catch(async (err:any)=> {
 			logit(40, "swe", `${new_request.url} - fetch catch - ${err.message || 'Unknown error'}`)
-			_isoffline = true
+            if (!_isoffline) { // If we were online and this request failed
+                _isoffline = true;
+                // If navigator thinks we're online, start smart recovery pings
+                if (navigator.onLine) {
+                    schedule_next_connectivity_check(true); // Start backoff
+                }
+            }
 			res(new Response( null, { status: 503, statusText: 'Network error' } ))
 		})
 })
@@ -272,7 +314,15 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		
 		try {
 			const response = await fetch(r, { signal })
-			_isoffline = false;
+            // If a request succeeds, we are definitely online.
+            if (_isoffline) {
+                _isoffline = false;
+                stop_connectivity_checks_and_reset_interval();
+            } else {
+                if (_connectivityCheckTimerId) {
+                    stop_connectivity_checks_and_reset_interval();
+                }
+            }
 			clearTimeout(abortsignal_timeoutid)
 			
 			if (response.status === 200 && should_url_be_cached(r)) {
@@ -281,9 +331,14 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 			}
 			res(response)
 
-		} catch (err) {
+		} catch (err:any) {
 			logit(40, "swe", `${r.url} - fetch catch - ${err.message || 'Unknown error'}`)
-			_isoffline = true
+            if (!_isoffline) { // If we were online and this request failed
+                _isoffline = true;
+                if (navigator.onLine) {
+                    schedule_next_connectivity_check(true); // Start backoff
+                }
+            }
 			res(new Response('Failed to fetch file', { 
 				status: 503, 
 				statusText: 'Network error',
@@ -319,26 +374,82 @@ function should_url_be_cached(request:Request) {
 
 
 
-function check_connectivity() {
+function stop_connectivity_checks_and_reset_interval() {
+    if (_connectivityCheckTimerId) {
+        clearTimeout(_connectivityCheckTimerId);
+        _connectivityCheckTimerId = null;
+    }
+    _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
+}
 
-	if (!_isoffline) return
+function schedule_next_connectivity_check(applyBackoff: boolean) {
+    if (_connectivityCheckTimerId) { // Clear any existing timer
+        clearTimeout(_connectivityCheckTimerId);
+    }
 
-	const controller = new AbortController();
-	const timeoutId = setTimeout(() => controller.abort(), 4000);
+    // Only schedule if we think we are offline AND navigator doesn't explicitly say we're offline.
+    // If navigator.onLine is false, the 'offline' event handler should have already stopped checks.
+    if (!_isoffline || !navigator.onLine) {
+        return;
+    }
 
-	fetch('/api/ping', { 
-		cache: 'no-store',
-		signal: controller.signal 
-	})
-		.then(response => {
-			clearTimeout(timeoutId);
-			if (response.ok) {
-				_isoffline = false;
-			}
-		})
-		.catch(_err => {
-			clearTimeout(timeoutId);
-		})
+    if (applyBackoff) {
+        _currentConnectivityInterval = Math.min(_currentConnectivityInterval * 2, MAX_CHECK_CONNECTIVITY_INTERVAL);
+    } else {
+        // If not applying backoff (e.g., an initial check after navigator.online event), use the initial interval.
+        _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
+    }
+
+    _connectivityCheckTimerId = setTimeout(() => {
+        perform_connectivity_check(true); // Subsequent checks should continue backoff logic if they fail
+    }, _currentConnectivityInterval);
+}
+
+async function perform_connectivity_check(continueBackoffOnFailure: boolean) {
+    // If navigator now says we're offline, or if we somehow got back online through other means, stop.
+    if (!navigator.onLine) {
+        stop_connectivity_checks_and_reset_interval();
+        if (!_isoffline) _isoffline = true; // Ensure state consistency
+        return;
+    }
+    if (!_isoffline) {
+        stop_connectivity_checks_and_reset_interval(); // Should already be stopped, but good for safety
+        return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CHECK_CONNECTIVITY_TIMEOUT);
+
+    try {
+        // Direct fetch for ping to avoid auth logic and simplify
+        const response = await fetch('/api/ping', { 
+            cache: 'no-store', 
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            if (_isoffline) { // Should be true if we got here
+                _isoffline = false;
+            }
+            stop_connectivity_checks_and_reset_interval();
+        } else {
+            // _isoffline is already true.
+            if (continueBackoffOnFailure && navigator.onLine) { // Only continue backoff if navigator still thinks we could be online
+                schedule_next_connectivity_check(true); // Schedule next with increased backoff
+            } else if (!navigator.onLine) {
+                stop_connectivity_checks_and_reset_interval(); // Navigator says offline, so stop.
+            }
+        }
+    } catch (err: any) {
+        clearTimeout(timeoutId);
+        // _isoffline is already true.
+        if (continueBackoffOnFailure && navigator.onLine) {
+            schedule_next_connectivity_check(true); // Schedule next with increased backoff
+        } else if (!navigator.onLine) {
+            stop_connectivity_checks_and_reset_interval(); // Navigator says offline, so stop.
+        }
+    }
 }
 
 

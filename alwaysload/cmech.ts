@@ -7,9 +7,6 @@ import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from 
 declare var $N: $NT;
 
 
-
-
-
 // these are loaded on Init and stay loaded indefinitely
 let _lazyload_data_funcs:GenericRowT = {}
 
@@ -99,6 +96,8 @@ const AddView = (
 			el.kd(
 					_loadeddata.get(componentname)!, 
 					CMechLoadStateE.VISIBLED,
+					_pathparams.get(componentname)!,
+					_searchparams.get(componentname)!
 				)
 			el.sc()
 			has_visibled = true
@@ -119,7 +118,9 @@ const AddView = (
 		if (has_late_loaded && has_visibled && el.opts?.kdonlateloaded) {
 			el.kd(
 					_loadeddata.get(componentname)!, 
-					CMechLoadStateE.LATELOADED
+					CMechLoadStateE.LATELOADED,
+					_pathparams.get(componentname)!,
+					_searchparams.get(componentname)!
 				)
 			el.sc()
 		}
@@ -148,7 +149,7 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:an
 
 	const loadeddata = _loadeddata.get(viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL)
+	component.kd(loadeddata, CMechLoadStateE.INITIAL, _pathparams.get(viewname)!, _searchparams.get(viewname)!)
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
@@ -189,7 +190,7 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 
 	const loadeddata    = _loadeddata.get(ancestor_viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL)
+	component.kd(loadeddata, CMechLoadStateE.INITIAL, _pathparams.get(ancestor_viewname)!, _searchparams.get(ancestor_viewname)!)
 	component.sc()
 
 	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {component.sc()})
@@ -329,6 +330,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 
 
 
+/*
 const GetViewParams = (component:HTMLElement) => { 
 
 	let viewname = ""
@@ -356,7 +358,7 @@ const GetViewParams = (component:HTMLElement) => {
 
 	return { path, search }
 }
-
+*/
 
 
 

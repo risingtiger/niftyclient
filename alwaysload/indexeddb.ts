@@ -72,6 +72,29 @@ const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(
 
 
 
+const ClearAll = (objectstore_name:str) => new Promise(async (res, rej) => {
+
+	if (!_db) _db = await openindexeddb()
+	if (_db === null) { rej(); return; }
+
+	const tx = ( _db as IDBDatabase ).transaction(objectstore_name, 'readonly');
+	let   aye_errs = false
+
+	const objstore = tx.objectStore(objectstore_name)
+	const request = objstore.clear();
+
+	request.onerror = () => { aye_errs = true; }
+
+	tx.onerror    = () => rej();
+	tx.oncomplete = () => {
+		if (aye_errs) { rej(); return; }
+		res(1);
+	}
+})
+
+
+
+
 const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(async (res, rej) => {
 
 	if (!_db) _db = await openindexeddb()
@@ -86,6 +109,30 @@ const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(a
 	
 	transaction.onerror    = () => rej();
 	transaction.oncomplete = () => res(keystring); 
+})
+
+
+
+
+const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => {
+
+	if (!_db) _db = await openindexeddb()
+	if (_db === null) { rej(); return; }
+
+	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
+	const objectstore = transaction.objectStore(objectstore_name);
+	let   aye_errs    = false
+	let   count       = 0
+	
+	const request = objectstore.count();
+	request.onsuccess = (ev:any) => count = Number( ev.target.result );
+	request.onerror   = (ev:any) => aye_errs = true;
+	
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => { 
+		if (aye_errs) { rej(); return; }
+		res(count);
+	} 
 })
 
 
@@ -195,7 +242,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetOne, GetAll, AddOne, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
+((window as any).$N as any).IDB = { GetOne, GetAll, ClearAll, AddOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
 
 
 

@@ -144,7 +144,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			$N.LocalDBSync.ClearAllObjectStores()
+			$N.LocalDBSync.ClearAllSyncObjectStores()
 			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 			res(null);
 			return;
@@ -162,7 +162,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			$N.LocalDBSync.ClearAllObjectStores()
+			$N.LocalDBSync.ClearAllSyncObjectStores()
 			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 			res(null);
 			return;
@@ -211,7 +211,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 			const loadresult = await routeload(routeindex, path, urlmatches, "afterbegin");
 
             if (loadresult === "failed") {
-				$N.LocalDBSync.ClearAllObjectStores()
+				$N.LocalDBSync.ClearAllSyncObjectStores()
 				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
 				res(null);
 				return;

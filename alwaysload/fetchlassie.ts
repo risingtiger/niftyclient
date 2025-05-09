@@ -92,6 +92,25 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 
 
 
+const FetchLassie_IsOffline = () => new Promise<boolean>((res, _rej) => {
+	if (navigator.onLine) { res(false); return; }
+
+	// if we are offline, we need to check if the service worker is online
+	if (navigator.serviceWorker.controller) {
+		navigator.serviceWorker.controller.postMessage({ action: "is_offline" });
+		navigator.serviceWorker.addEventListener('message', (event:any) => {
+			if (event.data.action === 'is_offline') {
+				res(event.data.is_offline);
+			}
+		});
+	} else {
+		res(true);
+	}
+})
+
+
+
+
 const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Response>((response_callback,_rej)=> {
 	fetch( url, http_opts )
 		.then(async (server_response:Response)=> {

@@ -5,7 +5,7 @@ import { SSETriggersE } from '../defs_server_symlink.js'
 import { $NT, LoggerSubjectE, EngagementListenerTypeT, GenericRowT  } from '../defs.js'
 import { HandleLocalDBSyncUpdateTooLarge as SwitchStationHandleLocalDBSyncUpdateTooLarge } from './switchstation.js'
 import { DataChanged as CMechDataChanged } from './cmech.js'
-import { Add as M_Add, Patch as M_Patch, Delete as M_Delete } from './localdbsync_modify.js'
+import { Add as M_Add, Patch as M_Patch, Delete as M_Delete, StartTickTock as M_StartTickTock } from './localdbsync_modify.js'
 
 
 declare var $N:$NT
@@ -30,13 +30,17 @@ let db:IDBDatabase|null = null
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
 let _a_millis = 0
+
+
 //let _listens: FirestoreLoadSpecT = new Map()
 //let _nonsync_tses: Map<str,num> = new Map()
 
 
 
 
-const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
+const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
+
+	M_StartTickTock()
 
 	_a_millis = Math.floor(Date.now() / 1000)
 
@@ -44,17 +48,17 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 	DBVERSION = db_version
 
 	{ 
-		const synccollection_names                = localdb_objectstores.map(item => item.name)
-		const localstorage_synccollections        = JSON.parse(localStorage.getItem("synccollections") || "[]") as {name:str, ts:num|null}[]
-		const synccollections_not_in_localstorage = synccollection_names.filter((name) => !localstorage_synccollections.find(item => item.name === name))
+		const objectstores_tosync_names	    	   = localdb_objectstores_tosync.map(item => item.name)
+		const localstorage_syncobjectstores        = JSON.parse(localStorage.getItem("synccollections") || "[]") as {name:str, ts:num|null}[]
+		const synccollections_not_in_localstorage  = objectstores_tosync_names.filter((name) => !localstorage_syncobjectstores.find(item => item.name === name))
 
 		synccollections_not_in_localstorage.forEach((name) => {
-			localstorage_synccollections.push({ name, ts: null })
+			localstorage_syncobjectstores.push({ name, ts: null })
 		})
 
-		_syncobjectstores = localstorage_synccollections.map((dc,i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores[i].indexes || null }))
+		_syncobjectstores = localstorage_syncobjectstores.map((dc,i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync[i].indexes || null }))
 
-		localStorage.setItem("synccollections", JSON.stringify(localstorage_synccollections))
+		localStorage.setItem("synccollections", JSON.stringify(localstorage_syncobjectstores))
 
 		_activepaths = []
 
@@ -68,7 +72,7 @@ const Init = (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: str, d
 
 		const nowsecs = Math.floor(Date.now() / 1000)
 		if (nowsecs - _a_millis > 28800) { // 8 hours
-			await ClearAllObjectStores()
+			await ClearAllSyncObjectStores()
 			$N.Unrecoverable("Data Needs Synced", "", "Sync Data", LoggerSubjectE.indexeddb_error, "just regular 8 hour interval refresh")
 			return
 		}
@@ -207,6 +211,41 @@ const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {
 	// I don't yet have the code in place to handle delete across localdbsync and cmech
 
 	res(1)
+})
+
+
+
+
+const ClearAllSyncObjectStores = () => new Promise<num>(async (res, rej) => {
+
+	if (!db) db = await openindexeddb()
+
+
+	const storenames = _syncobjectstores.map(s => s.name)
+	const tx = db.transaction(storenames, "readwrite");
+
+	let clearcount = 0;
+	let error_occurred = false;
+
+	for(const name of storenames) {
+		const stores   = tx.objectStore(name)
+		const storereq = stores.clear()
+
+		storereq.onsuccess = ()  => {   clearcount++;            }
+		storereq.onerror   = ()  => {   error_occurred = true;   }
+	}
+
+	tx.onerror = (event) => {   console.error("Transaction error:", event); }
+
+	tx.oncomplete = () => {
+		if (error_occurred) {   console.error("Error in clearing object stores"); rej(); return;   }
+
+		for(const syncobjectstore of _syncobjectstores)   syncobjectstore.ts = null
+
+		localStorage.setItem("synccollections", JSON.stringify(_syncobjectstores.map(dc => ({ name: dc.name, ts: null }))));
+
+		res(1)
+	}
 })
 
 
@@ -443,107 +482,17 @@ const write_a_partial_record_to_indexeddb_store = (syncobjectstore: SyncObjectSt
 
 
 
-/*
-const get_paths_from_indexeddb = (pathspecs: PathSpecT[]) => new Promise<DataFetchResultT>(async (resolve, _reject) => {
-
-	const store_datas:DataFetchResultT = new Map()
-
-	const db = await openindexeddb()
-	db.onerror = (event_s:any) => redirect_from_error("IndexedDB Request - " + event_s.target.errorCode)
-
-	const store_names = pathspecs.map(p => p.collection)
-
-
-	const transaction = db.transaction(store_names, 'readonly');
-
-	pathspecs.forEach(p => {
-
-		if (!_syncobjectstores.find(dc => dc.name === p.collection))
-			throw new Error("Got to be pulling from a indexeddb store of a collection that is of datasync")
-
-		const store      = transaction.objectStore(p.collection);
-		let   getrequest:IDBRequest|IDBRequest<any[]>|null = null
-
-		if (p.doc) {
-			getrequest = store.get(p.doc)
-		} else {  // NEED TO COME BACK IN AND PULLING WHERE QUERIES FROM INDEXEDDB. NOW, IT JUST PULL ALL
-			getrequest = store.getAll()
-		}
-
-		getrequest.onerror = (event_s:any) => redirect_from_error("IndexedDB getAll - " + event_s.target.errorCode)
-
-		getrequest.onsuccess = (_event) => {
-			const r = Array.isArray(getrequest.result) ? getrequest.result : [getrequest.result]
-			store_datas.set(p.path, r)
-		};
-	})
-
-	transaction.oncomplete = () => {
-		db.close()
-		resolve(store_datas)	
-	}
-
-	transaction.onerror = (event_s:any) => redirect_from_error("IndexedDB Transaction - " + event_s.target.errorCode)
-})
-*/
-
-
-
-
-const ClearAllObjectStores = () => new Promise<num>(async (res, _reject) => {
-
-	if (!db) db = await openindexeddb()
-
-	const storenames = _syncobjectstores.map(s => s.name);
-	const transaction = db.transaction(storenames, "readwrite");
-
-	let clearcount = 0;
-	let error_occurred = false;
-
-	storenames.forEach(storeName => {
-		const stores   = transaction.objectStore(storeName)
-		const storereq = stores.clear()
-
-		storereq.onsuccess = ()  => {   clearcount++;            }
-		storereq.onerror   = ()  => {   error_occurred = true;   }
-	})
-
-	transaction.onerror = (event) => {   console.error("Transaction error:", event); }
-
-	transaction.oncomplete = () => {
-		if (error_occurred) {
-			console.warn("Transaction to clear stores completed, but errors occurred during clearing.");
-		}
-
-		localStorage.removeItem("synccollections")
-		res(1)
-	}
-})
-
-
-
-
 async function redirect_from_error(errmsg:str) {
-
-	await ClearAllObjectStores()
-
-	$N.Unrecoverable(
-		"Error", 
-		"Error in LocalDBSync", 
-		"Reset App", 
-		LoggerSubjectE.indexeddb_error, 
-		errmsg
-	)
+	await ClearAllSyncObjectStores()
+	$N.Unrecoverable("Error", "Error in LocalDBSync", "Reset App", LoggerSubjectE.indexeddb_error, errmsg)
 }
-
-
 
 
 
 
 export { Init, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).LocalDBSync = { Add, Patch, Delete, ClearAllObjectStores };
+((window as any).$N as any).LocalDBSync = { Add, Patch, Delete, ClearAllSyncObjectStores };
 
 
 
