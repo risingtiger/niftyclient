@@ -37,9 +37,11 @@ const StartTickTock = () => { setTimeout(()=> ticktock(), _current_sync_interval
 
 
 
-const Add = (db: IDBDatabase, objecstorepath: PathSpecT, data: GenericRowT) => new Promise(async (main_res, main_rej) => {
+const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise(async (main_res, main_rej) => {
 
 	// at some point would like to add multiple docs at once
+
+	const db = await $N.IDB.GetDB()
 
 	let aye_errs = false
 	const cname = objecstorepath.syncobjectstore.name
@@ -69,9 +71,11 @@ const Add = (db: IDBDatabase, objecstorepath: PathSpecT, data: GenericRowT) => n
 
 
 
-const Patch = (db: IDBDatabase, path: PathSpecT, data: GenericRowT) => new Promise<num>(async (main_res, main_rej) => {
+const Patch = (path: PathSpecT, data: GenericRowT) => new Promise<num>(async (main_res, main_rej) => {
 
 	// at some point would like to patch multiple docs at once
+
+	const db                 = await $N.IDB.GetDB()
 
 	let   oldts              = 0
 	const cname              = path.syncobjectstore.name;
@@ -106,9 +110,11 @@ const Patch = (db: IDBDatabase, path: PathSpecT, data: GenericRowT) => new Promi
 
 
 
-const Delete = (db: IDBDatabase, path: PathSpecT) => new Promise<num | null>(async (main_res, main_rej) => {
+const Delete = (path: PathSpecT) => new Promise<num | null>(async (main_res, main_rej) => {
 
 	// at some point would like to patch multiple docs at once
+
+	const db                 = await $N.IDB.GetDB()
 
 	let   oldts              = 0
 	const cname              = path.syncobjectstore.name;

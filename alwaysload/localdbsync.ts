@@ -26,7 +26,6 @@ export type PathSpecT = {
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
-let db:IDBDatabase|null = null
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
 let _a_millis = 0
@@ -61,8 +60,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		localStorage.setItem("synccollections", JSON.stringify(localstorage_syncobjectstores))
 
 		_activepaths = []
-
-		openindexeddb()
 	}
 
 
@@ -181,8 +178,7 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
-	if (!db) db = await openindexeddb()
-	await M_Add(db, p, data)
+	await M_Add(p, data)
 
 	handle_firestore_doc_add_or_patch(path, data, false, false)
 	res(1)
@@ -193,8 +189,7 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> 
 
 const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
-	if (!db) db = await openindexeddb()
-	await M_Patch(db, p, data)
+	await M_Patch(p, data)
 
 	handle_firestore_doc_add_or_patch(path, data, true, false)
 	res(1)
@@ -205,8 +200,7 @@ const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_
 
 const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {  
 	const p = parse_into_pathspec(path)
-	if (!db) db = await openindexeddb()
-	await M_Delete(db, p)
+	await M_Delete(p)
 
 	// I don't yet have the code in place to handle delete across localdbsync and cmech
 
@@ -218,13 +212,12 @@ const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {
 
 const ClearAllSyncObjectStores = () => new Promise<num>(async (res, rej) => {
 
-	if (!db) db = await openindexeddb()
+	const db           = await $N.IDB.GetDB()
 
+	const storenames   = _syncobjectstores.map(s => s.name)
+	const tx           = db.transaction(storenames, "readwrite");
 
-	const storenames = _syncobjectstores.map(s => s.name)
-	const tx = db.transaction(storenames, "readwrite");
-
-	let clearcount = 0;
+	let clearcount     = 0;
 	let error_occurred = false;
 
 	for(const name of storenames) {
@@ -331,40 +324,6 @@ function parse_into_pathspec(path:str) : PathSpecT {
 
 
 
-const openindexeddb = () => new Promise<IDBDatabase>(async (res,_rej)=> {
-
-	let dbconnect = indexedDB.open(DBNAME, DBVERSION)
-
-	dbconnect.onerror = (event:any) => { 
-		redirect_from_error("IndexedDB - creating/accessing IndexedDB database" + event.target.errorCode)
-	}
-
-	dbconnect.onsuccess = async (event: any) => {
-		event.target.result.onerror = (event:any) => {
-			redirect_from_error("IndexedDB Error - " + event.target.errorCode)
-		}
-		const db = event.target.result
-		res(db)
-	}
-
-	dbconnect.onupgradeneeded = (event: any) => {
-		const db = event.target.result
-		_syncobjectstores.forEach((dc) => {
-			if (!db.objectStoreNames.contains(dc.name)) {
-
-				const objectStore = db.createObjectStore(dc.name, { keyPath: 'id' });
-                
-				(dc.indexes || []).forEach(prop=> { // could be empty and wont create index
-					objectStore.createIndex(prop, prop, { unique: false });
-				})
-			}
-		})
-	}
-})
-
-
-
-
 const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retries:num = 0, returnnewdata:bool, returnnewdata_limit:num = 300) => new Promise<num|null|Map<str,GenericRowT[]>>(async (res,_rej)=> {
 
     syncobjectstores.forEach(dc => dc.lock = true);
@@ -420,7 +379,7 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 
 	if (!datas.some((d:any) => d.length > 0)) { resolve(); return; }
 
-	if( !db ) db = await openindexeddb()
+	const db = await $N.IDB.GetDB()
 
 	const tx:IDBTransaction = db.transaction(syncobjectstores.map(ds => ds.name), "readwrite", { durability: "relaxed" })
 
@@ -454,7 +413,7 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 
 const write_a_partial_record_to_indexeddb_store = (syncobjectstore: SyncObjectStoresT, data:GenericRowT) => new Promise<void>(async (resolve, _reject) => {
 
-	if( !db ) db = await openindexeddb()
+	const db = await $N.IDB.GetDB()
 
 	const tx:IDBTransaction = db.transaction(syncobjectstore.name, "readwrite", { durability: "relaxed" })
 

@@ -195,6 +195,7 @@ export type $NT = {
 	}
 
 	IDB: {
+		GetDB:   () => Promise<IDBDatabase>,
 		GetOne:  (objectstore_name:str, id:str) => Promise<GenericRowT>,
 		GetAll:  (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
 		ClearAll:(objectstore_name:str) => Promise<num>,

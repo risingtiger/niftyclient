@@ -10,18 +10,24 @@
 
 
 <div class="content">
-    <div style="text-align:center; padding-top: 30px;">
+    ${s.logsubj && localStorage.getItem("id_token") ? html`
+		<div class="message-container">
+			<strong class="error-message">There was an error in the app.</strong>
+			<br>
+			<a href="/v/home" class="app-link">Go to Home</a>
+			<br><br>
+			<a href="#" @click="${()=>this.show_logs()}" class="app-link">Show Logs</a>
+		</div>
+    ` : ''}
 
-        ${_s.is_subscribed ? html`
-            <h2>This Device is subscribed to notifications</h2>
-            <c-btn @click="${(e)=>this.Unsubscribe(e.target)}">Unsubscribe</c-btn>
-        ` : html`
-            <h2>This Device is not subscribed to notifications</h2>
-            <c-btn @click="${(e)=>this.Subscribe(e.target)}">Subscribe</c-btn>
-        `}
 
-    </div>
+	<div id="logsubj" class="log-container ${s.showlogs ? 'active' : ''}">
+		${s.logs.map((row) => html`<div class="log-entry">${row}</div>`)}
+	</div>
 
+	<div id="appupdated" class="message-container ${s.showappupdated ? 'active' : ''}">
+		<strong>App Updated</strong>
+	</div>
 </div>
 
 

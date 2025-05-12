@@ -180,14 +180,50 @@ class VLogin extends HTMLElement {
             this.sc();
             return false;
         }
-        
+
         if (!this.s.password || this.s.password.length < 6) {
             this.s.errorMessage = "Password must be at least 6 characters";
             this.sc();
             return false;
         }
-        
+
         return true;
+    }
+
+    async ResetPassword() {
+        if (!this.s.email || !this.s.email.includes('@')) {
+            this.s.errorMessage = "Please enter your email address to reset your password";
+            this.sc();
+            return;
+        }
+
+        this.s.isLoading = true;
+        this.s.errorMessage = "";
+        this.sc();
+
+		const r = await $N.FetchLassie('/api/reset_password', { method: 'POST', body: JSON.stringify({ email: this.s.email}) });
+
+		this.s.isLoading = false;
+
+		if (!r.ok)  {
+			// Handle error response
+			let errorMessage = "Password reset failed. Please try again.";
+			if (r.data && typeof r.data === 'object' && (r.data as any).error) {
+				errorMessage = (r.data as any).error;
+			}
+
+			this.s.errorMessage = errorMessage;
+			this.sc();
+			return
+		}
+
+
+		this.s.errorMessage = "";
+		this.s.password = "";
+		// Show success message
+		alert("Password reset instructions have been sent to your email address.");
+
+		this.sc()
     }
 
 

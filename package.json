@@ -7,6 +7,16 @@
     "lit": "^3.3.0"
   },
   "devDependencies": {
-    "fantasticon": "^3.0.0"
+    "@playwright/test": "^1.52.0",
+    "fantasticon": "^3.0.0",
+    "http-server": "^14.1.1"
+  },
+  "scripts": {
+    "test": "mocha",
+    "dev": "http-server -p 8080",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
   }
 }

@@ -34,7 +34,9 @@ const AddView = (
 ) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
-	for (const [key, value] of searchparams_raw.entries()) { searchparams_genericrowt[key] = value; }
+	for (const [key, value] of searchparams_raw.entries()) { 
+		searchparams_genericrowt[key] = decodeURIComponent(value); 
+	}
 
 	{
 		const promises:Promise<any>[] = []
@@ -276,11 +278,11 @@ const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise
 
 	_loadeddata.set(componentname, loadeddata)
 
-	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED)
+	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 	activeviewel.sc()
 
 	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED)
+		subel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
@@ -313,11 +315,11 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 		if (!matching_loadeddata) continue
 
 
-		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED)		
+		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED, _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)		
 		viewel.sc()
 
 		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-			subel.kd(loadeddata, CMechLoadStateE.DATACHANGED)
+			subel.kd(loadeddata, CMechLoadStateE.DATACHANGED, _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)
 			subel.sc()
 		}
 	}
@@ -521,7 +523,7 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 export { Init, AddView, SearchParamsChanged, DataChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback, GetViewParams };
+((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
 
 
 

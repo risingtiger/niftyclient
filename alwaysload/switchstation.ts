@@ -151,6 +151,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		}
 
 		( viewsel.children[0] as HTMLElement ).style.display = "block";
+		( viewsel.children[0] as HTMLElement ).dataset.active = "true"
 
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
@@ -182,7 +183,9 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
         activeview.addEventListener("transitionend", function activeTransitionEnd() {
             if (previousview) {
                 previousview.style.display = "none";
+                previousview.dataset.active = "false";
             }
+            activeview.dataset.active = "true";
             activeview.removeEventListener("transitionend", activeTransitionEnd);
 
 			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
@@ -195,6 +198,8 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
         const activeview = viewsel.children[viewsel.children.length - 1] as HTMLElement;
         let previousview = activeview?.previousElementSibling as HTMLElement;
+        
+        activeview.dataset.active = "false";
 
 
         if (isSwipeBackGesture) {
@@ -202,6 +207,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 			previousview.classList.remove("previous_endstate");
 			await new Promise((res, _rej) => setTimeout(res, 100));
 			previousview.style.display = "block";
+            previousview.dataset.active = "true";
             document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
             res(1);
             return;
@@ -229,6 +235,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
             const previous_previousview = previousview?.previousElementSibling as HTMLElement;
             if (previous_previousview) {
             }
+            previousview.dataset.active = "true";
             activeview.removeEventListener("transitionend", activeTransitionEnd);
 
 			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));

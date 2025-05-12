@@ -19,7 +19,10 @@ type ModelT = {
 	propa: string,
 }
 type StateT = {
-    propa: bool,
+    showlogs: bool,
+	showappupdated: bool
+	logs: string[],
+    logsubj: string,
 }
 
 
@@ -35,7 +38,10 @@ class VAppMsgs extends HTMLElement {
 	m:ModelT = { propa: "" };
 	a:AttributesT = { ...ATTRIBUTES };
     s:StateT = {
-		propa: false
+		showlogs: false,
+		showappupdated: false,
+		logs: [],
+        logsubj: ""
 	}
 
     shadow:ShadowRoot
@@ -79,6 +85,10 @@ class VAppMsgs extends HTMLElement {
 
 	kd(_loadeddata: CMechLoadedDataT, loadstate:CMechLoadStateE, _pathparams:GenericRowT, searchparams:GenericRowT) {
 		if (loadstate === CMechLoadStateE.INITIAL || loadstate === CMechLoadStateE.SEARCHCHANGED) {
+			this.s.logsubj = searchparams.logsubj || ''
+
+			this.s.showappupdated = searchparams.appupdate || false
+
 		}
 	}
 
@@ -92,7 +102,18 @@ class VAppMsgs extends HTMLElement {
 
 
 
-    template = (_s:StateT	) => { return html`{--css--}{--html--}`; }; 
+	show_logs() {
+
+		const l = localStorage.getItem('logs')
+		this.s.logs = l && l.includes('-') ? l.split('-') : [(l || '')]
+
+		this.s.showlogs = true
+		this.sc();
+	}
+
+
+
+    template = (s:StateT) => { return html`{--css--}{--html--}`; }; 
 
 }
 

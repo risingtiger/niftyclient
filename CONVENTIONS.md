@@ -1,0 +1,6 @@
+- always use snake_case names for variables and function names, even in typescript and javascript
+- Use Early Exit and Return Early coding styles in functions. 
+- Keep the function code as flat as possible, minimizin indented logic where possible 
+- when using try catch blocks, keep on single lines where possible. example:
+    - try   { somevar = await some_promise(); }
+    - catch { rej(); return; }

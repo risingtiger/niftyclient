@@ -104,45 +104,6 @@ body, td {
 
 
 	
-/*  
-  & .view.transition_in {
-	opacity: 1;
-	transform: translate3D(0, 0, 0);
-  }
-  & .view.transition_backin {
-	opacity: 1;
-	transform: translate3D(0, -35px, 0);
-  }
-/*
-  & .view.previousdragged_start {
-	opacity: 0;
-	transform: translate3D(0, 0, 0);
-  }
-
-  & .view[active] {
-	opacity: 1;
-	transform: translate3D(0, 0, 0);
-  }
-  & .view[deactive] {
-	opacity: 1;
-	transform: translate3D(0, 0, 0);
-  }
-
-  & .view.dragging {
-	transition-property: none;
-	transition-duration: 0s;
-	transition-timing-function: none;
-  }
-  & .view.active.dragging {
-	box-shadow: -20px 0 20px rgb(0 0 0 / 22%);
-  }
-  & .view.previous {
-	opacity: 0;
-  }
-  & .view.previous.dragging {
-	opacity: 1;
-  }
-*/
 
 }
 

@@ -22,9 +22,20 @@ const Init = async (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: 
 
 
 
-const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
-	if (!_db) _db = await openindexeddb()
+const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
+	if (!_db) _db = await openindexeddb()
+	if (_db === null) { rej(); return; }
+
+	res(_db)	
+})
+
+
+
+
+const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
+
+	if (!_db) _db = await openindexeddb()
 	if (_db === null) { rej(); return; }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
@@ -216,6 +227,7 @@ const openindexeddb = () => new Promise<IDBDatabase|null>(async (res,_rej)=> {
 	}
 
 	dbconnect.onupgradeneeded = (event: any) => {
+		console.log("IndexedDB Upgrade Needed - " + event.oldVersion + " -> " + event.newVersion)
 		const db = event.target.result
 		_localdb_objectstores.forEach((dc) => {
 			if (!db.objectStoreNames.contains(dc.name)) {
@@ -242,7 +254,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetOne, GetAll, ClearAll, AddOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
+((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, ClearAll, AddOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
 
 
 

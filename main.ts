@@ -1,6 +1,5 @@
-import {  } from "./defs_server_symlink.js";
+import { str, GenericRowT } from "./defs_server_symlink.js";
 import { LazyLoadT, $NT, INSTANCE_T, LoggerTypeE, LoggerSubjectE } from "./defs.js";
-import LAZYLOAD_DATA_FUNCS from "./lazyload_data_funcs.js";
 
 
 declare var INSTANCE:INSTANCE_T; // set here for LSP support only
@@ -188,18 +187,47 @@ const LAZYLOADS: LazyLoadT[] = [
 ];
 
 
+const LAZYLOAD_DATA_FUNCS = {
+
+	appmsgs_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+
+	appmsgs_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+
+	login_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+
+	login_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+
+	setup_push_allowance_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+
+	setup_push_allowance_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
+		res(new Map<str,GenericRowT[]>())
+	}),
+}
+
+
 
 
 window.addEventListener("load", async (_e) => {
 
 	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE.LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...LAZYLOADS, ...INSTANCE.LAZYLOADS]
-	const localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, {name:"__pending_sync_operations",indexes:[]} ]
+	const all_localdb_objectstores = [ ...INSTANCE.INFO.localdb_objectstores, {name:"__pending_sync_operations",indexes:[]} ]
 
 	{
+		IDBInit(all_localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 		LazyLoadFilesInit(lazyloads)
 		$N.EngagementListen.Init()
-		LocalDBSyncInit(localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
+		LocalDBSyncInit(INSTANCE.INFO.localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 		CMechInit(lazyload_data_funcs)
 	}
 
@@ -208,7 +236,6 @@ window.addEventListener("load", async (_e) => {
 	localStorage.setItem("identity_platform_key", INSTANCE.INFO.firebase.identity_platform_key)
 	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
 	SwitchStationInit();
-	IDBInit(localdb_objectstores, INSTANCE.INFO.firebase.project, INSTANCE.INFO.firebase.dbversion)
 
 	SSEInit()
 })
@@ -253,7 +280,7 @@ $N.ToastShow = ToastShow
 
 
 function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
-	const redirect = `/index.html?logsubj=${logsubj}`;
+	const redirect = `/v/appmsg?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
 	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
 }
