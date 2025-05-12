@@ -354,6 +354,7 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 			}
 
 			else if (event.data.action === 'error_out') {
+				$N.Logger.Log(LoggerTypeE.error, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
 				$N.LocalDBSync.ClearAllSyncObjectStores()
 				Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg)
 			}

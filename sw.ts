@@ -41,26 +41,16 @@ self.addEventListener('install', (event:any) => {
 
 
 self.addEventListener('online', () => {
-	/*
-    if (_isoffline) {
-        // Don't start full backoff, just one check. If it fails, normal failure logic will take over.
-        perform_connectivity_check(false); 
-    }
-	*/
+	check_connectivity()
 });
 
 
 
 
 self.addEventListener('offline', () => {
-	/*
-    if (!_isoffline) {
-        _isoffline = true;
-        // Potentially notify clients here if needed
-    }
-    // If a connectivity check was scheduled, cancel it as navigator says we're offline.
-    stop_connectivity_checks_and_reset_interval();
-	*/
+	_check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
+	_isoffline = true
+	check_connectivity()
 });
 
 
@@ -222,7 +212,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		// do nothing. its ok
 	}
 	else if (ar === "Network error") {
-		logit(40, "swe", `${r.url} - Network error`)
+		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 		_isoffline = true;
 		res(new Response(null, { status: 503, statusText: 'Network error - On Auth Request' }))
 		// cannot authenticate. But this is a network error, so give retries etc a chance to recover before killing the app
@@ -247,7 +237,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	const server_response = await fetch(new_request)
 		.catch(() => {
-			logit(40, "swe", `${new_request.url} - Network error`)
+			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
 			res(new Response( null, { status: 503, statusText: 'Network error' } ))
 			return null
@@ -314,6 +304,7 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 		} catch (err:any) {
 			logit(40, "swe", `${r.url} - Network error`)
+			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
 			res(new Response('Failed to fetch file', { 
 				status: 503, 
@@ -456,12 +447,13 @@ function logit(type:number, subject:string, msg:string="") {
 
 
 
-function check_connectivity() {
+const check_connectivity = async () => {
 
 	if (!_isoffline) return;
-	
-	// Double the interval for next check, but don't exceed maximum
-	_check_connectivity_interval = Math.min(_check_connectivity_interval * 2, MAX_CHECK_CONNECTIVITY_INTERVAL);
+
+	await fetch('/api/ping')
+		.then(()=> _check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL)
+		.catch(()=> _check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL))
 	
 	setTimeout(() => check_connectivity(), _check_connectivity_interval)
 }

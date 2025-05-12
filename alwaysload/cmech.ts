@@ -250,16 +250,13 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 
 
-const SearchParamsChanged = (newsearchparams_raw:URLSearchParams) => new Promise<void>(async (res, rej)=> {
+const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(async (res, rej)=> {
 
 	const activeviewel      = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
 	const componentname     = activeviewel.tagName.toLowerCase().split("-")[1]
 	const pathparams        = _pathparams.get(componentname)!
 	const oldsearchparams   = _searchparams.get(componentname)!
-
-	const newsearchparams:GenericRowT = {}
-	for (const [key, value] of newsearchparams_raw.entries()) newsearchparams[key] = value
 
 	const promises:Promise<any>[] = []
 	let   promises_r:any[] = []

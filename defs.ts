@@ -191,7 +191,7 @@ export type $NT = {
 	SwitchStation: {
 		NavigateTo: (newPath: string) => void,
 		NavigateBack: (opts:{default:str}) => void,
-		NavigateToSearchParams: (newsearchparams:GenericRowT) => void
+		UpdateSearchParams: (newsearchparams:GenericRowT) => void
 	}
 
 	IDB: {

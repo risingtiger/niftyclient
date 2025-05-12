@@ -86,12 +86,6 @@ async function NavigateTo(newPath: string) {
 
 async function NavigateBack(opts:{ default:str}) {
 
-
-	console.log(`
-	NEED TO HANDLE THIS SO THAT IF NAVIGATING BACK, BUT BACK IS JUST A SEARCHPARAMS CHANGE, THEN DONT CALL routeChanged
-	just call CMechUpdateFromSearchParams
-	`)
-
 	if (history.state && history.state.index > 0) {
 		await routeChanged(opts.default, 'back');
 		history.back();
@@ -105,22 +99,22 @@ async function NavigateBack(opts:{ default:str}) {
 
 
 
-async function NavigateToSearchParams(newsearchparams:GenericRowT) {
-
-	//TODO: There be a problem. Navigating forward soley on searchparams works great. But the moment the user hits back in the browser all be cotton drenched tar
+async function UpdateSearchParams(newsearchparams:GenericRowT) {
 
 	const searchparams = new URLSearchParams(window.location.search);
 	Object.entries(newsearchparams).forEach(([key, value]) => {
 		searchparams.set(key, value);
 	});
 
-	const searchparams_str = searchparams.toString();
+	window.location.search = searchparams.toString();
 
-	const newhistoryurl = window.location.pathname + '?' + searchparams_str;
+	//const searchparams_str = searchparams.toString();
 
-    history.pushState({ index: history.state.index+1, path: newhistoryurl }, '', newhistoryurl);
-    
-	CMechSearchParamsChanged(new URLSearchParams(newsearchparams))
+	//const newhistoryurl = window.location.pathname + '?' + searchparams_str;
+
+    //history.pushState({ index: history.state.index+1, path: newhistoryurl }, '', newhistoryurl);
+
+	CMechSearchParamsChanged(newsearchparams)
 }
 
 
@@ -293,6 +287,6 @@ function get_route_uri(url: str) : [Array<str>, num] {
 export { Init, AddRoute, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, NavigateToSearchParams };
+((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, UpdateSearchParams };
 
 
