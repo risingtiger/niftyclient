@@ -459,10 +459,11 @@ function logit(type:number, subject:string, msg:string="") {
 function check_connectivity() {
 
 	if (!_isoffline) return;
-
-	// exponentially backoff _check_connectivity_interval up to MAX_CHECK_CONNECTIVITY_INTERVAL AI!
 	
-	setTimeout(() => check_connectivity, _check_connectivity_interval)
+	// Double the interval for next check, but don't exceed maximum
+	_check_connectivity_interval = Math.min(_check_connectivity_interval * 2, MAX_CHECK_CONNECTIVITY_INTERVAL);
+	
+	setTimeout(() => check_connectivity(), _check_connectivity_interval)
 }
 
 
