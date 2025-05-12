@@ -6,26 +6,23 @@ enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
 const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max backoff
-const CHECK_CONNECTIVITY_TIMEOUT          = 3000;
 const EXITDELAY                           = 12000 // just the default. can be overridden in the fetch request
 
-let cache_name        = 'cacheV__0__';
-let _cache_version    = Number(cache_name.split("__")[1])
+let _cache_name        = 'cacheV__0__';
+let _cache_version    = Number(_cache_name.split("__")[1])
 let _id_token         = ""
 let _token_expires_at = 0
-let refresh_token     = ""
-let user_email        = ""
+let _refresh_token     = ""
+let _user_email        = ""
 let _isoffline        = !navigator.onLine; // Initialize based on navigator.onLine
+let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 
-let _connectivityCheckTimerId: any | null = null;
-let _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 
 
 
 
 self.addEventListener('install', (event:any) => {
 	event.waitUntil((async () => {
-		console.log("sw.ts install")
 
 		// Optionally, pre-cache any needed static assets here:
 		// const cache = await caches.open(CACHE_NAME);
@@ -37,44 +34,48 @@ self.addEventListener('install', (event:any) => {
 		// ]);
 
 		await (self as any).skipWaiting();
-		console.log("sw.ts install - after skipWaiting")
 	})());
 });
 
 
+
+
 self.addEventListener('online', () => {
+	/*
     if (_isoffline) {
         // Don't start full backoff, just one check. If it fails, normal failure logic will take over.
         perform_connectivity_check(false); 
     }
+	*/
 });
 
+
+
+
 self.addEventListener('offline', () => {
+	/*
     if (!_isoffline) {
         _isoffline = true;
         // Potentially notify clients here if needed
     }
     // If a connectivity check was scheduled, cancel it as navigator says we're offline.
     stop_connectivity_checks_and_reset_interval();
+	*/
 });
+
+
+
 
 self.addEventListener('activate', (event:any) => {
 	event.waitUntil((async () => {
-		console.log("sw.ts activate")
 		const cacheKeys = await caches.keys();
 		for (const key of cacheKeys) {
-			if (key !== cache_name) {
-				console.log("sw.ts activate - deleting cache: " + key)
+			if (key !== _cache_name) {
 				await caches.delete(key);
 			}
 		}
 
 		await (self as any).clients.claim();
-        // After claiming clients, if navigator says we're online but our flag says offline,
-        // (e.g. from a previous session or initial state), try a check.
-        if (navigator.onLine && _isoffline) {
-            perform_connectivity_check(false);
-        }
 	})());
 });
 
@@ -115,8 +116,8 @@ self.addEventListener('message', async (e:any) => {
 	else if (e.data.action === "initial_pass_auth_info") {
 		_id_token = e.data.id_token;
 		_token_expires_at = Number(e.data.token_expires_at);
-		refresh_token = e.data.refresh_token;
-		user_email = e.data.user_email;
+		_refresh_token = e.data.refresh_token;
+		_user_email = e.data.user_email;
 	}
 })
 
@@ -217,17 +218,20 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 	const ar = await authrequest().catch(err=> err)
-	if (ar === "Network error") {
-		res(new Response(null, { status: 503, statusText: 'Network error' }))
+	if (ar === "ok") {
+		// do nothing. its ok
+	}
+	else if (ar === "Network error") {
+		logit(40, "swe", `${r.url} - Network error`)
+		_isoffline = true;
+		res(new Response(null, { status: 503, statusText: 'Network error - On Auth Request' }))
+		// cannot authenticate. But this is a network error, so give retries etc a chance to recover before killing the app
 		return
 	}
-	else if (ar === "Refresh failed") {
-		res(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+	else {
+		// auth cannot authenticate. so do NOT resolve promise. Main.js has been notified and will handle eventual page redirection 
 		return
 	}
-
-	// TODO: for cross origin CORS requests, I need to handle the preflight OPTIONS request and response status of 0
-	// currently no cors requests going on
 
 	const is_appapi   = r.url.includes("/api/") ? true : false
 	const new_headers = new Headers(r.headers);
@@ -241,54 +245,40 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
-	fetch(new_request)
-		.then(async (server_response:any)=> {
-			
-            // If a request succeeds, we are definitely online.
-            if (_isoffline) {
-                _isoffline = false;
-                stop_connectivity_checks_and_reset_interval();
-
-            } else {
-                // If we were already online, but a check was running, clear it.
-                // This handles cases where a regular fetch succeeds while a backoff check was scheduled.
-                if (_connectivityCheckTimerId) {
-                    stop_connectivity_checks_and_reset_interval();
-                }
-            }
-			clearTimeout(abortsignal_timeoutid)
-
-			if (is_appapi && server_response.status === 401) { // unauthorized
-				await error_out("sw4", "") 
-				res(server_response)
-			}
-
-			else if (is_appapi && server_response.status === 410) {
-				(self as any).clients.matchAll().then((clients:any) => {
-					clients.forEach((client: any) => {
-						client.postMessage({   action: 'update_init'   })
-					})
-					res(server_response)
-				})
-
-			} else  {
-				res(server_response)
-			} 
-
-			if (server_response.status !== 200)   logit( 40, "swe", `${ new_request.url } - ${ server_response.status } - ${ server_response.statusText }` )
-
-		})
-		.catch(async (err:any)=> {
-			logit(40, "swe", `${new_request.url} - fetch catch - ${err.message || 'Unknown error'}`)
-            if (!_isoffline) { // If we were online and this request failed
-                _isoffline = true;
-                // If navigator thinks we're online, start smart recovery pings
-                if (navigator.onLine) {
-                    schedule_next_connectivity_check(true); // Start backoff
-                }
-            }
+	const server_response = await fetch(new_request)
+		.catch(() => {
+			logit(40, "swe", `${new_request.url} - Network error`)
+			_isoffline = true;
 			res(new Response( null, { status: 503, statusText: 'Network error' } ))
+			return null
 		})
+	if (!server_response) return;
+
+
+	_isoffline = false;
+
+	clearTimeout(abortsignal_timeoutid)
+
+	if (is_appapi && server_response.status === 401) { // unauthorized
+		await error_out("sw4", "") 
+		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle the error including page redirection
+		return
+	}
+
+	else if (is_appapi && server_response.status === 410) {
+		(self as any).clients.matchAll().then((clients:any) => {
+			clients.forEach((client: any) => {
+				client.postMessage({   action: 'update_init'   })
+			})
+		})
+		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle update including page redirection
+		return
+
+	} else {
+		res(server_response) 
+	} 
+
+	if (server_response.status !== 200)   logit( 40, "swe", `${ new_request.url } - ${ server_response.status } - ${ server_response.statusText }` )
 })
 
 
@@ -296,7 +286,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
-	const cache   = await caches.open(cache_name)
+	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(r)
 
 	if (match_r) { 
@@ -314,31 +304,17 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		
 		try {
 			const response = await fetch(r, { signal })
-            // If a request succeeds, we are definitely online.
-            if (_isoffline) {
-                _isoffline = false;
-                stop_connectivity_checks_and_reset_interval();
-            } else {
-                if (_connectivityCheckTimerId) {
-                    stop_connectivity_checks_and_reset_interval();
-                }
-            }
+			_isoffline = false;
 			clearTimeout(abortsignal_timeoutid)
 			
 			if (response.status === 200 && should_url_be_cached(r)) {
-				// cache is relatively small. will put in mechanism to clear it out if needed when I get time
 				cache.put(r, response.clone())
 			}
 			res(response)
 
 		} catch (err:any) {
-			logit(40, "swe", `${r.url} - fetch catch - ${err.message || 'Unknown error'}`)
-            if (!_isoffline) { // If we were online and this request failed
-                _isoffline = true;
-                if (navigator.onLine) {
-                    schedule_next_connectivity_check(true); // Start backoff
-                }
-            }
+			logit(40, "swe", `${r.url} - Network error`)
+			_isoffline = true;
 			res(new Response('Failed to fetch file', { 
 				status: 503, 
 				statusText: 'Network error',
@@ -374,102 +350,22 @@ function should_url_be_cached(request:Request) {
 
 
 
-function stop_connectivity_checks_and_reset_interval() {
-    if (_connectivityCheckTimerId) {
-        clearTimeout(_connectivityCheckTimerId);
-        _connectivityCheckTimerId = null;
-    }
-    _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
-}
 
-function schedule_next_connectivity_check(applyBackoff: boolean) {
-    if (_connectivityCheckTimerId) { // Clear any existing timer
-        clearTimeout(_connectivityCheckTimerId);
-    }
-
-    // Only schedule if we think we are offline AND navigator doesn't explicitly say we're offline.
-    // If navigator.onLine is false, the 'offline' event handler should have already stopped checks.
-    if (!_isoffline || !navigator.onLine) {
-        return;
-    }
-
-    if (applyBackoff) {
-        _currentConnectivityInterval = Math.min(_currentConnectivityInterval * 2, MAX_CHECK_CONNECTIVITY_INTERVAL);
-    } else {
-        // If not applying backoff (e.g., an initial check after navigator.online event), use the initial interval.
-        _currentConnectivityInterval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
-    }
-
-    _connectivityCheckTimerId = setTimeout(() => {
-        perform_connectivity_check(true); // Subsequent checks should continue backoff logic if they fail
-    }, _currentConnectivityInterval);
-}
-
-async function perform_connectivity_check(continueBackoffOnFailure: boolean) {
-    // If navigator now says we're offline, or if we somehow got back online through other means, stop.
-    if (!navigator.onLine) {
-        stop_connectivity_checks_and_reset_interval();
-        if (!_isoffline) _isoffline = true; // Ensure state consistency
-        return;
-    }
-    if (!_isoffline) {
-        stop_connectivity_checks_and_reset_interval(); // Should already be stopped, but good for safety
-        return;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CHECK_CONNECTIVITY_TIMEOUT);
-
-    try {
-        // Direct fetch for ping to avoid auth logic and simplify
-        const response = await fetch('/api/ping', { 
-            cache: 'no-store', 
-            signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-            if (_isoffline) { // Should be true if we got here
-                _isoffline = false;
-            }
-            stop_connectivity_checks_and_reset_interval();
-        } else {
-            // _isoffline is already true.
-            if (continueBackoffOnFailure && navigator.onLine) { // Only continue backoff if navigator still thinks we could be online
-                schedule_next_connectivity_check(true); // Schedule next with increased backoff
-            } else if (!navigator.onLine) {
-                stop_connectivity_checks_and_reset_interval(); // Navigator says offline, so stop.
-            }
-        }
-    } catch (err: any) {
-        clearTimeout(timeoutId);
-        // _isoffline is already true.
-        if (continueBackoffOnFailure && navigator.onLine) {
-            schedule_next_connectivity_check(true); // Schedule next with increased backoff
-        } else if (!navigator.onLine) {
-            stop_connectivity_checks_and_reset_interval(); // Navigator says offline, so stop.
-        }
-    }
-}
-
-
-
-
-function authrequest() { return new Promise(async (res,rej)=> { 
+function authrequest() { return new Promise<string>(async (res,rej)=> { 
 
 	// keep in mind that when retries are set (case in point being the refocus of the app), its probably gonna be authrequest that is gonna be first initial call 
 	// right now the the exitdelay is overriden to be 2.7 seconds (check FetchLassie logic to ascertain current value). a little problematic because refresh token could take longer on slow connections
 
     if (!_id_token) {
 		await error_out("swe", "authrequest no token in browser storage")
-		rej()
+		rej("No token in browser storage")
         return
     }
 
 
     if (Date.now()/1000 > _token_expires_at-30) {
 
-        const body = { refresh_token }
+        const body = { refresh_token: _refresh_token }
 
         const { signal, abortsignal_timeoutid } = set_abort_signal(new Headers()); // dumb header, not used
 
@@ -485,13 +381,13 @@ function authrequest() { return new Promise(async (res,rej)=> {
             let data = await r.json() as any
 
             if (data.error) {
-				await error_out("swe", "authrequest refresh failed - " + data.error.message)
+				await error_out("sw4", "authrequest refresh failed - " + data.error.message)
 				rej("Refresh failed")
             }
 
             else {
                 _id_token = data.id_token
-                refresh_token = data.refresh_token
+                _refresh_token = data.refresh_token
                 _token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in);
 
 				(self as any).clients.matchAll().then((clients:any) => {
@@ -499,23 +395,23 @@ function authrequest() { return new Promise(async (res,rej)=> {
 						client.postMessage({
 							action: 'update_auth_info',
 							id_token: _id_token,
-							refresh_token,
+							refresh_token: _refresh_token,
 							token_expires_at: _token_expires_at
 						})
 					})
 				})
 
-                res(1)
+                res("ok")
             }
 
-        }).catch(async err=> {
+        }).catch(async _err=> {
             clearTimeout(abortsignal_timeoutid);
 			rej("Network error") 
         })
     }
 
     else {
-        res(1)
+        res("ok")
     }
 })}
 
@@ -555,6 +451,18 @@ function logit(type:number, subject:string, msg:string="") {
 			})
 		},100)
 	})
+}
+
+
+
+
+function check_connectivity() {
+
+	if (!_isoffline) return;
+
+	// exponentially backoff _check_connectivity_interval up to MAX_CHECK_CONNECTIVITY_INTERVAL AI!
+	
+	setTimeout(() => check_connectivity, _check_connectivity_interval)
 }
 
 
