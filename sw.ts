@@ -79,9 +79,12 @@ self.addEventListener('controllerchange', (_e:any) => {
 
 
 self.addEventListener('fetch', (e:any) => {
+    // Pass through identitytoolkit requests without processing
+    if (e.request.url.includes('identitytoolkit.googleapis.com')) {
+        return; // Let the browser handle this request normally
+    }
 
     let promise = new Promise(async (res, _rej) => {
-
 		const accepth = e.request.headers.get('Accept') || ""
 		const calltype:"data"|"file" = accepth.includes('json') || accepth.includes('csv') ? "data" : "file"
 
