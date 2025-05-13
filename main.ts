@@ -283,6 +283,8 @@ function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: Logge
 	const redirect = `/v/appmsg?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
 	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
+
+	localStorage.removeChild("synccollections")
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -355,7 +357,6 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 			else if (event.data.action === 'error_out') {
 				$N.Logger.Log(LoggerTypeE.error, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
-				$N.LocalDBSync.ClearAllSyncObjectStores()
 				Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg)
 			}
 
@@ -376,8 +377,6 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 				hasPreviousController = true
 				return;
 			}
-			$N.LocalDBSync.ClearAllSyncObjectStores()
-
 			 
 			{   // set alertbox and log it
 				const redirect = `/index.html?appupdate=done`;
