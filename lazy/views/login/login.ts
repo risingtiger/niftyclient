@@ -153,14 +153,14 @@ class VLogin extends HTMLElement {
 			}
 		}
 
-		// change next line to just use built in fetch instead of FetchLassie AI!
-		const r = await $N.FetchLassie(url, opts);
-		if (!r.ok) {  
-			alert ("Login failed. Please check your credentials and try again.");
-			return; 
-		}
-
-		const data = r.data as any;
+		try {
+			const response = await fetch(url, opts);
+			const data = await response.json();
+			
+			if (!response.ok) {
+				alert("Login failed. Please check your credentials and try again.");
+				return;
+			}
 
 		localStorage.setItem('id_token', data.idToken);
 		localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
