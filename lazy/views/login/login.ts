@@ -161,7 +161,7 @@ class VLogin extends HTMLElement {
 				alert("Login failed. Please check your credentials and try again.");
 				return;
 			}
-
+		
 		localStorage.setItem('id_token', data.idToken);
 		localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
 		localStorage.setItem('refresh_token', data.refreshToken);
@@ -173,6 +173,11 @@ class VLogin extends HTMLElement {
 			localStorage.setItem('auth_group', 'user');
 
 		$N.SwitchStation.NavigateTo("home");
+		} catch (error) {
+			this.s.isLoading = false;
+			this.s.errorMessage = "Login failed. Please try again.";
+			this.sc();
+		}
     }
     
     validateForm(): boolean {
