@@ -11,13 +11,17 @@
             <h2>Enter your credentials</h2>
             <div class="login-form">
                 ${_s.errorMessage ? html`<div class="error-message">${_s.errorMessage}</div>` : ''}
-                <input label="Email" id="email" type="email" value="${_s.email}"></input>
-                <input label="Password" type="password" id="password"></c-in>
-                <button @click="${()=>this.Login()}" ?disabled="${_s.isLoading}">
+                <input label="Email" id="emailinput" type="email" value="${_s.email}"></input>
+                <input label="Password" type="password" id="passwordinput"></input>
+                <button @click="${()=>this.login()}" ?disabled="${_s.isLoading}">
                     ${_s.isLoading ? 'Logging in...' : 'Login'}
                 </button>
                 <div class="forgot-password">
                     <a href="#" @click="${()=>this.ResetPassword()}">Forgot password?</a>
+					${_s.resetlink ? html`
+						<h3>Link Successfully Generated</h3>
+						<a href="${_s.resetlink}" target="_blank">Click to Reset Password</a>
+					` : ''}
                 </div>
             </div>
         </div>
