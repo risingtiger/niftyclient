@@ -9,12 +9,12 @@ const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max back
 const EXITDELAY                           = 12000 // just the default. can be overridden in the fetch request
 
 let _cache_name        = 'cacheV__0__';
-let _cache_version    = Number(_cache_name.split("__")[1])
-let _id_token         = ""
-let _token_expires_at = 0
+let _cache_version     = Number(_cache_name.split("__")[1])
+let _id_token          = ""
+let _token_expires_at  = 0
 let _refresh_token     = ""
 let _user_email        = ""
-let _isoffline        = !navigator.onLine; // Initialize based on navigator.onLine
+let _isoffline         = true
 let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 
 
@@ -80,12 +80,13 @@ self.addEventListener('controllerchange', (_e:any) => {
 
 self.addEventListener('fetch', (e:any) => {
 
-    if (e.request.url.includes('identitytoolkit.googleapis.com')) {
-        // Let the browser handle this request normally
-        return;
-    }
-
     let promise = new Promise(async (res, _rej) => {
+
+		if (e.request.url.includes("identitytoolkit.googleapis.com")) {
+			const r = await fetch(e.request)
+			res(r)
+		}
+
 		const accepth = e.request.headers.get('Accept') || ""
 		const calltype:"data"|"file" = accepth.includes('json') || accepth.includes('csv') ? "data" : "file"
 
@@ -262,7 +263,6 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	else if (is_appapi && server_response.status === 410) {
 		(self as any).clients.matchAll().then((clients:any) => {
 			clients.forEach((client: any) => {
-				client.postMessage({   action: 'update_init'   })
 			})
 		})
 		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle update including page redirection
@@ -456,8 +456,14 @@ const check_connectivity = async () => {
 	if (!_isoffline) return;
 
 	await fetch('/api/ping')
-		.then(()=> _check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL)
-		.catch(()=> _check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL))
+		.then(()=> {
+			_check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL
+			_isoffline = false;
+		})
+		.catch(()=> {
+			_check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL)
+			_isoffline = true;
+		})
 	
 	setTimeout(() => check_connectivity(), _check_connectivity_interval)
 }
