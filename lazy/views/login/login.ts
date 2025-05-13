@@ -23,6 +23,7 @@ type StateT = {
     password: string,
     isLoading: boolean,
     errorMessage: string
+	resetlink: string
 }
 
 
@@ -42,7 +43,8 @@ class VLogin extends HTMLElement {
         email: "",
         password: "",
         isLoading: false,
-        errorMessage: ""
+        errorMessage: "",
+		resetlink: ""
 	}
 
     shadow:ShadowRoot
@@ -68,8 +70,8 @@ class VLogin extends HTMLElement {
 		await $N.CMech.ViewConnectedCallback(this)
 		this.dispatchEvent(new Event('hydrated'));
 
-		const emailInput    = this.shadow.getElementById('email')    as any;
-		const passwordInput = this.shadow.getElementById('password') as any;
+		const emailInput    = this.shadow.getElementById('emailinput')    as any;
+		const passwordInput = this.shadow.getElementById('passwordinput') as any;
 		
 		emailInput.addEventListener(   'input', (e: any) => this.s.email    = e.target.value)
 		passwordInput.addEventListener('input', (e: any) => this.s.password = e.target.value)
@@ -116,61 +118,61 @@ class VLogin extends HTMLElement {
 
 
 
-    async Login() {
-        if (!this.validateForm()) {
-            return;
-        }
+    async login() {
 
         this.s.isLoading = true;
         this.s.errorMessage = "";
         this.sc();
 
-        try {
-            const r = await $N.FetchLassie('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: this.s.email,
-                    password: this.s.password
-                })
-            });
 
-            if (r.ok) {
-                const data = r.data as any;
-                localStorage.setItem("id_token", data.id_token);
-                localStorage.setItem("token_expires_at", Math.floor(Date.now()/1000 + data.expires_in).toString());
-                localStorage.setItem("refresh_token", data.refresh_token);
-                localStorage.setItem("user_email", this.s.email);
-                
-                $N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.engagement_pageview, "User logged in: " + this.s.email);
-                
-                // Navigate to home or redirect URL
-                const redirectUrl = new URLSearchParams(window.location.search).get('redirect') || 'home';
-                $N.SwitchStation.NavigateTo(redirectUrl);
-            } else {
-                // Handle error response
-                let errorMessage = "Login failed. Please try again.";
-                if (r.data && typeof r.data === 'object' && (r.data as any).error) {
-                    errorMessage = (r.data as any).error;
-                }
-                
-                this.s.errorMessage = errorMessage;
-                this.s.isLoading = false;
-                this.sc();
-                
-                // Log error
-                $N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.switch_station_route_load_fail, "Login failed: " + errorMessage);
-            }
-        } catch (error) {
-            this.s.errorMessage = "Network error. Please try again.";
-            this.s.isLoading = false;
+		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + (window as any).identity_platform_key
+
+
+		const email = this.s.email;
+		const password = this.s.password;
+
+        if (!email || !email.includes('@')) {
+            this.s.errorMessage = "Please enter a valid email address";
             this.sc();
-            
-            // Log error
-            $N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.switch_station_route_load_fail, "Login error: " + (error as Error).message);
+            return false;
         }
+
+        if (!password || password.length < 6) {
+            this.s.errorMessage = "Password must be at least 6 characters";
+            this.sc();
+            return false;
+        }
+
+		const body = { email, password, returnSecureToken: true };
+
+		const opts = {
+			method: 'POST',
+			body: JSON.stringify(body),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		}
+
+		// change next line to just use built in fetch instead of FetchLassie AI!
+		const r = await $N.FetchLassie(url, opts);
+		if (!r.ok) {  
+			alert ("Login failed. Please check your credentials and try again.");
+			return; 
+		}
+
+		const data = r.data as any;
+
+		localStorage.setItem('id_token', data.idToken);
+		localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
+		localStorage.setItem('refresh_token', data.refreshToken);
+		localStorage.setItem('user_email', data.email);
+
+		if (data.email === "accounts@risingtiger.com")
+			localStorage.setItem('auth_group', 'admin');
+		else 
+			localStorage.setItem('auth_group', 'user');
+
+		$N.SwitchStation.NavigateTo("home");
     }
     
     validateForm(): boolean {
@@ -190,6 +192,9 @@ class VLogin extends HTMLElement {
         return true;
     }
 
+
+
+
     async ResetPassword() {
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter your email address to reset your password";
@@ -201,7 +206,7 @@ class VLogin extends HTMLElement {
         this.s.errorMessage = "";
         this.sc();
 
-		const r = await $N.FetchLassie('/api/reset_password', { method: 'POST', body: JSON.stringify({ email: this.s.email}) });
+		const r = await $N.FetchLassie(`/api/reset_password?email=${this.s.email}`);
 
 		this.s.isLoading = false;
 
@@ -220,14 +225,13 @@ class VLogin extends HTMLElement {
 
 		this.s.errorMessage = "";
 		this.s.password = "";
-		// Show success message
-		alert("Password reset instructions have been sent to your email address.");
+		this.s.resetlink = ( r.data as any ).link
 
 		this.sc()
     }
 
 
-    template = (_s:StateT) => { return html`{--css--}` }; 
+	template = (_s:any) => { return html`{--css--}{--html--}`; };
 
 }
 
