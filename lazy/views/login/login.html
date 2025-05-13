@@ -11,7 +11,7 @@
             <h2>Enter your credentials</h2>
             <div class="login-form">
                 ${_s.errorMessage ? html`<div class="error-message">${_s.errorMessage}</div>` : ''}
-                <input label="Email" id="emailinput" type="email" value="${_s.email}"></input>
+                <input label="Email" id="emailinput" type="email" value="${_s.email}" @input="${(e) => this.updateEmail(e)}"></input>
                 <input label="Password" type="password" id="passwordinput"></input>
                 <button @click="${()=>this.login()}" ?disabled="${_s.isLoading}">
                     ${_s.isLoading ? 'Logging in...' : 'Login'}
