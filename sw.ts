@@ -80,7 +80,10 @@ self.addEventListener('controllerchange', (_e:any) => {
 
 self.addEventListener('fetch', (e:any) => {
 
-    if (e.request.url.includes('identitytoolkit.googleapis.com')) {return;} // Let the browser handle this request normally}
+    if (e.request.url.includes('identitytoolkit.googleapis.com')) {
+        // Let the browser handle this request normally
+        return;
+    }
 
 
     let promise = new Promise(async (res, _rej) => {
