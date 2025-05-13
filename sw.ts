@@ -85,7 +85,6 @@ self.addEventListener('fetch', (e:any) => {
         return;
     }
 
-
     let promise = new Promise(async (res, _rej) => {
 		const accepth = e.request.headers.get('Accept') || ""
 		const calltype:"data"|"file" = accepth.includes('json') || accepth.includes('csv') ? "data" : "file"
