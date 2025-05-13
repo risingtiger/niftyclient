@@ -284,7 +284,21 @@ function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: Logge
 	setalertbox(subj, msg, btnmsg, redirect);
 	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
 
-	localStorage.removeChild("synccollections")
+	// Remove synccollections from localStorage
+	localStorage.removeChild("synccollections");
+	
+	// Delete the entire purewatertech indexedDB database
+	try {
+		const deleteRequest = indexedDB.deleteDatabase("purewatertech");
+		deleteRequest.onsuccess = () => {
+			console.log("purewatertech database deleted successfully");
+		};
+		deleteRequest.onerror = () => {
+			console.error("Error deleting purewatertech database");
+		};
+	} catch (e) {
+		console.error("Exception when trying to delete purewatertech database:", e);
+	}
 }
 $N.Unrecoverable = Unrecoverable
 
