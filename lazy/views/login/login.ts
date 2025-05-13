@@ -131,16 +131,9 @@ class VLogin extends HTMLElement {
 		const email = this.s.email;
 		const password = this.s.password;
 
-        if (!email || !email.includes('@')) {
-            this.s.errorMessage = "Please enter a valid email address";
-            this.sc();
-            return false;
-        }
-
-        if (!password || password.length < 6) {
-            this.s.errorMessage = "Password must be at least 6 characters";
-            this.sc();
-            return false;
+        if (!this.validateForm()) {
+            this.s.isLoading = false;
+            return;
         }
 
 		const body = { email, password, returnSecureToken: true };
@@ -158,7 +151,9 @@ class VLogin extends HTMLElement {
 			const data = await response.json();
 			
 			if (!response.ok) {
-				alert("Login failed. Please check your credentials and try again.");
+				this.s.isLoading = false;
+				this.s.errorMessage = "Login failed. Please check your credentials and try again.";
+				this.sc();
 				return;
 			}
 		
@@ -180,7 +175,7 @@ class VLogin extends HTMLElement {
 		}
     }
     
-    validateForm(): boolean {
+    validateForm() {
         // Simple validation
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter a valid email address";
