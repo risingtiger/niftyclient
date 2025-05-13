@@ -455,12 +455,17 @@ const check_connectivity = async () => {
 
 	if (!_isoffline) return;
 
-	await fetch('/api/ping')
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 3000);
+
+	await fetch('/api/ping', { signal: controller.signal })
 		.then(()=> {
+			clearTimeout(timeout);
 			_check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = false;
 		})
 		.catch(()=> {
+			clearTimeout(timeout);
 			_check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL)
 			_isoffline = true;
 		})
