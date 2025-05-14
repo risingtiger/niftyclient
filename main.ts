@@ -279,26 +279,19 @@ $N.ToastShow = ToastShow
 
 
 
-function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+	
+	await new Promise((res, _rej) => {
+		const deleteRequest = indexedDB.deleteDatabase(INSTANCE.INFO.firebase.project);
+		deleteRequest.onsuccess = () => {res(true); };
+		deleteRequest.onerror =   () => {res(true); };
+	})
+
 	const redirect = `/v/appmsg?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
 	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
 
-	// Remove synccollections from localStorage
 	localStorage.removeChild("synccollections");
-	
-	// Delete the entire purewatertech indexedDB database
-	try {
-		const deleteRequest = indexedDB.deleteDatabase("purewatertech");
-		deleteRequest.onsuccess = () => {
-			console.log("purewatertech database deleted successfully");
-		};
-		deleteRequest.onerror = () => {
-			console.error("Error deleting purewatertech database");
-		};
-	} catch (e) {
-		console.error("Exception when trying to delete purewatertech database:", e);
-	}
 }
 $N.Unrecoverable = Unrecoverable
 
@@ -364,7 +357,6 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 			else if (event.data.action === 'update_init') {
 				$N.SSEvents.ForceStop()
 				setTimeout(() => {
-					localStorage.clear();
 					serviceworker_reg?.update()
 				}, 300)
 			}
