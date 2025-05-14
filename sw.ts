@@ -292,6 +292,10 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
+	if (r.url.includes(".ts?t=")) {
+		r = create_jsimport_file_call_request(r)
+	}
+
 	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(r)
 
@@ -299,15 +303,7 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		res(match_r) 
 
 	} else if (_isoffline && !r.headers.get('call_even_if_offline')) {
-
-		res(new Response('File not available offline', {                               
-			status: 503,                                                               
-			statusText: 'Offline Mode',                                                
-			headers: { 
-				'Content-Type': 'text/plain',
-				'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
-			}                                  
-		}))                                                                            
+		res(set_failed_file_response(r))                                                                            
 
 	} else {
 		const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
@@ -326,14 +322,40 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 			logit(40, "swe", `${r.url} - Network error`)
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
-			res(new Response('Failed to fetch file', { 
-				status: 503, 
-				statusText: 'Network error',
-				headers: { 'Content-Type': 'text/plain' }
-			}))
+			res(set_failed_file_response(r))
 		}
 	}
 })
+
+
+
+
+const create_jsimport_file_call_request = (existing_r:Request) => { 
+
+	let new_request:Request = {} as Request
+
+	
+)
+
+
+
+
+const set_failed_file_response = (r:Request) => { 
+
+	let headers = {
+		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+	}
+	if (r.url.includes(".js")) {
+		headers['Content-Type'] = 'application/javascript'
+	}
+	const returnresponse = new Response('Failed to Fetch File', {                               
+		status: 503,                                                               
+		statusText: 'Network error',                                                
+		headers
+	})
+
+	return returnresponse
+}
 
 
 
