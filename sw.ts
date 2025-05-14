@@ -300,13 +300,13 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	} else if (_isoffline && !r.headers.get('call_even_if_offline')) {
 
-		// res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
-		// the line above is pasted in from a nodejs express server where the response Cache-Control is forced to be no cache.
-		// replicate this in the new Response here on the client side AI!
 		res(new Response('File not available offline', {                               
 			status: 503,                                                               
 			statusText: 'Offline Mode',                                                
-			headers: { 'Content-Type': 'text/plain' }                                  
+			headers: { 
+				'Content-Type': 'text/plain',
+				'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+			}                                  
 		}))                                                                            
 
 	} else {
