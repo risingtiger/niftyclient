@@ -4,6 +4,21 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
+const ALL_PRELOAD_COMPONENTS = [
+	"/assets/lazy/components/animeffect/animeffect.js",
+	"/assets/lazy/components/btn/btn.js",
+	"/assets/lazy/components/btn_group/btn_group.js",
+	"/assets/lazy/components/btnpop/btnpop.js",
+	"/assets/lazy/components/dselect/dselect.js",
+	"/assets/lazy/components/form/form.js",
+	"/assets/lazy/components/graphing/graphing.js",
+	"/assets/lazy/components/in/in.js",
+	"/assets/lazy/components/ol/ol.js",
+	"/assets/lazy/components/pol/pol.js",
+	"/assets/lazy/components/reveal/reveal.js",
+	"/assets/lazy/components/toast/toast.js"
+]
+
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
 const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max backoff
 const EXITDELAY                           = 12000 // just the default. can be overridden in the fetch request
@@ -14,8 +29,9 @@ let _id_token          = ""
 let _token_expires_at  = 0
 let _refresh_token     = ""
 let _user_email        = ""
-let _isoffline         = true
+let _isoffline         = false
 let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
+let timeouthandler:any = null
 
 
 
@@ -66,6 +82,10 @@ self.addEventListener('activate', (event:any) => {
 		}
 
 		await (self as any).clients.claim();
+		
+		// Initiate connectivity check when service worker activates
+		console.log("activate")
+		check_connectivity();
 	})());
 });
 
@@ -82,9 +102,10 @@ self.addEventListener('fetch', (e:any) => {
 
     let promise = new Promise(async (res, _rej) => {
 
-		if (e.request.url.includes("identitytoolkit.googleapis.com")) {
+		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
 			const r = await fetch(e.request)
 			res(r)
+			return
 		}
 
 		const accepth = e.request.headers.get('Accept') || ""
@@ -262,7 +283,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	else if (is_appapi && server_response.status === 410) {
 		(self as any).clients.matchAll().then((clients:any) => {
-			clients.forEach((client: any) => {
+			clients.forEach((_client: any) => {
 			})
 		})
 		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle update including page redirection
@@ -453,25 +474,50 @@ function logit(type:number, subject:string, msg:string="") {
 
 const check_connectivity = async () => {
 
-	if (!_isoffline) return;
+	if (_isoffline) {
 
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 3000);
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 3000);
 
-	await fetch('/api/ping', { signal: controller.signal })
-		.then(()=> {
-			clearTimeout(timeout);
-			_check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL
-			_isoffline = false;
-		})
-		.catch(()=> {
-			clearTimeout(timeout);
-			_check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL)
-			_isoffline = true;
-		})
-	
-	setTimeout(() => check_connectivity(), _check_connectivity_interval)
+		await fetch('/api/ping', { signal: controller.signal })
+			.then(()=> {
+				clearTimeout(timeout);
+				_check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL
+				_isoffline = false;
+			})
+			.catch(()=> {
+				clearTimeout(timeout);
+				_check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL)
+				_isoffline = true;
+			})
+	}
+
+	clearTimeout(timeouthandler)
+	// hack! just keep it checking every 5 seconds
+	_check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
+	timeouthandler = setTimeout(() => check_connectivity(), _check_connectivity_interval)
 }
+
+
+
+
+const preload_all_components = () => new Promise(async (res, _rej) => {
+
+	const cache   = await caches.open(_cache_name)
+
+	const promises = ALL_PRELOAD_COMPONENTS.map(async (url) => new Promise(async (res_b, _rej_b) => {
+		const r = await fetch(url).catch(()=>null)
+		if (!r || r.status !== 200) { res_b(0); return; }
+
+		cache.put(url, r!.clone())
+		res_b(1)
+	}))
+
+	Promise.all(promises).then(() => {
+		res(1);
+	});
+});
+
 
 
 
