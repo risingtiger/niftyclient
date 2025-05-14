@@ -74,7 +74,13 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 	for(const f of filepaths) { promises.push(import_file(f)); }
 
-	try   { await Promise.all(promises); }
+	try   { 
+		await Promise.all(promises); 
+		// Add all loadque items to _loaded array
+		for(const load of loadque) {
+			_loaded.push(load);
+		}
+	}
 	catch { res(null); return; }
 
     res(1)
