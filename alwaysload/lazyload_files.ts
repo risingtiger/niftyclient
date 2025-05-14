@@ -2,12 +2,9 @@ import { bool, str } from "../defs_server_symlink.js";
 import { LazyLoadT } from "../defs.js";
 
 
-const TIMEOUT_TS = 4000;
 
 
-
-
-let lazyloads:LazyLoadT[] = [];
+let _lazyloads:LazyLoadT[] = [];
 const _loaded:LazyLoadT[] = [];
 let timeoutWaitingAnimateId:any = null
 
@@ -41,7 +38,7 @@ function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, 
 
 
 function Init(lazyloads_:LazyLoadT[]) {
-    lazyloads = lazyloads_
+    _lazyloads = lazyloads_
 }
 
 
@@ -55,7 +52,7 @@ function addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
 	}
 
 	for (const dep of load.dependencies) {
-		const dep_load = lazyloads.find(l=> l.type === dep.type && l.name === dep.name)
+		const dep_load = _lazyloads.find(l=> l.type === dep.type && l.name === dep.name)
 		if (dep_load === undefined) {
 			console.error("LazyLoad dependency not found", dep)
 		} else {
@@ -75,17 +72,10 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
     const filepaths = loadque.map(l=> get_filepath(l.type, l.name, l.is_instance))
 
-	try {
-		for(const f of filepaths) {
-			promises.push(importWithTimeout(f, TIMEOUT_TS));
-		}
+	for(const f of filepaths) { promises.push(import_file(f)); }
 
-		await Promise.all(promises);
-	}
-	catch (err) {
-		res(null)
-		return
-	}
+	try   { await Promise.all(promises); }
+	catch { res(null); return; }
 
     res(1)
 })}
@@ -93,23 +83,16 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 
 
-function importWithTimeout<T>(path: string, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Timeout loading ${path}`));
-    }, timeoutMs);
+const import_file = (path: string) => new Promise<any>((res, rej) => {
 
-    import(path)
-      .then((module: T) => {
-        clearTimeout(timer);
-        resolve(module);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
-}
+	import(path)
+		.then((module: any) => {
+			res(module);
+		})
+		.catch((err) => {
+			rej(err);
+		})
+});
 
 
 
