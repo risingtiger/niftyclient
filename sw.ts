@@ -1,6 +1,3 @@
-
-
-
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
@@ -330,19 +327,30 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 
-const create_jsimport_file_call_request = (existing_r:Request) => { 
+const create_jsimport_file_call_request = (existing_r:Request): Request => {
+    const url = new URL(existing_r.url);
+    url.search = ''; // Remove the query string like ?t=1234
 
-	let new_request:Request = {} as Request
-
-	
-)
+    const new_request = new Request(url.toString(), {
+        method: existing_r.method,
+        headers: existing_r.headers,
+        body: existing_r.body,
+        mode: existing_r.mode,
+        credentials: existing_r.credentials,
+        cache: existing_r.cache, // Preserve original cache setting, though for caching we use cache.put()
+        redirect: existing_r.redirect,
+        referrer: existing_r.referrer,
+        integrity: existing_r.integrity,
+    });
+    return new_request;
+}
 
 
 
 
 const set_failed_file_response = (r:Request) => { 
 
-	let headers = {
+	let headers: {[key: string]: string} = {
 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
 	}
 	if (r.url.includes(".js")) {
@@ -374,6 +382,11 @@ function set_abort_signal(headers:Headers) {
 
 function should_url_be_cached(request:Request) {
     if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
+        return true;
+    }
+    // Also cache .js files that are not dynamic imports with ?t= (already handled by create_jsimport_file_call_request)
+    // and ensure we are caching the version without ?t= for dynamic imports
+    else if (request.url.endsWith(".js")) {
         return true;
     }
     else {
@@ -541,7 +554,3 @@ const preload_all_components = () => new Promise(async (res, _rej) => {
 		res(1);
 	});
 });
-
-
-
-
