@@ -249,32 +249,66 @@ document.querySelector("#views")!.addEventListener("visibled", () => {
 })
 
 
+// --- Toast Variables (module-level) ---
+let toast_id_counter = 0;
+let toast_container_el: HTMLElement | null = null;
+// --- End Toast Variables ---
 
 
-function ToastShow(msg: string, level?: number | null, duration?: number | null) {
+function ToastShow(msg: string, level?: number | null, _duration?: number | null) { // _duration argument is no longer used
 
-	let existing_toast = document.getElementById("maintoast")
+	// Ensure the toast container exists
+	if (!toast_container_el) {
+        toast_container_el = document.createElement("div");
+        toast_container_el.id = "toast-container";
+        toast_container_el.style.position = "fixed";
+        toast_container_el.style.top = "20px";
+        toast_container_el.style.right = "20px";
+        toast_container_el.style.zIndex = "10000"; // Ensure it's on top of other elements
+        toast_container_el.style.display = "flex";
+        toast_container_el.style.flexDirection = "column"; // Toasts stack vertically
+        toast_container_el.style.gap = "10px"; // Spacing between toasts
+        document.body.appendChild(toast_container_el);
+    }
 
-	if (existing_toast) {
-		console.log("toast already showing")
-		return
-	}
+    toast_id_counter++;
+    const toast_id = `maintoast-${toast_id_counter}`;
+    
+    // Create the c-toast element
+    const toast_el = document.createElement('c-toast') as any; // Cast to any for custom element properties
+    toast_el.id = toast_id;
 
-	const htmlstr = `<c-toast id="maintoast" msg="" level="" duration=""></c-toast>`
-	document.body.insertAdjacentHTML("beforeend", htmlstr)
-	let toast_el = document.getElementById("maintoast")! as any
+    // Set attributes for the toast
+    toast_el.setAttribute("msg", msg || "");
+    toast_el.setAttribute("level", level?.toString() || '0');
+    // Set a very long duration to effectively prevent c-toast's internal auto-dismissal.
+    // 2147483647ms is the max value for a 32-bit signed integer timeout, approx 24.8 days.
+    toast_el.setAttribute("duration", '2147483647'); 
+    
+    // Prepend the new toast to the container so it appears at the top of the stack.
+    // (flex-direction: column means prepend puts it visually at the top).
+    toast_container_el.prepend(toast_el);
+    
+    // Trigger the toast to show itself. The 'action="run"' attribute initiates display logic in c-toast.
+    // This should be set after the element is in the DOM and other attributes are configured.
+    toast_el.setAttribute("action", "run");
 
-	toast_el.setAttribute("msg", msg || "")
-	toast_el.setAttribute("level", level || '0')
-	toast_el.setAttribute("duration", duration ? duration.toString() : '4500')
+    // Add a click listener to the toast element for manual dismissal.
+    toast_el.addEventListener("click", () => {
+        if (toast_el.parentElement) { // Check if the element is still in the DOM
+            toast_el.remove();
+        }
+    });
 
-	toast_el.setAttribute("action", "run")
-
-	toast_el.addEventListener("done", () => {
-		document.body.removeChild(toast_el)
-	})
+    // Optional: Handle the 'done' event from c-toast as a fallback removal mechanism.
+    // This event will fire from c-toast after its internal (now very long) timer expires.
+    toast_el.addEventListener("done", () => {
+        if (toast_el.parentElement) { // Check if the element is still in the DOM
+            toast_el.remove();
+        }
+    });
 }
-$N.ToastShow = ToastShow
+$N.ToastShow = ToastShow;
 
 
 
@@ -284,34 +318,40 @@ async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj:
 	await new Promise((res, _rej) => {
 		const deleteRequest = indexedDB.deleteDatabase(INSTANCE.INFO.firebase.project);
 		deleteRequest.onsuccess = () => {res(true); };
-		deleteRequest.onerror =   () => {res(true); };
+		deleteRequest.onerror =   () => {res(true); }; // Resolve even on error to proceed
 	})
 
 	const redirect = `/v/appmsg?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
 	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
 
-	localStorage.removeChild("synccollections");
+	localStorage.removeItem("synccollections"); // Corrected from removeChild to removeItem
 }
-$N.Unrecoverable = Unrecoverable
+$N.Unrecoverable = Unrecoverable;
 
 
 
 
 function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string, clickHandler?: () => void) {
-	const modal = document.getElementById('alert_notice')!
+	const modal = document.getElementById('alert_notice');
+	if (!modal) return; // Guard clause if modal isn't found
 	modal.classList.add('active');
 
-	const titleEl = document.getElementById('alert_notice_title')!
-	const msgEl = document.getElementById('alert_notice_msg')!
-	const btnReset = document.getElementById('alert_notice_btn')!
+	const titleEl = document.getElementById('alert_notice_title');
+	const msgEl = document.getElementById('alert_notice_msg');
+	const btnReset = document.getElementById('alert_notice_btn');
 
-	titleEl.textContent = subj;
-	msgEl.textContent = msg;
-	btnReset.textContent = btnmsg;
-
+	if (titleEl) titleEl.textContent = subj;
+	if (msgEl) msgEl.textContent = msg;
+	
 	if (btnReset) {
-		btnReset.addEventListener('click', () => {
+		btnReset.textContent = btnmsg;
+        // To prevent multiple listeners if setalertbox is called multiple times for the same button,
+        // replace the button with a clone of itself. This removes all old event listeners.
+        const newBtnReset = btnReset.cloneNode(true) as HTMLElement;
+        btnReset.parentNode?.replaceChild(newBtnReset, btnReset); // Use parentNode for safety
+
+		newBtnReset.addEventListener('click', () => {
 			if (clickHandler) {
 				clickHandler();
 			} else {
