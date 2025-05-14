@@ -4,24 +4,13 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
-const ALL_PRELOAD_COMPONENTS = [
-	"/assets/lazy/components/animeffect/animeffect.js",
-	"/assets/lazy/components/btn/btn.js",
-	"/assets/lazy/components/btn_group/btn_group.js",
-	"/assets/lazy/components/btnpop/btnpop.js",
-	"/assets/lazy/components/dselect/dselect.js",
-	"/assets/lazy/components/form/form.js",
-	"/assets/lazy/components/graphing/graphing.js",
-	"/assets/lazy/components/in/in.js",
-	"/assets/lazy/components/ol/ol.js",
-	"/assets/lazy/components/pol/pol.js",
-	"/assets/lazy/components/reveal/reveal.js",
-	"/assets/lazy/components/toast/toast.js"
+const SELECTED_PRELOAD_COMPONENTS = [
+	// empty for now
 ]
 
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
 const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max backoff
-const EXITDELAY                           = 12000 // just the default. can be overridden in the fetch request
+const EXITDELAY                           = 9000 // just the default. can be overridden in the fetch request
 
 let _cache_name        = 'cacheV__0__';
 let _cache_version     = Number(_cache_name.split("__")[1])
@@ -86,6 +75,8 @@ self.addEventListener('activate', (event:any) => {
 		// Initiate connectivity check when service worker activates
 		console.log("activate")
 		check_connectivity();
+
+		setTimeout(()=> preload_all_components(), 12000)
 	})());
 });
 
@@ -308,6 +299,10 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		res(match_r) 
 
 	} else if (_isoffline && !r.headers.get('call_even_if_offline')) {
+
+		// res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+		// the line above is pasted in from a nodejs express server where the response Cache-Control is forced to be no cache.
+		// replicate this in the new Response here on the client side AI!
 		res(new Response('File not available offline', {                               
 			status: 503,                                                               
 			statusText: 'Offline Mode',                                                
@@ -373,7 +368,7 @@ function authrequest() { return new Promise<string>(async (res,rej)=> {
 	// right now the the exitdelay is overriden to be 2.7 seconds (check FetchLassie logic to ascertain current value). a little problematic because refresh token could take longer on slow connections
 
     if (!_id_token) {
-		await error_out("swe", "authrequest no token in browser storage")
+		await error_out("sw4", "authrequest no token in browser storage")
 		rej("No token in browser storage")
         return
     }
@@ -503,11 +498,13 @@ const check_connectivity = async () => {
 
 const preload_all_components = () => new Promise(async (res, _rej) => {
 
+	// empty for now. may put toast in there. but have to actually load it and make it accessible to DOM
+
 	const cache   = await caches.open(_cache_name)
 
-	const promises = ALL_PRELOAD_COMPONENTS.map(async (url) => new Promise(async (res_b, _rej_b) => {
+	const promises = SELECTED_PRELOAD_COMPONENTS.map(async (url) => new Promise(async (res_b, _rej_b) => {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 3000);
+		const timeout = setTimeout(() => controller.abort(), 12000);
 		
 		const r = await fetch(url, { signal: controller.signal }).catch(()=>null)
 		clearTimeout(timeout);
