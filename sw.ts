@@ -506,7 +506,12 @@ const preload_all_components = () => new Promise(async (res, _rej) => {
 	const cache   = await caches.open(_cache_name)
 
 	const promises = ALL_PRELOAD_COMPONENTS.map(async (url) => new Promise(async (res_b, _rej_b) => {
-		const r = await fetch(url).catch(()=>null)
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 3000);
+		
+		const r = await fetch(url, { signal: controller.signal }).catch(()=>null)
+		clearTimeout(timeout);
+		
 		if (!r || r.status !== 200) { res_b(0); return; }
 
 		cache.put(url, r!.clone())
