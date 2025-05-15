@@ -48,9 +48,15 @@ const AddView = (
 		promises.push( localdbsync_promise )
 		promises.push( _lazyload_data_funcs[componentname+"_other"](pathparams, new URLSearchParams, searchparams_raw) )
 
-		promises.push( new Promise<Map<str,GenericRowT[]>|null>(async (res, _rej)=> {
-			await localdbsync_promise
-			const r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
+		promises.push( new Promise<Map<str,GenericRowT[]>>(async (res, rej)=> {
+			let r:any = {}; let _:any = {}
+
+			try   { 
+				_ = await localdbsync_promise; 
+				r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
+			}
+			catch { rej(); return; }
+			
 			res(r);
 		}));
 

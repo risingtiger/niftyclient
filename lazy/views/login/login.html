@@ -8,11 +8,11 @@
 
     <div class="content">
         <div style="text-align:center; padding-top: 30px;">
-            <h2>Enter your credentials</h2>
+            <h2>Enter your credentials ---</h2>
             <div class="login-form">
                 ${_s.errorMessage ? html`<div class="error-message">${_s.errorMessage}</div>` : ''}
-                <input label="Email" id="emailinput" type="email" value="${_s.email}" @input="${(e) => this.updateEmail(e)}"></input>
-                <input label="Password" type="password" id="passwordinput"></input>
+                <input label="Email" id="emailinput" type="email" value="${_s.email}" @input="${(e) => _s.email = e.target.value}"></input>
+                <input label="Password" type="password" id="passwordinput" @input="${(e) => _s.password = e.target.value}"></input>
                 <button @click="${()=>this.login()}" ?disabled="${_s.isLoading}">
                     ${_s.isLoading ? 'Logging in...' : 'Login'}
                 </button>

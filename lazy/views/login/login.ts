@@ -124,8 +124,7 @@ class VLogin extends HTMLElement {
         this.s.errorMessage = "";
         this.sc();
 
-
-		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + (window as any).identity_platform_key
+		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + localStorage.getItem("identity_platform_key");
 
 
 		const email = this.s.email;
@@ -157,17 +156,18 @@ class VLogin extends HTMLElement {
 				return;
 			}
 		
-		localStorage.setItem('id_token', data.idToken);
-		localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
-		localStorage.setItem('refresh_token', data.refreshToken);
-		localStorage.setItem('user_email', data.email);
+			localStorage.setItem('id_token', data.idToken);
+			localStorage.setItem('token_expires_at',  ( (Math.floor(Date.now()/1000)) + Number(data.expiresIn) ).toString() ),
+			localStorage.setItem('refresh_token', data.refreshToken);
+			localStorage.setItem('user_email', data.email);
 
-		if (data.email === "accounts@risingtiger.com")
-			localStorage.setItem('auth_group', 'admin');
-		else 
-			localStorage.setItem('auth_group', 'user');
+			if (data.email === "accounts@risingtiger.com")
+				localStorage.setItem('auth_group', 'admin');
+			else 
+				localStorage.setItem('auth_group', 'user');
 
-		$N.SwitchStation.NavigateTo("home");
+			window.location.href = "/v/home";
+
 		} catch (error) {
 			this.s.isLoading = false;
 			this.s.errorMessage = "Login failed. Please try again.";

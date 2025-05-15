@@ -67,13 +67,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		if (_activepaths.length === 0) return
 
-		const nowsecs = Math.floor(Date.now() / 1000)
-		if (nowsecs - _a_millis > 28800) { // 8 hours
-			await ClearAllSyncObjectStores()
-			$N.Unrecoverable("Data Needs Synced", "", "Sync Data", LoggerSubjectE.indexeddb_error, "just regular 8 hour interval refresh")
-			return
-		}
-
 		const r = await datasetter(_activepaths, {retries:2}, true, true)
 		if (r === null || r === 1) return
 
@@ -205,40 +198,6 @@ const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {
 	// I don't yet have the code in place to handle delete across localdbsync and cmech
 
 	res(1)
-})
-
-
-
-
-const ClearAllSyncObjectStores = () => new Promise<num>(async (res, rej) => {
-
-	const db           = await $N.IDB.GetDB()
-
-	const storenames   = _syncobjectstores.map(s => s.name)
-	const tx           = db.transaction(storenames, "readwrite");
-
-	let clearcount     = 0;
-	let error_occurred = false;
-
-	for(const name of storenames) {
-		const stores   = tx.objectStore(name)
-		const storereq = stores.clear()
-
-		storereq.onsuccess = ()  => {   clearcount++;            }
-		storereq.onerror   = ()  => {   error_occurred = true;   }
-	}
-
-	tx.onerror = (event) => {   console.error("Transaction error:", event); }
-
-	tx.oncomplete = () => {
-		if (error_occurred) {   console.error("Error in clearing object stores"); rej(); return;   }
-
-		for(const syncobjectstore of _syncobjectstores)   syncobjectstore.ts = null
-
-		localStorage.setItem("synccollections", JSON.stringify(_syncobjectstores.map(dc => ({ name: dc.name, ts: null }))));
-
-		res(1)
-	}
 })
 
 
@@ -442,8 +401,7 @@ const write_a_partial_record_to_indexeddb_store = (syncobjectstore: SyncObjectSt
 
 
 async function redirect_from_error(errmsg:str) {
-	await ClearAllSyncObjectStores()
-	$N.Unrecoverable("Error", "Error in LocalDBSync", "Reset App", LoggerSubjectE.indexeddb_error, errmsg)
+	$N.Unrecoverable("Error", "Error in LocalDBSync", "Reset App", LoggerSubjectE.indexeddb_error, errmsg, null)
 }
 
 
@@ -451,7 +409,7 @@ async function redirect_from_error(errmsg:str) {
 
 export { Init, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).LocalDBSync = { Add, Patch, Delete, ClearAllSyncObjectStores };
+((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
 
 
 

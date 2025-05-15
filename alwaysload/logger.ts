@@ -25,10 +25,20 @@ enum BrowserE {
 
 function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
-	//if ( window.location.hostname === "localhost" )   return
+	if ( window.location.hostname === "localhost" ) {
+		console.log(`[${type}] [${subject}] ${message}`)
+		return
+	}
 
 
 	const logs = localStorage.getItem("logs") || ""
+
+	if (logs.length > 100000) {
+		// there is an error or user just has not logged in in a while. Too much to send, so wipe it
+		localStorage.setItem("logs", "")
+		return;
+	}
+
 	const ts = Math.floor(Date.now() / 1000)
 
 	const newlog = `${type},${subject},${message},${ts}`
@@ -46,9 +56,6 @@ function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
 
 
 async function Save() {
-
-	//if ( window.location.hostname === "localhost" )   return
-
 
 	let logs = localStorage.getItem("logs")
 	let user_email = localStorage.getItem("user_email")

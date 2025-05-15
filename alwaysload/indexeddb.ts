@@ -24,8 +24,8 @@ const Init = async (localdb_objectstores: {name:str,indexes?:str[]}[], db_name: 
 
 const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	res(_db)	
 })
@@ -35,8 +35,8 @@ const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
 const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
 	const objectStore = transaction.objectStore(objectstore_name);
@@ -55,8 +55,8 @@ const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async 
 
 const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
 
@@ -85,8 +85,8 @@ const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(
 
 const ClearAll = (objectstore_name:str) => new Promise(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	const tx = ( _db as IDBDatabase ).transaction(objectstore_name, 'readonly');
 	let   aye_errs = false
@@ -108,8 +108,8 @@ const ClearAll = (objectstore_name:str) => new Promise(async (res, rej) => {
 
 const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
 	const objectstore = transaction.objectStore(objectstore_name);
@@ -127,8 +127,8 @@ const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(a
 
 const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => {
 
-	if (!_db) _db = await openindexeddb()
-	if (_db === null) { rej(); return; }
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
 	const objectstore = transaction.objectStore(objectstore_name);
@@ -136,8 +136,8 @@ const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => 
 	let   count       = 0
 	
 	const request = objectstore.count();
-	request.onsuccess = (ev:any) => count = Number( ev.target.result );
-	request.onerror   = (ev:any) => aye_errs = true;
+	request.onsuccess = (ev:any)  => count = Number( ev.target.result );
+	request.onerror   = (_ev:any) => aye_errs = true;
 	
 	transaction.onerror    = () => rej();
 	transaction.oncomplete = () => { 
@@ -210,24 +210,20 @@ const TXResult = (tx:IDBTransaction) => new Promise<num>((res, rej) => {
 
 
 
-const openindexeddb = () => new Promise<IDBDatabase|null>(async (res,_rej)=> {
+const openindexeddb = () => new Promise<IDBDatabase>(async (res,rej)=> {
 
 	let dbconnect = indexedDB.open(_db_name, _db_version)
 
-	dbconnect.onerror = (event:any) => { 
-		console.log("IndexedDB Error - " + event.target.errorCode)
+	dbconnect.onerror = (_event:any) => { 
+		rej()
 	}
 
 	dbconnect.onsuccess = async (event: any) => {
-		event.target.result.onerror = (event:any) => {
-			console.log("IndexedDB Error - " + event.target.errorCode)
-		}
 		const db = event.target.result
 		res(db)
 	}
 
 	dbconnect.onupgradeneeded = (event: any) => {
-		console.log("IndexedDB Upgrade Needed - " + event.oldVersion + " -> " + event.newVersion)
 		const db = event.target.result
 		_localdb_objectstores.forEach((dc) => {
 			if (!db.objectStoreNames.contains(dc.name)) {

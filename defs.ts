@@ -160,7 +160,6 @@ export type $NT = {
 		Add:   (path:string, newdocs:any[]) => Promise<any>,
 		Patch: (path:string, data:GenericRowT) => Promise<any>,
 		Delete:(path:string, id:string) => Promise<any>,
-		ClearAllSyncObjectStores: () => Promise<num>,
 	}
 
 	CMech: {
@@ -186,7 +185,7 @@ export type $NT = {
 	}
 
 	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
-	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string) => void
+	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string, redirectionurl:string|null) => void
 
 	SwitchStation: {
 		NavigateTo: (newPath: string) => void,

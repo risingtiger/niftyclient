@@ -293,7 +293,7 @@ class VSetupPushAllowance extends HTMLElement {
 
 
 
-customElements.define('v-setup-push-allowance', VSetupPushAllowance);
+customElements.define('v-setup_push_allowance', VSetupPushAllowance);
 
 
 

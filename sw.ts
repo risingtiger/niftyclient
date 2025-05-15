@@ -215,6 +215,23 @@ async function check_update_polling() {
 
 const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
+
+
+
+
+	/*
+	now sometin be fucked with the data fetch. getting bunch o errors on 
+    POST http://localhost:3004/api/firestore_get_batch net::ERR_ABORTED 503 (Network error)
+	even when connected to the network.
+		*/
+
+
+
+
+
+
+
+
 	if (_isoffline && !r.headers.get('call_even_if_offline')) {
 		res(new Response(null, { status: 503, statusText: 'Network error - App Offline' }))
 		return
@@ -289,37 +306,35 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
-	if (r.url.includes(".ts?t=")) {
-		r = create_jsimport_file_call_request(r)
-	}
+	const nr = (r.url.includes("__.js")) ? create_jsimport_file_call_request(r) : r
 
 	const cache   = await caches.open(_cache_name)
-	const match_r = await cache.match(r)
+	const match_r = await cache.match(nr)
 
 	if (match_r) { 
 		res(match_r) 
 
-	} else if (_isoffline && !r.headers.get('call_even_if_offline')) {
-		res(set_failed_file_response(r))                                                                            
+	} else if (_isoffline && !nr.headers.get('call_even_if_offline')) {
+		res(set_failed_file_response())                                                                            
 
 	} else {
-		const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
+		const { signal, abortsignal_timeoutid } = set_abort_signal(nr.headers)
 		
 		try {
-			const response = await fetch(r, { signal })
+			const response = await fetch(nr, { signal })
 			_isoffline = false;
 			clearTimeout(abortsignal_timeoutid)
 			
-			if (response.status === 200 && should_url_be_cached(r)) {
-				cache.put(r, response.clone())
+			if (response.status === 200 && should_url_be_cached(nr)) {
+				cache.put(nr, response.clone())
 			}
 			res(response)
 
 		} catch (err:any) {
-			logit(40, "swe", `${r.url} - Network error`)
+			logit(40, "swe", `${nr.url} - Network error`)
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
-			res(set_failed_file_response(r))
+			res(set_failed_file_response())
 		}
 	}
 })
@@ -328,19 +343,24 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 const create_jsimport_file_call_request = (existing_r:Request): Request => {
-    const url = new URL(existing_r.url);
-    url.search = ''; // Remove the query string like ?t=1234
 
-    const new_request = new Request(url.toString(), {
-        method: existing_r.method,
-        headers: existing_r.headers,
-        body: existing_r.body,
-        mode: existing_r.mode,
-        credentials: existing_r.credentials,
-        cache: existing_r.cache, // Preserve original cache setting, though for caching we use cache.put()
-        redirect: existing_r.redirect,
+	// lazyload_files import uses a cache buster to ensure that the file is reloaded on failed atempts. 
+	// this function strips the cache buster from the url and creates a new request object with the same properties as the original request
+	// this way we can still store it in the local Cache for subsequent calls
+
+	const url = existing_r.url.split("__")[0] + ".js"
+
+    const new_request = new Request(url, {
+        body: null,
+        cache: "default", 
+        credentials: "same-origin",
+        headers: {},
+		integrity: "",
+        method: "GET",
+        mode: "cors",
+        redirect: "error",
         referrer: existing_r.referrer,
-        integrity: existing_r.integrity,
+		referrerPolicy: "strict-origin-when-cross-origin",
     });
     return new_request;
 }
@@ -348,13 +368,10 @@ const create_jsimport_file_call_request = (existing_r:Request): Request => {
 
 
 
-const set_failed_file_response = (r:Request) => { 
+const set_failed_file_response = () => { 
 
 	let headers: {[key: string]: string} = {
 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
-	}
-	if (r.url.includes(".js")) {
-		headers['Content-Type'] = 'application/javascript'
 	}
 	const returnresponse = new Response('Failed to Fetch File', {                               
 		status: 503,                                                               

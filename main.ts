@@ -257,63 +257,47 @@ let toast_container_el: HTMLElement | null = null;
 
 function ToastShow(msg: string, level?: number | null, _duration?: number | null) { // _duration argument is no longer used
 
-	// Ensure the toast container exists
-	if (!toast_container_el) {
-        toast_container_el = document.createElement("div");
-        toast_container_el.id = "toast-container";
-        toast_container_el.style.position = "fixed";
-        toast_container_el.style.top = "20px";
-        toast_container_el.style.right = "20px";
-        toast_container_el.style.zIndex = "10000"; // Ensure it's on top of other elements
-        toast_container_el.style.display = "flex";
-        toast_container_el.style.flexDirection = "column"; // Toasts stack vertically
-        toast_container_el.style.gap = "10px"; // Spacing between toasts
-        document.body.appendChild(toast_container_el);
-    }
 
-    toast_id_counter++;
     const toast_id = `maintoast-${toast_id_counter}`;
     
-    // Create the c-toast element
     const toast_el = document.createElement('c-toast') as any; // Cast to any for custom element properties
     toast_el.id = toast_id;
 
-    // Set attributes for the toast
     toast_el.setAttribute("msg", msg || "");
     toast_el.setAttribute("level", level?.toString() || '0');
-    // Set a very long duration to effectively prevent c-toast's internal auto-dismissal.
-    // 2147483647ms is the max value for a 32-bit signed integer timeout, approx 24.8 days.
     toast_el.setAttribute("duration", '2147483647'); 
     
-    // Prepend the new toast to the container so it appears at the top of the stack.
-    // (flex-direction: column means prepend puts it visually at the top).
-    toast_container_el.prepend(toast_el);
+    document.body.append(toast_el);
     
-    // Trigger the toast to show itself. The 'action="run"' attribute initiates display logic in c-toast.
-    // This should be set after the element is in the DOM and other attributes are configured.
     toast_el.setAttribute("action", "run");
 
-    // Add a click listener to the toast element for manual dismissal.
     toast_el.addEventListener("click", () => {
         if (toast_el.parentElement) { // Check if the element is still in the DOM
             toast_el.remove();
         }
     });
 
-    // Optional: Handle the 'done' event from c-toast as a fallback removal mechanism.
-    // This event will fire from c-toast after its internal (now very long) timer expires.
     toast_el.addEventListener("done", () => {
         if (toast_el.parentElement) { // Check if the element is still in the DOM
             toast_el.remove();
         }
     });
+
+	setTimeout(() => {
+		const toast_els = document.querySelectorAll("c-toast");
+		let   bottom_position = 20;
+		for (const el of toast_els) {
+			( el as HTMLElement).style.bottom = `${bottom_position}px`;
+			bottom_position += 60;
+		}
+	}, 10)
 }
 $N.ToastShow = ToastShow;
 
 
 
 
-async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string = "") {
+async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string|null, redirectionurl:string|null) {
 	
 	await new Promise((res, _rej) => {
 		const deleteRequest = indexedDB.deleteDatabase(INSTANCE.INFO.firebase.project);
@@ -321,9 +305,9 @@ async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj:
 		deleteRequest.onerror =   () => {res(true); }; // Resolve even on error to proceed
 	})
 
-	const redirect = `/v/appmsg?logsubj=${logsubj}`;
+	const redirect = redirectionurl || `/v/appmsg?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
-	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg);
+	$N.Logger.Log(LoggerTypeE.error, logsubj, ( logerrmsg || "" ));
 
 	localStorage.removeItem("synccollections"); // Corrected from removeChild to removeItem
 }
@@ -403,7 +387,12 @@ const setup_service_worker = () => new Promise<void>((resolve, _reject) => {
 
 			else if (event.data.action === 'error_out') {
 				$N.Logger.Log(LoggerTypeE.error, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
-				Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg)
+
+				if (event.data.subject === LoggerSubjectE.sw_fetch_not_authorized) {
+					Unrecoverable("Not Authenticated", "Please Login", "Login", LoggerSubjectE.sw_fetch_not_authorized, event.data.errmsg, "/v/login")
+				} else {
+					Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg, null)
+				}
 			}
 
 			else if (event.data.action === 'logit') {

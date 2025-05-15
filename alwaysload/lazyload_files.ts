@@ -12,7 +12,7 @@ let timeoutWaitingAnimateId:any = null
 
 
 
-function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, _rej)=> {
+function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, rej)=> {
 
 	if (loads.length === 0) { res(1); return; }
 
@@ -29,7 +29,7 @@ function Run(loads:LazyLoadT[]) {   return new Promise<number|null>(async (res, 
 	setBackgroundOverlay(false)
 	setWaitingAnimate(false)
 
-	if (r === null) { res(null); return; }
+	if (r === null) { rej(); return; }
 
     res(1)
 })}
@@ -74,14 +74,10 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 	for(const f of filepaths) { promises.push(import_file(f)); }
 
-	try   { 
-		await Promise.all(promises); 
-		// Add all loadque items to _loaded array
-		for(const load of loadque) {
-			_loaded.push(load);
-		}
-	}
+	try   { await Promise.all(promises); }
 	catch { res(null); return; }
+
+	for(const load of loadque) { _loaded.push(load); }
 
     res(1)
 })}
@@ -90,6 +86,8 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 
 const import_file = (path: string) => new Promise<any>((res, rej) => {
+
+	path = (path.split(".js")[0]) + "__" + Date.now() + "__.js"
 
 	import(path)
 		.then((module: any) => {

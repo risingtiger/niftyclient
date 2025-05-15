@@ -72,7 +72,6 @@ async function NavigateTo(newPath: string) {
 
     const r = await routeChanged(newPath, 'forward');
 	if (r === null) { 
-		$N.ToastShow("Network down. Could not navigate to page", 4, 5000000)
 		return; 
 	}
 
@@ -138,8 +137,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			$N.LocalDBSync.ClearAllSyncObjectStores()
-			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
+			handle_route_fail(_routes[routeindex], true)
 			res(null);
 			return;
 		}
@@ -157,8 +155,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
 
 		if (loadresult === 'failed') {
-			$N.LocalDBSync.ClearAllSyncObjectStores()
-			$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
+			handle_route_fail(_routes[routeindex])
 			res(null);
 			return;
 		}
@@ -211,8 +208,7 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 			const loadresult = await routeload(routeindex, path, urlmatches, "afterbegin");
 
             if (loadresult === "failed") {
-				$N.LocalDBSync.ClearAllSyncObjectStores()
-				$N.Unrecoverable("Error", "Could Not Load Page", "Reset App", LoggerSubjectE.switch_station_route_load_fail, "")
+				handle_route_fail(_routes[routeindex])
 				res(null);
 				return;
             }
@@ -279,6 +275,23 @@ function get_route_uri(url: str) : [Array<str>, num] {
 
     // catch all -- just route to home
     return [ [], _routes.findIndex(r=> r.lazyload_view.name==="home")! ]
+}
+
+
+
+
+const handle_route_fail = (route:Route, redirect:boolean = false) => {
+
+	const viewsel = document.querySelector("#views v-" + route.lazyload_view.name) as HTMLElement;
+
+	if (viewsel) {viewsel.remove()}
+
+	if (redirect) {
+		$N.Unrecoverable(LoggerSubjectE.switch_station_route_load_fail, "Unable to Load App Page", "Restart App", LoggerSubjectE.switch_station_route_load_fail, "Unable to Load App Page", null)
+	} else {
+		$N.ToastShow("Unable to Load View", 4)
+	}
+
 }
 
 

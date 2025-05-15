@@ -20,7 +20,7 @@ type PendingSyncOperationT = {
 const PENDING_SYNC_STORE_NAME = '__pending_sync_operations';
 const INITIAL_SYNC_INTERVAL = 5000; 
 const MAX_SYNC_INTERVAL = 1800000; // 30 minutes
-const BACKOFF_FACTOR = 2; 
+const BACKOFF_FACTOR = 1.5; 
 
 let _pending_sync_operations_count = -1; // -1 means not set yet -- initially in app pull from indexeddb to find out how many pending sync operations there are
 let _current_sync_interval = INITIAL_SYNC_INTERVAL;
