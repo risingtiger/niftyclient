@@ -1,7 +1,7 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
-const PRELOAD_ASSETS = [
+const AFTER_ACTIVATE_PRELOAD_ASSETS = [
 	"/assets/lazy/views/appmsgs/appmsgs.js",
 	"/assets/lazy/views/login/login.js",
 	"/assets/instance/lazy/views/home/home.js"
@@ -55,7 +55,7 @@ self.addEventListener('activate', (event:any) => {
 
 		await (self as any).clients.claim();
 
-		setTimeout(()=> preload_all_components(), 5000);
+		setTimeout(()=> load_assets_into_cache(AFTER_ACTIVATE_PRELOAD_ASSETS), 5000);
 	})());
 });
 
@@ -289,9 +289,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 
-const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
-
-	const nr = (r.url.includes("__.js")) ? create_jsimport_file_call_request(r) : r
+const handle_file_call = (nr:Request) => new Promise<Response>(async (res, _rej) => { 
 
 	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(nr)
@@ -300,7 +298,7 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		res(match_r) 
 
 	} else if (_isoffline && !nr.headers.get('call_even_if_offline')) {
-		res(set_failed_file_response())                                                                            
+		res(set_failed_file_response(nr))                                                                            
 
 	} else {
 		const { signal, abortsignal_timeoutid } = set_abort_signal(nr.headers)
@@ -320,7 +318,7 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
 			check_connectivity()
-			res(set_failed_file_response())
+			res(set_failed_file_response(nr))
 		}
 	}
 })
@@ -328,44 +326,44 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 
-const create_jsimport_file_call_request = (existing_r:Request): Request => {
+const set_failed_file_response = (nr:Request) => { 
 
-	// lazyload_files import uses a cache buster to ensure that the file is reloaded on failed atempts. 
-	// this function strips the cache buster from the url and creates a new request object with the same properties as the original request
-	// this way we can still store it in the local Cache for subsequent calls
-
-	const url = existing_r.url.split("__")[0] + ".js"
-
-    const new_request = new Request(url, {
-        body: null,
-        cache: "default", 
-        credentials: "same-origin",
-        headers: {},
-		integrity: "",
-        method: "GET",
-        mode: "cors",
-        redirect: "error",
-        referrer: existing_r.referrer,
-		referrerPolicy: "strict-origin-when-cross-origin",
-    });
-    return new_request;
-}
-
-
-
-
-const set_failed_file_response = () => { 
+	const responsebody = nr.url.includes("/v/") ? set_failed_file_response_htmlpage(nr) : "Failed to Fetch File"
 
 	let headers: {[key: string]: string} = {
 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
 	}
-	const returnresponse = new Response('Failed to Fetch File', {                               
+	const returnresponse = new Response(responsebody, {                               
 		status: 503,                                                               
 		statusText: 'Network error',                                                
 		headers
 	})
 
 	return returnresponse
+}
+
+
+
+
+const set_failed_file_response_htmlpage = (nr:Request) => { 
+
+	const responsebody = `
+		<!DOCTYPE html>
+		<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Unable To Load Page</title>
+			</head>
+			<body>
+				<h1>Unable To Load Page</h1>
+				<p>Click to go back</p>
+				<p><a id="clicktogoback" href="">Go Back</a></p>
+			</body>
+		</html>
+	`
+
+	return responsebody
 }
 
 
@@ -534,10 +532,10 @@ const check_connectivity = async () => {
 
 
 
-const preload_all_components = () => new Promise(async (res, _rej) => {
+const load_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej) => {
     const cache = await caches.open(_cache_name);
 
-    const promises = PRELOAD_ASSETS.map(async (url) => {
+    const promises = assets.map(async (url) => {
         try {
             const cached_response = await cache.match(url);
             if (cached_response) {
@@ -545,7 +543,7 @@ const preload_all_components = () => new Promise(async (res, _rej) => {
             }
 
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 12000); // Timeout for individual fetch
+            const timeout = setTimeout(() => controller.abort(), EXITDELAY); // Timeout for individual fetch
             
             const response = await fetch(url, { signal: controller.signal });
             clearTimeout(timeout);
@@ -554,12 +552,10 @@ const preload_all_components = () => new Promise(async (res, _rej) => {
                 await cache.put(url, response.clone());
                 return 1; // Fetched and cached
             }
-            // Optionally log failed preloads if needed:
-            // logit(30, "sw_preload_warn", `Failed to preload ${url} - Status: ${response?.status}`);
-            return 0; // Fetch failed or non-200 status
+            return 0; 
         } catch (error:any) {
             logit(40, "sw_preload_err", `Error preloading ${url}: ${error.message}`);
-            return 0; // Error during preload attempt
+            return 0; 
         }
     });
 
