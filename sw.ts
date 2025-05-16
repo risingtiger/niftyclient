@@ -335,39 +335,64 @@ const set_failed_file_response = (nr:Request) => {
 
 const set_failed_file_response_htmlpage = (_nr:Request) => { 
 
-	let headers: {[key: string]: string} = {
-		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
-	}
+	let headers = new Headers({
+		'Content-Type': 'text/html; charset=UTF-8',
+		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+		'X-Content-Type-Options': 'nosniff'
+	})
 
-	const responsebody = `
-		<!DOCTYPE html>
-		<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Unable To Load Page</title>
-			</head>
-			<body>
-				<h1>Unable To Load Page</h1>
-				<p>Click to go back</p>
-				<p><a id="clicktogoback">Go Back</a></p>
+	const responsebody = `<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Unable To Load Page</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+				padding: 20px;
+				max-width: 600px;
+				margin: 0 auto;
+				text-align: center;
+			}
+			h1 {
+				margin-top: 40px;
+				color: #333;
+			}
+			a {
+				display: inline-block;
+				margin-top: 20px;
+				padding: 10px 20px;
+				background-color: #007bff;
+				color: white;
+				text-decoration: none;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+			a:hover {
+				background-color: #0056b3;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Unable To Load Page</h1>
+		<p>The page could not be loaded due to network connectivity issues.</p>
+		<a id="clicktogoback">Go Back</a>
 
-				<script>
-					document.getElementById('clicktogoback').addEventListener('click', function(e) {
-						e.preventDefault();
-						window.history.back();
-					});
-				</script>
-			</body>
-		</html>
-	`
+		<script>
+			document.getElementById('clicktogoback').addEventListener('click', function(e) {
+				e.preventDefault();
+				window.history.back();
+			});
+		</script>
+	</body>
+</html>`
 
 	const returnresponse = new Response(responsebody, {                               
 		status: 200,                                                               
-		statusText: 'Error Page',                                                
-		headers
+		statusText: 'OK',                                                
+		headers: headers
 	})
-
 
 	return returnresponse
 }
