@@ -55,7 +55,7 @@ self.addEventListener('activate', (event:any) => {
 
 		await (self as any).clients.claim();
 
-		setTimeout(()=> preload_all_components(), 12000)
+		setTimeout(()=> preload_all_components(), 5000);
 	})());
 });
 
@@ -535,25 +535,35 @@ const check_connectivity = async () => {
 
 
 const preload_all_components = () => new Promise(async (res, _rej) => {
+    const cache = await caches.open(_cache_name);
 
-	// empty for now. may put toast in there. but have to actually load it and make it accessible to DOM
+    const promises = PRELOAD_ASSETS.map(async (url) => {
+        try {
+            const cached_response = await cache.match(url);
+            if (cached_response) {
+                return 1; // Already cached
+            }
 
-	const cache   = await caches.open(_cache_name)
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 12000); // Timeout for individual fetch
+            
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+            
+            if (response && response.status === 200) {
+                await cache.put(url, response.clone());
+                return 1; // Fetched and cached
+            }
+            // Optionally log failed preloads if needed:
+            // logit(30, "sw_preload_warn", `Failed to preload ${url} - Status: ${response?.status}`);
+            return 0; // Fetch failed or non-200 status
+        } catch (error:any) {
+            logit(40, "sw_preload_err", `Error preloading ${url}: ${error.message}`);
+            return 0; // Error during preload attempt
+        }
+    });
 
-	const promises = SELECTED_PRELOAD_COMPONENTS.map(async (url) => new Promise(async (res_b, _rej_b) => {
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 12000);
-		
-		const r = await fetch(url, { signal: controller.signal }).catch(()=>null)
-		clearTimeout(timeout);
-		
-		if (!r || r.status !== 200) { res_b(0); return; }
-
-		cache.put(url, r!.clone())
-		res_b(1)
-	}))
-
-	Promise.all(promises).then(() => {
-		res(1);
-	});
+    Promise.all(promises).then(() => {
+        res(1); 
+    });
 });
