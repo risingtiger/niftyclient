@@ -1,8 +1,10 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
 
-const SELECTED_PRELOAD_COMPONENTS = [
-	// empty for now
+const PRELOAD_ASSETS = [
+	"/assets/lazy/views/appmsgs/appmsgs.js",
+	"/assets/lazy/views/login/login.js",
+	"/assets/instance/lazy/views/home/home.js"
 ]
 
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
@@ -42,22 +44,6 @@ self.addEventListener('install', (event:any) => {
 
 
 
-self.addEventListener('online', () => {
-	check_connectivity()
-});
-
-
-
-
-self.addEventListener('offline', () => {
-	_check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-	_isoffline = true
-	check_connectivity()
-});
-
-
-
-
 self.addEventListener('activate', (event:any) => {
 	event.waitUntil((async () => {
 		const cacheKeys = await caches.keys();
@@ -68,10 +54,6 @@ self.addEventListener('activate', (event:any) => {
 		}
 
 		await (self as any).clients.claim();
-		
-		// Initiate connectivity check when service worker activates
-		console.log("activate")
-		check_connectivity();
 
 		setTimeout(()=> preload_all_components(), 12000)
 	})());
@@ -244,6 +226,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	}
 	else if (ar === "Network error") {
 		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
+		check_connectivity()
 		_isoffline = true;
 		res(new Response(null, { status: 503, statusText: 'Network error - On Auth Request' }))
 		// cannot authenticate. But this is a network error, so give retries etc a chance to recover before killing the app
@@ -270,6 +253,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		.catch(() => {
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
+			check_connectivity()
 			res(new Response( null, { status: 503, statusText: 'Network error' } ))
 			return null
 		})
@@ -288,7 +272,8 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	else if (is_appapi && server_response.status === 410) {
 		(self as any).clients.matchAll().then((clients:any) => {
-			clients.forEach((_client: any) => {
+			clients.forEach((client: any) => {
+				client.postMessage({ action: 'update_init' });
 			})
 		})
 		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle update including page redirection
@@ -334,6 +319,7 @@ const handle_file_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 			logit(40, "swe", `${nr.url} - Network error`)
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
+			check_connectivity()
 			res(set_failed_file_response())
 		}
 	}
