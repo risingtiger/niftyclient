@@ -83,44 +83,21 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 
 async function NavigateTo(newPath: string) {
-
-	//window.location.href = "/v/" + newPath
-
-	/*
-    const r = await routeChanged(newPath, 'forward');
-	if (r === null) { 
-		return; 
-	}
-
-	newPath = "/v/" + newPath
-
-    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
-	*/
+	window.location.href = "/v/" + newPath;
 }
 
 
 
 
 async function NavigateBack(opts:{ default:str}) {
-
 	if (history.state && history.state.index > 0) {
-		history.back();
+		// There is history to go back to
+		window.location.href = document.referrer || ("/v/" + opts.default);
 	}
 	else {
-		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
-		//window.location.href = "/v/" + opts.default
+		// No history, go to default
+		window.location.href = "/v/" + opts.default;
 	}
-
-	/*
-	if (history.state && history.state.index > 0) {
-		await routeChanged(opts.default, 'back');
-		history.back();
-	}
-	else {
-		await routeChanged(opts.default, 'back');
-		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
-	}
-	*/
 }
 
 
