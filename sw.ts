@@ -327,25 +327,17 @@ const handle_file_call = (nr:Request) => new Promise<Response>(async (res, _rej)
 
 
 const set_failed_file_response = (nr:Request) => { 
-
-	const responsebody = nr.url.includes("/v/") ? set_failed_file_response_htmlpage(nr) : "Failed to Fetch File"
-
-	let headers: {[key: string]: string} = {
-		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
-	}
-	const returnresponse = new Response(responsebody, {                               
-		status: 503,                                                               
-		statusText: 'Network error',                                                
-		headers
-	})
-
-	return returnresponse
+	return nr.url.includes("/v/") ? set_failed_file_response_htmlpage(nr) : set_failed_file_response_other(nr)
 }
 
 
 
 
-const set_failed_file_response_htmlpage = (nr:Request) => { 
+const set_failed_file_response_htmlpage = (_nr:Request) => { 
+
+	let headers: {[key: string]: string} = {
+		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+	}
 
 	const responsebody = `
 		<!DOCTYPE html>
@@ -358,7 +350,8 @@ const set_failed_file_response_htmlpage = (nr:Request) => {
 			<body>
 				<h1>Unable To Load Page</h1>
 				<p>Click to go back</p>
-				<p><a id="clicktogoback" href="javascript:void(0)">Go Back</a></p>
+				<p><a id="clicktogoback">Go Back</a></p>
+
 				<script>
 					document.getElementById('clicktogoback').addEventListener('click', function(e) {
 						e.preventDefault();
@@ -368,6 +361,54 @@ const set_failed_file_response_htmlpage = (nr:Request) => {
 			</body>
 		</html>
 	`
+
+	const returnresponse = new Response(responsebody, {                               
+		status: 200,                                                               
+		statusText: 'Error Page',                                                
+		headers
+	})
+
+
+	return returnresponse
+}
+
+
+
+
+const set_failed_file_response_other = (_nr:Request) => { 
+
+	let headers: {[key: string]: string} = {
+		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+	}
+
+	const responsebody = `
+		<!DOCTYPE html>
+		<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Unable To Load Page</title>
+			</head>
+			<body>
+				<h1>Unable To Load Page</h1>
+				<p>Click to go back</p>
+				<p><a id="clicktogoback">Go Back</a></p>
+
+				<script>
+					document.getElementById('clicktogoback').addEventListener('click', function(e) {
+						e.preventDefault();
+						window.history.back();
+					});
+				</script>
+			</body>
+		</html>
+	`
+
+	const returnresponse = new Response(responsebody, {                               
+		status: 503,                                                               
+		statusText: 'Network error',                                                
+		headers
+	})
 
 	return responsebody
 }
