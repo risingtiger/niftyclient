@@ -2,7 +2,7 @@
 
 import { $NT, GenericRowT, LazyLoadT, LoggerSubjectE } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
-import { Run as LazyLoadFilesRun } from './lazyload_files.js'
+//import { Run as LazyLoadFilesRun } from './lazyload_files.js'
 import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 
@@ -26,16 +26,29 @@ const Init = async ()=> {
     const searchParams    = window.location.search ? window.location.search : '';
     const initialPath     = window.location.pathname + searchParams;
 
+	setuproute(pathname);
+
+
+
+	/*
+	const pathname        = window.location.pathname.slice(3)
+    const searchParams    = window.location.search ? window.location.search : '';
+    const initialPath     = window.location.pathname + searchParams;
+	*/
+
+	/*
     if (!history.state || history.state.index === undefined) {
 		await routeChanged(pathname, 'firstload');
         history.replaceState({ index: 0, path: initialPath  }, '', initialPath);
     } else {
 		await routeChanged(pathname, 'firstload');
     }
+	*/
 
 
 
 
+	/*
 	window.addEventListener("touchstart", (e: TouchEvent) => {
 		const touch = e.touches[0];
 		if (touch.clientX < 50 && touch.clientY > 60) {
@@ -56,6 +69,7 @@ const Init = async ()=> {
 	window.addEventListener("popstate", async (e) => {
 		if (e.state) routeChanged(e.state.path, 'back')
 	})
+	*/
 }
 
 
@@ -70,6 +84,9 @@ const AddRoute = (lazyload_view:LazyLoadT)=> {
 
 async function NavigateTo(newPath: string) {
 
+	//window.location.href = "/v/" + newPath
+
+	/*
     const r = await routeChanged(newPath, 'forward');
 	if (r === null) { 
 		return; 
@@ -78,6 +95,7 @@ async function NavigateTo(newPath: string) {
 	newPath = "/v/" + newPath
 
     history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
+	*/
 }
 
 
@@ -86,6 +104,15 @@ async function NavigateTo(newPath: string) {
 async function NavigateBack(opts:{ default:str}) {
 
 	if (history.state && history.state.index > 0) {
+		history.back();
+	}
+	else {
+		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
+		//window.location.href = "/v/" + opts.default
+	}
+
+	/*
+	if (history.state && history.state.index > 0) {
 		await routeChanged(opts.default, 'back');
 		history.back();
 	}
@@ -93,6 +120,7 @@ async function NavigateBack(opts:{ default:str}) {
 		await routeChanged(opts.default, 'back');
 		history.replaceState({ index: 0, path: opts.default }, '', opts.default);
 	}
+	*/
 }
 
 
@@ -126,7 +154,36 @@ function HandleLocalDBSyncUpdateTooLarge() {
 
 
 
-const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'firstload') => new Promise<num|null>(async (res, _rej) => {
+const setuproute = (path: string) => new Promise<num|null>(async (res, _rej) => {
+
+	const viewsel            = document.getElementById("views") as HTMLElement;
+
+    const [urlmatches, routeindex] = get_route_uri(path);
+
+
+	const loadresult = await routeload(routeindex, path, urlmatches);
+
+	if (loadresult === 'failed') {
+		handle_route_fail(_routes[routeindex], true)
+		res(null);
+		return;
+	}
+
+	( viewsel.children[0] as HTMLElement ).style.display = "block";
+	( viewsel.children[0] as HTMLElement ).dataset.active = "true"
+
+	document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
+
+	$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, viewsel.children[0].tagName.toLowerCase())
+
+
+	res(1);
+})
+
+
+
+/*
+const old__routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'firstload') => new Promise<num|null>(async (res, _rej) => {
 
 	const viewsel            = document.getElementById("views") as HTMLElement;
 
@@ -234,12 +291,13 @@ const routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'fi
 
 	res(1);
 })
+*/
 
 
 
 
 
-const routeload = (routeindex:num, _uri:str, urlmatches:str[], views_attach_point:'beforeend'|'afterbegin') => new Promise<string>( async (res, _rej) => {
+const routeload = (routeindex:num, _uri:str, urlmatches:str[]) => new Promise<string>( async (res, _rej) => {
 	 
 	const route           = _routes[routeindex];
 
@@ -250,8 +308,8 @@ const routeload = (routeindex:num, _uri:str, urlmatches:str[], views_attach_poin
 
 	const promises:Promise<any>[] = []
 
-	promises.push( LazyLoadFilesRun([route.lazyload_view]) )
-	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, views_attach_point) )
+	//promises.push( LazyLoadFilesRun([route.lazyload_view]) )
+	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload) )
 
 	try   { await Promise.all(promises) }
 	catch { res('failed'); return; }
@@ -301,5 +359,8 @@ export { Init, AddRoute, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, UpdateSearchParams };
+
+
+
 
 
