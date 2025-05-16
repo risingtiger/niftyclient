@@ -358,7 +358,13 @@ const set_failed_file_response_htmlpage = (nr:Request) => {
 			<body>
 				<h1>Unable To Load Page</h1>
 				<p>Click to go back</p>
-				<p><a id="clicktogoback" href="">Go Back</a></p>
+				<p><a id="clicktogoback" href="javascript:void(0)">Go Back</a></p>
+				<script>
+					document.getElementById('clicktogoback').addEventListener('click', function(e) {
+						e.preventDefault();
+						window.history.back();
+					});
+				</script>
 			</body>
 		</html>
 	`
