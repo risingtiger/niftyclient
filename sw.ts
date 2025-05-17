@@ -1,7 +1,10 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
+enum RequestURLType { EXTERNAL_API, INTERNAL_API, FILE, VIEW_URL}
+
 
 const AFTER_ACTIVATE_PRELOAD_ASSETS = [
+	"/v/appmsgs",
 	"/assets/lazy/views/appmsgs/appmsgs.js",
 	"/assets/lazy/views/login/login.js",
 	"/assets/instance/lazy/views/home/home.js"
@@ -71,6 +74,10 @@ self.addEventListener('controllerchange', (_e:any) => {
 self.addEventListener('fetch', (e:any) => {
 
     let promise = new Promise(async (res, _rej) => {
+
+		let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
+
+		
 
 		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
 			const r = await fetch(e.request)
@@ -342,51 +349,20 @@ const set_failed_file_response_htmlpage = (_nr:Request) => {
 	})
 
 	const responsebody = `<!DOCTYPE html>
-<html lang="en">
+	<html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Unable To Load Page</title>
-		<style>
-			body {
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-				padding: 20px;
-				max-width: 600px;
-				margin: 0 auto;
-				text-align: center;
-			}
-			h1 {
-				margin-top: 40px;
-				color: #333;
-			}
-			a {
-				display: inline-block;
-				margin-top: 20px;
-				padding: 10px 20px;
-				background-color: #007bff;
-				color: white;
-				text-decoration: none;
-				border-radius: 4px;
-				cursor: pointer;
-			}
-			a:hover {
-				background-color: #0056b3;
-			}
-		</style>
 	</head>
 	<body>
-		<h1>Unable To Load Page</h1>
-		<p>The page could not be loaded due to network connectivity issues.</p>
-		<a id="clicktogoback">Go Back</a>
-
 		<script>
-			document.getElementById('clicktogoback').addEventListener('click', function(e) {
-				e.preventDefault();
-				window.history.back();
-			});
+			setTimeout(()=> {
+				window.location.href = "/v/appmsgs?logsubj=sw4&logmsg=Unable to load page - " + window.location.href
+			}, 2000)
 		</script>
 	</body>
-</html>`
+	</html>`
 
 	const returnresponse = new Response(responsebody, {                               
 		status: 200,                                                               
@@ -406,28 +382,7 @@ const set_failed_file_response_other = (_nr:Request) => {
 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
 	}
 
-	const responsebody = `
-		<!DOCTYPE html>
-		<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Unable To Load Page</title>
-			</head>
-			<body>
-				<h1>Unable To Load Page</h1>
-				<p>Click to go back</p>
-				<p><a id="clicktogoback">Go Back</a></p>
-
-				<script>
-					document.getElementById('clicktogoback').addEventListener('click', function(e) {
-						e.preventDefault();
-						window.history.back();
-					});
-				</script>
-			</body>
-		</html>
-	`
+	const responsebody = `Unable to Load File`
 
 	const returnresponse = new Response(responsebody, {                               
 		status: 503,                                                               
@@ -435,7 +390,7 @@ const set_failed_file_response_other = (_nr:Request) => {
 		headers
 	})
 
-	return responsebody
+	return returnresponse
 }
 
 
