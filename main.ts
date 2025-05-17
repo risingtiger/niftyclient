@@ -249,6 +249,12 @@ const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _r
     },
 	*/
 
+	// Extract name and urlmatch from lazyloads
+	const view_routes = lazyloads
+		.filter(l => l.type === "view")
+		.map(l => [l.name, l.urlmatch]);
+	
+
 
 	// Check if very first time loading the service worker, so we can skip the controllerchange event
 	let hasPreviousController = navigator.serviceWorker.controller ? true : false;
