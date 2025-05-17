@@ -315,9 +315,37 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 
+const get_view_name_from_url = (url: string): string | null => {
+	if (!_view_routes_name_urlmatch || _view_routes_name_urlmatch.length === 0) {
+		return null;
+	}
+
+	for (const [viewname, urlmatch] of _view_routes_name_urlmatch) {
+		try {
+			const regex = new RegExp(urlmatch);
+			if (regex.test(url)) {
+				return viewname;
+			}
+		} catch (e) {
+			// Skip invalid regex patterns
+			continue;
+		}
+	}
+	
+	return null;
+}
+
 const handle_file_call = (nr:Request, requesturltype:RequestURLType) => new Promise<Response>(async (res, _rej) => { 
 
 	let request_for_viewurl = requesturltype === RequestURLType.VIEW_URL ? new Request(nr.url) : null
+	
+	// Get the view name if this is a view URL
+	const viewname = requesturltype === RequestURLType.VIEW_URL ? 
+		get_view_name_from_url(nr.url) : null;
+	
+	if (requesturltype === RequestURLType.VIEW_URL && viewname) {
+		logit(20, "view_match", `URL ${nr.url} matched view: ${viewname}`);
+	}
 
 	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(request_for_viewurl || nr)
