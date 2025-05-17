@@ -1,6 +1,6 @@
 enum UpdateState { DEFAULT, UPDATING, UPDATED }
 
-enum RequestURLType { EXTERNAL_API, INTERNAL_API, FILE, VIEW_URL}
+enum RequestURLType { INTERNAL_API, FILE, VIEW_URL}
 
 
 const AFTER_ACTIVATE_PRELOAD_ASSETS = [
@@ -20,6 +20,7 @@ let _id_token          = ""
 let _token_expires_at  = 0
 let _refresh_token     = ""
 let _user_email        = ""
+let _view_routes_name_urlmatch:Array<string[]> = []
 let _isoffline         = false
 let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 let timeouthandler:any = null
@@ -76,10 +77,9 @@ self.addEventListener('fetch', (e:any) => {
     let promise = new Promise(async (res, _rej) => {
 
 		let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
+		let response:Response|null = null
 
-		// Extract the path part after the domain
-		const url = new URL(e.request.url);
-		const pathPart = url.pathname;
+		const pathpart = ( new URL(e.request.url) ).pathname;
 
 		// Handle special cases first
 		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
@@ -89,23 +89,24 @@ self.addEventListener('fetch', (e:any) => {
 		}
 		
 		// Determine request URL type based on path
-		if (pathPart.startsWith('/v/')) {
+		if (pathpart.startsWith('/v/')) {
 			requesturltype = RequestURLType.VIEW_URL;
-		} else if (pathPart.startsWith('/api/')) {
+			response = await handle_file_call(e.request, requesturltype)
+
+		} else if (pathpart.startsWith('/api/')) {
 			requesturltype = RequestURLType.INTERNAL_API;
-		} else if (pathPart.startsWith('/assets/')) {
+			response = await handle_data_call(e.request)
+
+		} else if (pathpart.startsWith('/assets/')) {
 			requesturltype = RequestURLType.FILE;
+			response = await handle_file_call(e.request, requesturltype)
+
 		} else {
 			// Error out for unrecognized URL patterns
 			logit(40, "swe", `Unrecognized URL pattern: ${e.request.url}`);
 			res(new Response(null, { status: 400, statusText: 'Bad Request - Unrecognized URL pattern' }));
 			return;
 		}
-
-		const accepth = e.request.headers.get('Accept') || ""
-		const calltype:"data"|"file" = accepth.includes('json') || accepth.includes('csv') ? "data" : "file"
-
-		const response = (calltype === "data") ? await handle_data_call(e.request) : await handle_file_call(e.request)
 
 		res(response)
     })
@@ -123,11 +124,12 @@ self.addEventListener('message', async (e:any) => {
 		self.registration?.update()
 	}
 
-	else if (e.data.action === "initial_pass_auth_info") {
+	else if (e.data.action === "initial_data_pass") {
 		_id_token = e.data.id_token;
 		_token_expires_at = Number(e.data.token_expires_at);
 		_refresh_token = e.data.refresh_token;
 		_user_email = e.data.user_email;
+		_view_routes_name_urlmatch = e.data.view_routes_name_urlmatch;
 	}
 })
 
@@ -313,16 +315,18 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 
 
-const handle_file_call = (nr:Request) => new Promise<Response>(async (res, _rej) => { 
+const handle_file_call = (nr:Request, requesturltype:RequestURLType) => new Promise<Response>(async (res, _rej) => { 
+
+	let request_for_viewurl = requesturltype === RequestURLType.VIEW_URL ? new Request(nr.url) : null
 
 	const cache   = await caches.open(_cache_name)
-	const match_r = await cache.match(nr)
+	const match_r = await cache.match(request_for_viewurl || nr)
 
 	if (match_r) { 
 		res(match_r) 
 
 	} else if (_isoffline && !nr.headers.get('call_even_if_offline')) {
-		res(set_failed_file_response(nr))                                                                            
+		res(set_failed_file_response(nr))
 
 	} else {
 		const { signal, abortsignal_timeoutid } = set_abort_signal(nr.headers)
@@ -333,7 +337,7 @@ const handle_file_call = (nr:Request) => new Promise<Response>(async (res, _rej)
 			clearTimeout(abortsignal_timeoutid)
 			
 			if (response.status === 200 && should_url_be_cached(nr)) {
-				cache.put(nr, response.clone())
+				cache.put(request_for_viewurl || nr, response.clone())
 			}
 			res(response)
 
