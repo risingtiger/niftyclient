@@ -77,12 +77,29 @@ self.addEventListener('fetch', (e:any) => {
 
 		let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
 
-		
+		// Extract the path part after the domain
+		const url = new URL(e.request.url);
+		const pathPart = url.pathname;
 
+		// Handle special cases first
 		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
 			const r = await fetch(e.request)
 			res(r)
 			return
+		}
+		
+		// Determine request URL type based on path
+		if (pathPart.startsWith('/v/')) {
+			requesturltype = RequestURLType.VIEW_URL;
+		} else if (pathPart.startsWith('/api/')) {
+			requesturltype = RequestURLType.INTERNAL_API;
+		} else if (pathPart.startsWith('/assets/')) {
+			requesturltype = RequestURLType.FILE;
+		} else {
+			// Error out for unrecognized URL patterns
+			logit(40, "swe", `Unrecognized URL pattern: ${e.request.url}`);
+			res(new Response(null, { status: 400, statusText: 'Bad Request - Unrecognized URL pattern' }));
+			return;
 		}
 
 		const accepth = e.request.headers.get('Accept') || ""
