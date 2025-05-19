@@ -38,7 +38,8 @@ let _a_millis = 0
 
 
 const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
-
+	const start_time = performance.now()
+	
 	M_StartTickTock()
 
 	_a_millis = Math.floor(Date.now() / 1000)
@@ -104,6 +105,9 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	});
 
+	const end_time = performance.now()
+	console.log(`LocalDBSync Init completed in ${end_time - start_time}ms`)
+	
 	return true
 
 
