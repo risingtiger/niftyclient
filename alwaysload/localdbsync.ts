@@ -55,11 +55,13 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 			localstorage_syncobjectstores.push({ name, ts: null })
 		})
 
-		_syncobjectstores = localstorage_syncobjectstores.map((dc,i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync[i].indexes || null }))
+		_syncobjectstores = localstorage_syncobjectstores.map((dc,i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync.find(l_ots => l_ots.name === dc.name)?.indexes || null }))
 
 		localStorage.setItem("synccollections", JSON.stringify(localstorage_syncobjectstores))
 
-		_activepaths = []
+		_activepaths = _syncobjectstores
+			.filter(so => so.ts !== null && so.ts > 0)
+			.map(so => parse_into_pathspec(so.name));
 	}
 
 
@@ -214,7 +216,7 @@ async function handle_firestore_doc_add_or_patch(path:str, data:object, ispartia
 			await write_a_partial_record_to_indexeddb_store(pathspec.syncobjectstore, data as GenericRowT)
 	}
 
-	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data]]])
+	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]])
 
 	CMechDataChanged(returnmap)
 }
