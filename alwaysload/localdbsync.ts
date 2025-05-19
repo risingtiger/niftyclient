@@ -38,8 +38,7 @@ let _a_millis = 0
 
 
 const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
-	const start_time = performance.now()
-	
+
 	M_StartTickTock()
 
 	_a_millis = Math.floor(Date.now() / 1000)
@@ -65,13 +64,13 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 			.map(so => parse_into_pathspec(so.name));
 	}
 
-
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
 
 		if (_activepaths.length === 0) return
 
 		const r = await datasetter(_activepaths, {retries:2}, true, true)
 		if (r === null || r === 1) return
+
 
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	})
@@ -105,8 +104,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	});
 
-	const end_time = performance.now()
-	console.log(`LocalDBSync Init completed in ${end_time - start_time}ms`)
 	
 	return true
 
@@ -128,8 +125,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 	function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
 
-		if (returns.size === 0) return
-
 		let is_too_large_to_update = false
 
 		if ([...returns].some(rr=> rr[1].length === 300)) is_too_large_to_update = true
@@ -140,6 +135,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		}	
 
 		if ([...returns].some(rr => rr[1].length >= 1)) {
+			console.log("Firestorelive: Data changed in localdbsync", returns)
 			CMechDataChanged(returns)
 		}
 	}
