@@ -55,7 +55,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 			localstorage_syncobjectstores.push({ name, ts: null })
 		})
 
-		_syncobjectstores = localstorage_syncobjectstores.map((dc,i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync.find(l_ots => l_ots.name === dc.name)?.indexes || null }))
+		_syncobjectstores = localstorage_syncobjectstores.map((dc,_i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync.find(l_ots => l_ots.name === dc.name)?.indexes || null }))
 
 		localStorage.setItem("synccollections", JSON.stringify(localstorage_syncobjectstores))
 
