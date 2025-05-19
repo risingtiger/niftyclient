@@ -71,6 +71,13 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		const r = await datasetter(_activepaths, {retries:2}, true, true)
 		if (r === null || r === 1) return
 
+		// Loop through each item in the map and print out the contents
+		for (const [key, rows] of r as Map<str, GenericRowT[]>) {
+			console.log(`Key: ${key}`)
+			for (const row of rows) {
+				console.log(`Row:`, row)
+			}
+		}
 
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	})
