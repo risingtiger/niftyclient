@@ -15,9 +15,9 @@ type PendingSyncOperationT = {
 	payload: GenericRowT | null;
 };
 
-const sync_interval_minutes = 5
-const sync_interval_ms = sync_interval_minutes * 60 * 1000
-const storage_key = 'localdbsync_last_run'
+const SYNC_INTERVAL_MINUTES = 5
+const SYNC_INTERVAL_MS = SYNC_INTERVAL_MINUTES * 60 * 1000
+const STORAGE_KEY = 'localdbsync_last_run'
 	
 
 const MAX_PENDING_COUNT = 10
@@ -158,11 +158,11 @@ const SetupLocalDBSyncPeriodic = () => {
 
 	const run_sync_if_needed = () => {
 		const now = Date.now()
-		const last_run_str = localStorage.getItem(storage_key)
+		const last_run_str = localStorage.getItem(STORAGE_KEY)
 		const last_run = last_run_str ? parseInt(last_run_str) : 0
 		
-		if (now - last_run >= sync_interval_ms) {
-			localStorage.setItem(storage_key, now.toString())
+		if (now - last_run >= SYNC_INTERVAL_MS) {
+			localStorage.setItem(STORAGE_KEY, now.toString())
 			run_local_db_sync_periodic()
 		}
 	}
@@ -171,7 +171,7 @@ const SetupLocalDBSyncPeriodic = () => {
 	setTimeout(run_sync_if_needed, 5000)
 	
 	// Set up periodic checking
-	setInterval(run_sync_if_needed, sync_interval_ms)
+	setInterval(run_sync_if_needed, SYNC_INTERVAL_MS)
 }
 
 
@@ -333,7 +333,3 @@ export { Add, Patch, Delete, SetupLocalDBSyncPeriodic, Check_After_Too_Many_Pend
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { EnsureObjectStoresActive };
 */
-
-
-
-
