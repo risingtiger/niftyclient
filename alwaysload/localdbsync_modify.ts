@@ -7,7 +7,6 @@ declare var $N: $NT
 
 type OperationTypeT = 'add' | 'patch' | 'delete';
 type PendingSyncOperationT = {
-	id: str;
 	operation_type: OperationTypeT;
 	target_store: str;
 	docId: str;
@@ -16,7 +15,12 @@ type PendingSyncOperationT = {
 	payload: GenericRowT | null;
 };
 
+const sync_interval_minutes = 5
+const sync_interval_ms = sync_interval_minutes * 60 * 1000
+const storage_key = 'localdbsync_last_run'
+	
 
+const MAX_PENDING_COUNT = 10
 const PENDING_SYNC_STORE_NAME = '__pending_sync_operations';
 const INITIAL_SYNC_INTERVAL = 5000; 
 const MAX_SYNC_INTERVAL = 1800000; // 30 minutes
@@ -32,16 +36,17 @@ let _current_sync_interval = INITIAL_SYNC_INTERVAL;
 // - so if user is offline this will immediately fail instead of hanging on sync writes to server
 
 
-const StartTickTock = () => { setTimeout(()=> ticktock(), _current_sync_interval); }
 
-
-
-
-const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise(async (main_res, main_rej) => {
+const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise<string>(async (main_res, main_rej) => {
 
 	// at some point would like to add multiple docs at once
 
-	const db = await $N.IDB.GetDB()
+	let db:any
+
+
+	try { db = await $N.IDB.GetDB(); }
+	catch { main_rej("no db connection"); return; }
+
 
 	let aye_errs = false
 	const cname = objecstorepath.syncobjectstore.name
@@ -50,10 +55,13 @@ const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise(async 
 
 	process_data(data, null)
 
-	try { await $N.IDB.AddOne_S(objectstore, data); } catch { aye_errs = true; }
-	try { await $N.IDB.TXResult(tx); } catch { aye_errs = true; }
+	try   { await $N.IDB.AddOne_S(objectstore, data); } 
+	catch { aye_errs = true; }
 
-	if (aye_errs) { main_rej(new Error("LocalDB Add: Failed to add data or commit transaction.")); return; }
+	try   { await $N.IDB.TXResult(tx); } 
+	catch { aye_errs = true; }
+
+	if (aye_errs) { main_rej("db add failed"); return; }
 
 	main_res(data.id)
 
@@ -63,6 +71,7 @@ const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise(async 
 
 	const r = await $N.FetchLassie('/api/firestore_add', opts, null)
 	if (r.ok) { return; }
+
 
 	await record_failed_sync_operation('add', cname, data.id, 0, data)
 })
@@ -144,16 +153,105 @@ const Delete = (path: PathSpecT) => new Promise<num | null>(async (main_res, mai
 
 
 
+
+const SetupLocalDBSyncPeriodic = () => {
+
+	const run_sync_if_needed = () => {
+		const now = Date.now()
+		const last_run_str = localStorage.getItem(storage_key)
+		const last_run = last_run_str ? parseInt(last_run_str) : 0
+		
+		if (now - last_run >= sync_interval_ms) {
+			localStorage.setItem(storage_key, now.toString())
+			run_local_db_sync_periodic()
+		}
+	}
+	
+	// Check immediately on init
+	setTimeout(run_sync_if_needed, 5000)
+	
+	// Set up periodic checking
+	setInterval(run_sync_if_needed, sync_interval_ms)
+}
+
+
+
+
+const run_local_db_sync_periodic = async (is_retry_of_max_count_reached:boolean = false) => new Promise<boolean>(async (res, _rej) => {
+
+	const exists = localStorage.getItem("pending_sync_operations_exists")
+	if (!exists)   { res(true); return; }
+
+
+	const count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(() => 0)
+
+	if (!is_retry_of_max_count_reached && count > MAX_PENDING_COUNT) {
+		localStorage.setItem("pending_sync_operations_too_many", "true");
+		$N.Unrecoverable("Sync Error", "App is Offline. Connect to WiFi or Cellular", "Retry Connection", LoggerSubjectE.localdbsync_error_toomany_pending, "localdbsync_pending_too_many", null)		
+		res(false)
+		return
+	}
+
+
+	if (count > 500) {
+
+		// this is a safety net to prevent too many pending sync operations and clogging the database and/or server calls
+		// but it is a loss of data, so hopefully this never happens. 
+		// the app should be shut down if count is over limit and Unrecoverable called to redirect to a page that explains the issue
+		// so, theoretically, this count should never be reached
+
+		await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
+
+		localStorage.removeItem("pending_sync_operations_exists");
+		localStorage.removeItem("pending_sync_operations_too_many");
+
+		res(true)
+		return
+	}
+		
+
+	const ping_r = await $N.FetchLassie('/api/ping')
+	if (!ping_r.ok) {   res(false); return;  }
+	
+
+	const all_pending_r = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]).catch(()=>null)
+	if (!all_pending_r || !all_pending_r.get(PENDING_SYNC_STORE_NAME) || !all_pending_r.get(PENDING_SYNC_STORE_NAME)?.length) {   res(false); return;  }
+
+
+	const all_pending = all_pending_r.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
+
+	const opts = { method: 'POST', body: JSON.stringify(all_pending) }
+	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
+	if (!r.ok) { res(false); return; }
+	
+
+	await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
+
+	localStorage.removeItem("pending_sync_operations_exists");
+	localStorage.removeItem("pending_sync_operations_too_many");
+
+	res(true)
+})
+
+
+
+
+const Check_After_Too_Many_Pending_Operations = async (cb:(r:boolean)=>void) => {
+	const r = await RunLocalDBSyncPeriodic(true)
+	cb(r)
+}
+
+
+
+
 const record_failed_sync_operation = (
 	type: OperationTypeT,
 	target_store: string,
 	docId: string,
 	oldts: num,
-	payload: GenericRowT|null
-): Promise<void> => new Promise(async (res, rej) => {
+	payload: GenericRowT|null): Promise<void> => new Promise(async (res, rej) => {
 
 	const pendingOp: PendingSyncOperationT = {
-		id: crypto.randomUUID(),
 		operation_type: type,
 		target_store: target_store,
 		docId,
@@ -162,14 +260,12 @@ const record_failed_sync_operation = (
 		payload, 
 	}
 
-	const r = await $N.IDB.AddOne(PENDING_SYNC_STORE_NAME, pendingOp).catch(()=>null)
-	if (!r) { 
-		$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.localdbsync_error, 'Failed to add pending sync operation to local database')
-		rej(); 
-		return; 
-	}
+	let r:any
 
-	_pending_sync_operations_count++
+	try   { r = await $N.IDB.AddOne(PENDING_SYNC_STORE_NAME, pendingOp); }
+	catch { rej(); return; }
+
+	localStorage.setItem("pending_sync_operations_exists", "true");
 
 	res()
 })
@@ -204,8 +300,9 @@ const process_data = (data: GenericRowT, newpatchdata:GenericRowT|null) => {
 
 
 
-const ticktock = async () => {
 
+/*
+const ticktock = async () => {
 	if (_pending_sync_operations_count === 0) {
 		// No pending sync operations, reset the sync interval
 		_current_sync_interval = INITIAL_SYNC_INTERVAL;
@@ -224,65 +321,14 @@ const ticktock = async () => {
 
 	setTimeout(() => ticktock(), _current_sync_interval)
 }
+*/
 
 
 
 
-const handle_periodic = async () => new Promise<num>(async (res, _rej) => {
-
-	if (_pending_sync_operations_count === -1) {
-		// if Count fails, default to 0, which will delay until the next sync which is no big deal
-		_pending_sync_operations_count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(()=>0)
-
-		if (_pending_sync_operations_count === 0) { res(1); return; }
-	}
-
-	let dbmap: Map<str, GenericRowT[]>
-
-	const capture_pending_sync_operations_count = _pending_sync_operations_count
-
-	try   { dbmap = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]); }
-	catch { res(0); return; }
-
-	const pending_sync_operations = dbmap.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
-
-	if (pending_sync_operations.length === 0) { 
-		_pending_sync_operations_count = 0
-		res(1); 
-		return; 
-	} 
 
 
-	const opts = { method: 'POST', body: JSON.stringify(pending_sync_operations) }
-	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
-
-	if (capture_pending_sync_operations_count !== _pending_sync_operations_count) {
-		// if the count changed, it means we added more pending sync operations while this was running
-		// so we'll return and let the next ticktock handle it
-		res(0);
-		return;
-	}
-
-	if (r.ok) {
-		// Sync was successful, clear the pending operations from local database
-		try { await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME); } 
-		catch { 
-			$N.Logger.Log(LoggerTypeE.error, LoggerSubjectE.localdbsync_error, 'Failed to clear pending sync operations from local database')
-			// server will receive same items on next sync but should reject them now
-		}
-
-		_pending_sync_operations_count = 0
-		res(1)
-	}
-
-	else {
-		res(0)
-	}
-})
-
-
-
-export { Add, Patch, Delete, StartTickTock }
+export { Add, Patch, Delete, SetupLocalDBSyncPeriodic, Check_After_Too_Many_Pending_Operations }
 /*
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { EnsureObjectStoresActive };
