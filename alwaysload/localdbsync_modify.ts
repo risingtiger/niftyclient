@@ -320,25 +320,35 @@ const record_failed_sync_operation = (
 	const s  = tx.objectStore(PENDING_SYNC_STORE_NAME)
 
 	const req = s.get(docid)
+	
+	req.onsuccess = () => {
+		const record_exists = req.result !== undefined
 
-	const pendingOp: PendingSyncOperationT = {
-		id:docid,
-		operation_type: type,
-		target_store: target_store,
-		ts: payload ? payload.ts : Math.floor(Date.now() / 1000), // if delete set a ts
-		oldts: oldts,
-		payload, 
+		const pendingOp: PendingSyncOperationT = {
+			id:docid,
+			operation_type: type,
+			target_store: target_store,
+			ts: payload ? payload.ts : Math.floor(Date.now() / 1000), // if delete set a ts
+			oldts: oldts,
+			payload, 
+		}
+
+		// if record already is here it will be overwritten.
+		const put_req = s.put(pendingOp)
+		
+		put_req.onsuccess = () => {
+			localStorage.setItem("pending_sync_operations_exists", "true");
+			res()
+		}
+		
+		put_req.onerror = () => {
+			rej()
+		}
 	}
-
-	let r:any
-
-	// if record already is here it will be overwritten.
-	try   { r = await $N.IDB.PutOne(PENDING_SYNC_STORE_NAME, pendingOp); }
-	catch { rej(); return; }
-
-	localStorage.setItem("pending_sync_operations_exists", "true");
-
-	res()
+	
+	req.onerror = () => {
+		rej()
+	}
 })
 
 
