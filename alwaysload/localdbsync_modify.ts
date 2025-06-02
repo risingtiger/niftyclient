@@ -32,6 +32,25 @@ let _pending_sync_operations_count = -1; // -1 means not set yet -- initially in
 let _current_sync_interval = INITIAL_SYNC_INTERVAL;
 
 
+const update_record_with_new_data = (record: GenericRowT, newdata: any): void => {
+	for (const key in newdata) {
+		const new_value = newdata[key]
+		
+		if (new_value !== null && typeof new_value === 'object' && !Array.isArray(new_value)) {
+			// Handle nested object - ensure record has this property as object
+			if (!record[key] || typeof record[key] !== 'object' || Array.isArray(record[key])) {
+				record[key] = {}
+			}
+			// Recursively update nested properties
+			update_record_with_new_data(record[key], new_value)
+		} else {
+			// Direct assignment for primitives, arrays, and null
+			record[key] = new_value
+		}
+	}
+}
+
+
 // keep in mind fetchlassie and service worker are handling a lot.
 // - handling errors
 // - handling if network is down and returning not ok immediately if so
@@ -104,14 +123,7 @@ const Patch = (path: PathSpecT, newdata: any) => new Promise<num>(async (main_re
 
 
 	// update the record with new data
-
-
-	// disregard -- does not work for mapping data over since data is multi dimensional
-	/*
-	for (const key in newdata) {
-		if (record[key] !== undefined)    record[key] = newdata[key]
-	}
-	*/
+	update_record_with_new_data(record, newdata)
 
 	oldts = record.ts;
 	record.ts = Math.floor(Date.now() / 1000)
