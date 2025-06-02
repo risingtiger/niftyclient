@@ -84,7 +84,7 @@ const Add = (objecstorepath: PathSpecT, data: GenericRowT) => new Promise<string
 
 
 
-const Patch = (path: PathSpecT, newdata: GenericRowT) => new Promise<num>(async (main_res, main_rej) => {
+const Patch = (path: PathSpecT, newdata: any) => new Promise<num>(async (main_res, main_rej) => {
 
 	// at some point would like to patch multiple docs at once
 
@@ -97,21 +97,26 @@ const Patch = (path: PathSpecT, newdata: GenericRowT) => new Promise<num>(async 
 	const cname              = path.syncobjectstore.name;
 	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
 	const objectStore        = tx.objectStore(cname);
-	let   olddata: GenericRowT;
+	let   record: GenericRowT;
 
-	try   { olddata = await $N.IDB.GetOne_S(objectStore, path.docid!); }
+	try   { record = await $N.IDB.GetOne_S(objectStore, path.docid!); }
 	catch { main_rej(); return; }
 
 
-	for (const key in olddata) {
-		if (newdata[key] !== undefined)    olddata[key] = newdata[key]
+	// update the record with new data
+
+
+	// disregard -- does not work for mapping data over since data is multi dimensional
+	/*
+	for (const key in newdata) {
+		if (record[key] !== undefined)    record[key] = newdata[key]
 	}
+	*/
 
-	newdata.ts = Math.floor(Date.now() / 1000)
+	oldts = record.ts;
+	record.ts = Math.floor(Date.now() / 1000)
 
-	oldts = olddata.ts;
-
-	try   { await $N.IDB.PutOne_S(objectStore, newdata); }
+	try   { await $N.IDB.PutOne_S(objectStore, record); }
 	catch { main_rej(); return; }
 
 	try { await $N.IDB.TXResult(tx); } catch { main_rej(); return; }
@@ -123,13 +128,13 @@ const Patch = (path: PathSpecT, newdata: GenericRowT) => new Promise<num>(async 
 		// if we are already awaiting a fetchlassie call for this path, do not make another one
 		// this is to prevent multiple calls to the server for the same patch operation
 
-		await record_failed_sync_operation('patch', cname, newdata.id, oldts, newdata);
+		await record_failed_sync_operation('patch', cname, path.docid!, oldts, newdata); // sending potentially partial data
 		return;
 	}
 
 	_patches_awaiting_fetchlassie.add(path.path);
 
-	const body = { cname: path.collection, data: newdata, oldts }
+	const body = { path:path.path, data: newdata, oldts, newts: record.ts }
 	const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 	const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
@@ -316,39 +321,48 @@ const record_failed_sync_operation = (
 	try { db = await $N.IDB.GetDB(); }
 	catch { rej(); return; }
 
+	let original_oldts = oldts
+
 	const tx = db.transaction(PENDING_SYNC_STORE_NAME, "readwrite")
 	const s  = tx.objectStore(PENDING_SYNC_STORE_NAME)
 
-	const req = s.get(docid)
-	
-	req.onsuccess = () => {
-		const record_exists = req.result !== undefined
-
-		const pendingOp: PendingSyncOperationT = {
-			id:docid,
-			operation_type: type,
-			target_store: target_store,
-			ts: payload ? payload.ts : Math.floor(Date.now() / 1000), // if delete set a ts
-			oldts: oldts,
-			payload, 
-		}
-
-		// if record already is here it will be overwritten.
-		const put_req = s.put(pendingOp)
-		
-		put_req.onsuccess = () => {
-			localStorage.setItem("pending_sync_operations_exists", "true");
-			res()
-		}
-		
-		put_req.onerror = () => {
-			rej()
-		}
+	const pendingOp: PendingSyncOperationT = {
+		id:docid,
+		operation_type: type,
+		target_store: target_store,
+		ts: payload ? payload.ts : Math.floor(Date.now() / 1000), // if delete set a ts
+		oldts: original_oldts,
+		payload,  // payload is either whole or partial data -- more likely partial
 	}
-	
-	req.onerror = () => {
-		rej()
+
+	const result = await $N.IDB.GetOne_S(s, docid)
+
+	if (result && result.operation_type === 'add' && pendingOp.operation_type === 'delete') {
+		await $N.IDB.DeleteOne_S(s, docid)
+		res()
+		return
 	}
+	else if (result && result.operation_type === 'add' && pendingOp.operation_type === 'patch') {
+		pendingOp.operation_type = "add"; 
+		pendingOp.oldts = result.oldts
+	}
+	else if (result && result.operation_type === 'patch' && pendingOp.operation_type === 'patch') {
+		pendingOp.oldts = result.oldts
+	}
+	else {
+		// nothing
+	}
+
+
+	let r:any
+
+	// if record already is here it will be overwritten but should have retrieved original_oldts to keep that intact
+	try   { r = await $N.IDB.PutOne_S(s, pendingOp); }
+	catch { rej(); return; }
+
+	localStorage.setItem("pending_sync_operations_exists", "true");
+
+	res()
 })
 
 
