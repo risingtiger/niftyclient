@@ -30,7 +30,6 @@ const AddView = (
 	pathparams: GenericRowT, 
 	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
-	views_attach_point:"beforeend"|"afterbegin", 
 ) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
@@ -76,7 +75,7 @@ const AddView = (
 	_pathparams.set(componentname, pathparams)
 
 	const parentEl = document.querySelector("#views")!;
-	parentEl.insertAdjacentHTML(views_attach_point, `<v-${componentname} class='view'></v-${componentname}>`);
+	parentEl.insertAdjacentHTML("beforeend", `<v-${componentname} class='view'></v-${componentname}>`);
 
 	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
 
@@ -295,7 +294,7 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 
 
-const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async (res, _rej)=> {
+const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 
 	// map key is path e.g. 'machines/1234' or 'machines/1234/parts/5678' or just 'machines'
 	// map value is always an array -- even if of just one object
@@ -309,6 +308,13 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 		let   matching_loadeddata:GenericRowT[]|null = null
 		
 		for (const [path, updatedlist] of updated) {
+
+			console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			console.log(`change this. this all works great on 'machines', but on 'machines/1234' done dits furbed. get loadeddata either matching the path or if path startsWith 'machines'.
+			keep in mind that the updated Map is ONLY ever going to have keys of entire collections, e.g. 'machines', never 'machines/1234'. But _loadeddata is
+			going to have keys of 'machines' and 'machines/1234'. So we need to check if the path startsWith 'machines' and then get the loadeddata or if path is just 'machines'`)
+			console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
 			matching_loadeddata = loadeddata.get(path) || null
 			if (!matching_loadeddata) continue
 
@@ -326,11 +332,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => new Promise<void>(async
 			subel.sc()
 		}
 	}
-
-	console.log("I THINK ITS SOLVED. ....need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
-
-	res()
-})
+}
 
 
 
@@ -367,18 +369,26 @@ const GetViewParams = (component:HTMLElement) => {
 
 
 
-const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
+const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[], mode:num) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
 
 	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
 	// thus why we createa a map of the ids
 
 	const index_map = new Map();
 	tolist.forEach((row:any, i:num) => index_map.set(row.id, i))
+	
+	if      (mode === 0) updateArrayIfPresent_add(tolist, updatedlist)
+	else if (mode === 1) updateArrayIfPresent_patch(index_map, tolist, updatedlist)
+	else if (mode === 2) updateArrayIfPresent_delete(index_map, tolist, updatedlist)
+}
+const updateArrayIfPresent_add = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { 
+	for(const d of updatedlist) {   tolist.push(d);   }
+}
+const updateArrayIfPresent_patch = (index_map:any, tolist:GenericRowT[], updatedlist:GenericRowT[]) => { 
+	for(const d of updatedlist) {   tolist[index_map.get(d.id)] = d;   }
+}
+const updateArrayIfPresent_delete = (index_map:any, tolist:GenericRowT[], removedlist:GenericRowT[]) => { 
 
-	for(const d of updatedlist) {
-		const rowindex = index_map.get(d.id)
-		if (rowindex === undefined)   tolist.push(d);   else   tolist[rowindex] = d;
-	}
 }
 
 
