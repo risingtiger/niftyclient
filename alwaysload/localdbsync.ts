@@ -5,11 +5,19 @@ import { SSETriggersE } from '../defs_server_symlink.js'
 import { $NT, LoggerSubjectE, EngagementListenerTypeT, GenericRowT  } from '../defs.js'
 import { HandleLocalDBSyncUpdateTooLarge as SwitchStationHandleLocalDBSyncUpdateTooLarge } from './switchstation.js'
 import { DataChanged as CMechDataChanged } from './cmech.js'
-import { Add as M_Add, Patch as M_Patch, Delete as M_Delete, StartTickTock as M_StartTickTock } from './localdbsync_modify.js'
 
 
 declare var $N:$NT
 
+type OperationTypeT = 'add' | 'patch' | 'delete';
+type PendingSyncOperationT = {
+	id: str;
+	docid: str,
+	operation_type: OperationTypeT;
+	target_store: str;
+	ts: num;
+	payload: GenericRowT | null;
+};
 
 type SyncObjectStoresT = { name: string, ts: num|null, lock:boolean, indexes:string[]|null }
 
@@ -26,6 +34,11 @@ export type PathSpecT = {
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
+const SYNC_INTERVAL_MINUTES   = 1
+const SYNC_INTERVAL_MS        = SYNC_INTERVAL_MINUTES * 60 * 1000
+const STORAGE_KEY             = 'localdbsync_last_run'
+const PENDING_SYNC_STORE_NAME = '__pending_sync_operations';
+
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
 let _a_millis = 0
@@ -35,11 +48,7 @@ let _a_millis = 0
 //let _nonsync_tses: Map<str,num> = new Map()
 
 
-
-
 const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
-
-	M_StartTickTock()
 
 	_a_millis = Math.floor(Date.now() / 1000)
 
@@ -64,6 +73,21 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 			.map(so => parse_into_pathspec(so.name));
 	}
 
+
+	SetupLocalDBSyncPeriodic()
+
+
+	console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
+
+	console.log(`I also need to put in something where on page refresh or navigation, if last time in app has been more than X seconds ago, wait a bit then go fetch latest changes
+
+	Also, If have an interval. Say every 5 minutes, if the app is active, just go grab latest. I know its a lot of traffic, but I dont trust the data to not go stale if I don't do something like that`)
+
+	console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
+
+
+
+
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
 
 		if (_activepaths.length === 0) return
@@ -71,30 +95,49 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		const r = await datasetter(_activepaths, {retries:2}, true, true)
 		if (r === null || r === 1) return
 
-		// Loop through each item in the map and print out the contents
-		for (const [key, rows] of r as Map<str, GenericRowT[]>) {
-			console.log(`Key: ${key}`)
-			for (const row of rows) {
-				console.log(`Row:`, row)
-			}
-		}
-
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
+
 	})
 
 
 	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", [SSETriggersE.FIRESTORE_DOC_ADD], 100, (event:{path:string,data:object})=> {
-		handle_firestore_doc_add_or_patch(event.path, event.data)
+		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
 	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", [SSETriggersE.FIRESTORE_DOC_PATCH], 100, (event:{path:string,data:object, ispartial?:bool})=> {
-		handle_firestore_doc_add_or_patch(event.path, event.data, event.ispartial || false)
+		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, (_event:{path:string,data:object})=> {
-		//TODO: not handling delete yet. REALLY NEED TO. Not too hard to remove from local database and pass to cmech. But, when about when user has been offline and missed delete calls. Need a server side list to send of delete history since ts
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, async (event:{path:string,ts:number})=> {
+
+		const pathspec = parse_into_pathspec(event.path)
+
+		let db:any
+
+		try { db = await $N.IDB.GetDB(); }
+		catch { return; }
+
+		const cname              = pathspec.syncobjectstore.name;
+		const tx: IDBTransaction = db.transaction(cname, "readwrite", { durability: "relaxed" });
+		const objectStore        = tx.objectStore(cname);
+		let   wholedata: GenericRowT;
+
+		try   { wholedata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
+		catch { return; }
+
+		wholedata.ts = event.ts
+		wholedata.isdeleted = true
+
+		try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
+		catch { return; }
+
+		try { await $N.IDB.TXResult(tx); } catch { return; }
+
+		CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]]))
+
+		return;
 	});
 
 
@@ -110,7 +153,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		notify_of_datachange(r as Map<str, GenericRowT[]>)
 	});
-
 	
 	return true
 
@@ -142,7 +184,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		}	
 
 		if ([...returns].some(rr => rr[1].length >= 1)) {
-			console.log("Firestorelive: Data changed in localdbsync", returns)
 			CMechDataChanged(returns)
 		}
 	}
@@ -178,55 +219,210 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 
 
-const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
-	const p = parse_into_pathspec(path)
-	await M_Add(p, data)
+const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {  
 
-	handle_firestore_doc_add_or_patch(path, data, false, false)
-	res(1)
+	const pathspec = parse_into_pathspec(path)
+	let   wholedata:GenericRowT = {}
+	let   db:any
+
+
+	try { db = await $N.IDB.GetDB(); }
+	catch { rej(); return; }
+
+	data.ts = Math.floor(Date.now() / 1000)
+	data.id = crypto.randomUUID();
+
+	let aye_errs = false
+	const cname = pathspec.syncobjectstore.name
+	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" })
+	const objectstore = tx.objectStore(cname)
+
+	try   { await $N.IDB.AddOne_S(objectstore, data); } 
+	catch { aye_errs = true; }
+
+	try   { await $N.IDB.TXResult(tx); } 
+	catch { aye_errs = true; }
+
+	if (aye_errs) { rej(); return; }
+
+	res(1);
+
+	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]])
+	CMechDataChanged(returnmap)
+
+
+	{
+		// handle the add operation on the server
+
+		const body = { path:cname, data }
+		const opts: { method: 'POST', body: string } = { method: 'POST', body: JSON.stringify(body), }
+
+		const r = await $N.FetchLassie('/api/firestore_add', opts, null)
+		if (!r.ok) { 
+			await record_failed_sync_operation('add', cname, data)
+			return
+		}
+	}
 })
 
 
 
 
-const Patch = (path:str, data:GenericRowT) => new Promise<num|null>(async (res,_rej)=> {  
-	const p = parse_into_pathspec(path)
-	await M_Patch(p, data)
+const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,rej)=> {  
 
-	handle_firestore_doc_add_or_patch(path, data, true, false)
-	res(1)
+	const pathspec = parse_into_pathspec(pathstr)
+
+	let db:any
+
+	try   { db = await $N.IDB.GetDB(); }
+	catch { rej(); return; }
+
+	const cname              = pathspec.syncobjectstore.name;
+	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
+	const objectStore        = tx.objectStore(cname);
+	let   wholedata: GenericRowT;
+
+	try   { wholedata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
+	catch { rej(); return; }
+
+	update_record_with_new_data(wholedata, newdata)
+
+	wholedata.ts = Math.floor(Date.now() / 1000)
+
+	try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
+	catch { rej(); return; }
+
+	try { await $N.IDB.TXResult(tx); } catch { rej(); return; }
+
+	res(1);
+
+	CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]]))
+
+
+	{   
+		// handle the patch operation on the server
+
+		const body = { path:pathspec.path, newdata }
+		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
+
+		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
+
+		if (!r.ok) {
+			await record_failed_sync_operation('patch', cname, newdata);
+			return;
+		}
+		else if (( r.data as any ).code === 10) { // has been deleted at the server
+			await $N.IDB.DeleteOne(cname, pathspec.docid!);
+			const data = { id: pathspec.docid, isdeleted: true }
+			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
+			return;
+		}
+		else if (( r.data as any ).code === 11) { // newer data at server
+			await $N.IDB.PutOne(cname, ( r.data as any ).data);
+			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [( r.data as any ).data]]]))
+			return;
+		}
+		else if (( r.data as any ).code === 1) { // all good
+			return;
+		} 
+		else { 
+			return;
+		}
+	}
 })
 
 
 
 
-const Delete = (path:str) => new Promise<num|null>(async (res,_rej)=> {  
-	const p = parse_into_pathspec(path)
-	await M_Delete(p)
+const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {  
 
-	// I don't yet have the code in place to handle delete across localdbsync and cmech
+	const pathspec = parse_into_pathspec(pathstr)
 
-	res(1)
+	const db                      = await $N.IDB.GetDB()
+
+	const cname                   = pathspec.syncobjectstore.name;
+	const tx: IDBTransaction      = db.transaction([cname], "readwrite", { durability: "relaxed" });
+	const objectStore             = tx.objectStore(cname);
+	let  existingdata:GenericRowT = {};
+
+	try   { existingdata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
+	catch { rej(); return; }
+
+	existingdata.isdeleted = true
+	existingdata.ts = Math.floor(Date.now() / 1000)
+
+	try   { await $N.IDB.PutOne_S(objectStore, existingdata); }
+	catch { rej(); return; }
+	
+	res(1);
+	CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [existingdata as GenericRowT]]]))
+
+
+
+	{
+		const body = { path: pathspec.path, ts:existingdata.ts }
+		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
+
+		const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
+		if (!r.ok) {
+			await record_failed_sync_operation('delete', cname, { id: pathspec.docid!, ts: existingdata.ts });
+			return;
+		}
+		else if (( r.data as any ).code === 10) { // record has been entirely removed at the server
+			await $N.IDB.DeleteOne(cname, pathspec.docid!);
+			const data = { id: pathspec.docid, isdeleted: true }
+			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
+			return;
+		}
+		else if (( r.data as any ).code === 11) { // newer data at server
+			await $N.IDB.PutOne(cname, ( r.data as any ).data);
+			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [existingdata as GenericRowT]]]))
+			return;
+		}
+		else if (( r.data as any ).code === 1) { // all good
+			return;
+		} 
+		else { 
+			return;
+		}
+	}
 })
 
 
 
 
-async function handle_firestore_doc_add_or_patch(path:str, data:object, ispartial:bool = false, save_to_indexeddb:bool = true) {
+const SetupLocalDBSyncPeriodic = () => {
 
-	const pathspec = parse_into_pathspec(path)!
+	const run_sync_if_needed = () => {
+		const now = Date.now()
+		const last_run_str = localStorage.getItem(STORAGE_KEY)
+		const last_run = last_run_str ? parseInt(last_run_str) : 0
+		
+		if (now - last_run >= SYNC_INTERVAL_MS) {
+			localStorage.setItem(STORAGE_KEY, now.toString())
+			run_local_db_sync_periodic()
+		}
+	}
+	
+	// Check immediately on init (which is every page load)
+	setTimeout(run_sync_if_needed, 3000)
+	
+	// Set up periodic checking
+	setInterval(run_sync_if_needed, SYNC_INTERVAL_MS)
+}
 
-	if (pathspec.syncobjectstore && save_to_indexeddb && !ispartial) {   
-		if (!ispartial) 
-			await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
-		else 
-			await write_a_partial_record_to_indexeddb_store(pathspec.syncobjectstore, data as GenericRowT)
+
+
+const handle_firestore_doc_add_or_patch = (pathspec:PathSpecT, data:object) => new Promise<num>(async (res,_rej)=> {
+
+	if (pathspec.syncobjectstore) {   
+		await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
 	}
 
-	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]])
+	//CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
 
-	CMechDataChanged(returnmap)
-}
+	res(1)
+})
 
 
 
@@ -367,43 +563,103 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 	}
 
 	tx.oncomplete = (_event:any) => {
-		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
+		if (are_there_any_put_errors) redirect_from_error("write_to_indexeddb_store")  
 		resolve()
 	}
 
 	tx.onerror = (_event:any) => {
-		redirect_from_error("Firestorelive Error putting data from IndexedDB")
+		redirect_from_error("write_to_indexeddb_store")
 	}
 })
 
 
 
 
-const write_a_partial_record_to_indexeddb_store = (syncobjectstore: SyncObjectStoresT, data:GenericRowT) => new Promise<void>(async (resolve, _reject) => {
-
-	const db = await $N.IDB.GetDB()
-
-	const tx:IDBTransaction = db.transaction(syncobjectstore.name, "readwrite", { durability: "relaxed" })
-
-	let are_there_any_put_errors = false
-
-	const os = tx.objectStore(syncobjectstore.name)
-
-	const request = os.get(data.id)
-	request.onsuccess = (event:any) => {
-		const db_put       = os.put( { ...event.target.result, ...data } )
-		db_put.onerror     = (_event:any) => are_there_any_put_errors = true
+const update_record_with_new_data = (record: GenericRowT, newdata: any): void => {
+	for (const key in newdata) {
+		if (typeof record[key] == 'object') 
+			update_record_with_new_data(record[key], newdata[key])
+		else 
+			record[key] = newdata[key]
 	}
-	request.onerror = (_event:any) => are_there_any_put_errors = true
+}
 
-	tx.oncomplete = (_event:any) => {
-		if (are_there_any_put_errors) redirect_from_error("Firestorelive Error putting data into IndexedDB")  
-		resolve()
+
+
+
+const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, _rej) => {
+
+	const exists = localStorage.getItem("pending_sync_operations_exists")
+	if (!exists)   { res(true); return; }
+
+
+	const count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(() => 0)
+
+	if (count === 0) {
+		localStorage.removeItem("pending_sync_operations_exists");
+		res(true)
+		return
+	}
+		
+
+	const ping_r = await $N.FetchLassie('/api/ping')
+	if (!ping_r.ok) {   res(false); return;  }
+	
+
+	const all_pending_r = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]).catch(()=>null)
+	if (!all_pending_r || !all_pending_r.get(PENDING_SYNC_STORE_NAME) || !all_pending_r.get(PENDING_SYNC_STORE_NAME)?.length) {   res(false); return;  }
+
+
+	const all_pending = all_pending_r.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
+
+	const pending_to_send:PendingSyncOperationT[] = []
+
+	for(const pending of all_pending) {
+		// check if there exists more than one operation for the same doc in the same store AI!
 	}
 
-	tx.onerror = (_event:any) => {
-		redirect_from_error("Firestorelive Error putting data from IndexedDB")
+	const opts = { method: 'POST', body: JSON.stringify(all_pending) }
+	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
+	if (!r.ok) { res(false); return; }
+	
+
+	await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
+
+	localStorage.removeItem("pending_sync_operations_exists");
+
+	res(true)
+})
+
+
+
+const record_failed_sync_operation = (
+	type: OperationTypeT,
+	target_store: string,
+	newdata: GenericRowT): Promise<void> => new Promise(async (res, rej) => {
+
+	let db:IDBDatabase;
+	try { db = await $N.IDB.GetDB(); }
+	catch { rej(); return; }
+
+	const tx = db.transaction(PENDING_SYNC_STORE_NAME, "readwrite")
+	const s  = tx.objectStore(PENDING_SYNC_STORE_NAME)
+
+	const pendingOp: PendingSyncOperationT = {
+		id: crypto.randomUUID(),  
+		docid:newdata.id,
+		operation_type: type,
+		target_store: target_store,
+		ts: newdata.ts,
+		payload: newdata,  // payload is either whole or partial data -- more likely partial
 	}
+
+	let r:any
+	try   { r = await $N.IDB.PutOne_S(s, pendingOp); }
+	catch { rej(); return; }
+
+	localStorage.setItem("pending_sync_operations_exists", "true");
+
+	res()
 })
 
 
