@@ -387,9 +387,14 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 		if (rowindex === undefined) tolist.push(d); else tolist[rowindex] = d;
 	}
 
-	for(const d of list_of_deletes) {
-		const rowindex = index_map.get(d.id)
-		if (rowindex !== undefined) tolist.splice(rowindex, 1);
+	// Process deletions in reverse order to avoid index shifting issues
+	const delete_indices = list_of_deletes
+		.map(d => index_map.get(d.id))
+		.filter(idx => idx !== undefined)
+		.sort((a, b) => b - a); // Sort descending
+
+	for (const rowindex of delete_indices) {
+		tolist.splice(rowindex, 1);
 	}
 }
 
