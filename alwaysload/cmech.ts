@@ -388,7 +388,16 @@ const updateArrayIfPresent_patch = (index_map:any, tolist:GenericRowT[], updated
 	for(const d of updatedlist) {   tolist[index_map.get(d.id)] = d;   }
 }
 const updateArrayIfPresent_delete = (index_map:any, tolist:GenericRowT[], removedlist:GenericRowT[]) => { 
-
+	// Sort indices in descending order to avoid index shifting issues when removing items
+	const indices_to_remove = removedlist
+		.map(item => index_map.get(item.id))
+		.filter(index => index !== undefined)
+		.sort((a, b) => b - a);
+	
+	// Remove items from highest index to lowest to maintain correct indices
+	for (const index of indices_to_remove) {
+		tolist.splice(index, 1);
+	}
 }
 
 
