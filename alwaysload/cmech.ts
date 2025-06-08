@@ -302,7 +302,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 	const viewsel = document.getElementById("views")!
 
 
-	for (const [view_component_name, loadeddata] of _loadeddata) { 
+	for (const [view_component_name, loadeddata] of _loadeddata) { // right now, since we migrated to a multi page app, this loop will I believe only ever run once
 
 		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
 		let   matching_loadeddata:GenericRowT[]|null = null
@@ -318,7 +318,11 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 			matching_loadeddata = loadeddata.get(path) || null
 			if (!matching_loadeddata) continue
 
-			updateArrayIfPresent(matching_loadeddata, updatedlist)
+			const list_of_add_and_patches:GenericRowT[] = []
+			const list_of_deletes:GenericRowT[]  = []
+			for (const d of updatedlist) { if (d.isdeleted) list_of_deletes.push(d); else list_of_add_and_patches.push(d); }
+
+			updateArrayIfPresent(matching_loadeddata, list_of_add_and_patches, list_of_deletes)
 		}
 
 		if (!matching_loadeddata) continue
@@ -369,54 +373,24 @@ const GetViewParams = (component:HTMLElement) => {
 
 
 
-const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
+const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:GenericRowT[], list_of_deletes:GenericRowT[]) => { 
+
+	// Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
 
 	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
 	// thus why we createa a map of the ids
-
-	// First, collect IDs that should be deleted from updatedlist
-	const ids_to_delete = new Set();
-	for (const updated_row of updatedlist) {
-		if (updated_row.isdeleted) {
-			ids_to_delete.add(updated_row.id);
-		}
-	}
-	
-	// Create index map and remove deleted items from tolist
 	const index_map = new Map();
-	let write_index = 0;
-	
-	for (let read_index = 0; read_index < tolist.length; read_index++) {
-		const row = tolist[read_index];
-		if (!ids_to_delete.has(row.id)) {
-			index_map.set(row.id, write_index);
-			if (write_index !== read_index) {
-				tolist[write_index] = row;
-			}
-			write_index++;
-		}
+	tolist.forEach((row:any, i:num) => index_map.set(row.id, i))
+
+	for(const d of list_of_add_and_patches) {   
+		const rowindex = index_map.get(d.id)
+		if (rowindex === undefined) tolist.push(d); else tolist[rowindex] = d;
 	}
-	
-	// Truncate array to new size
-	tolist.length = write_index;
-	
-	// Apply updates for non-deleted records
-	for (const d of updatedlist) {
-		if (d.isdeleted) continue; // Skip deleted records from updates
-		
-		const rowindex = index_map.get(d.id);
-		if (rowindex === undefined) {
-			tolist.push(d);
-		} else {
-			tolist[rowindex] = d;
-		}
+
+	for(const d of list_of_deletes) {
+		const rowindex = index_map.get(d.id)
+		if (rowindex !== undefined) tolist.splice(rowindex, 1);
 	}
-	
-	/*
-	if      (mode === 0) updateArrayIfPresent_add(tolist, updatedlist)
-	else if (mode === 1) updateArrayIfPresent_patch(index_map, tolist, updatedlist)
-	else if (mode === 2) updateArrayIfPresent_delete(index_map, tolist, updatedlist)
-	*/
 }
 
 
