@@ -369,35 +369,46 @@ const GetViewParams = (component:HTMLElement) => {
 
 
 
-const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[], mode:num) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
+const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { // Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
 
 	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
 	// thus why we createa a map of the ids
 
 	const index_map = new Map();
-	tolist.forEach((row:any, i:num) => index_map.set(row.id, i))
+	let write_index = 0;
 	
+	// First pass: rebuild index_map and compact array, removing isdeleted items
+	for (let read_index = 0; read_index < tolist.length; read_index++) {
+		const row = tolist[read_index];
+		if (!row.isdeleted) {
+			index_map.set(row.id, write_index);
+			if (write_index !== read_index) {
+				tolist[write_index] = row;
+			}
+			write_index++;
+		}
+	}
+	
+	// Truncate array to new size
+	tolist.length = write_index;
+	
+	// Second pass: apply updates
+	for (const d of updatedlist) {
+		if (d.isdeleted) continue; // Skip deleted records from updates
+		
+		const rowindex = index_map.get(d.id);
+		if (rowindex === undefined) {
+			tolist.push(d);
+		} else {
+			tolist[rowindex] = d;
+		}
+	}
+	
+	/*
 	if      (mode === 0) updateArrayIfPresent_add(tolist, updatedlist)
 	else if (mode === 1) updateArrayIfPresent_patch(index_map, tolist, updatedlist)
 	else if (mode === 2) updateArrayIfPresent_delete(index_map, tolist, updatedlist)
-}
-const updateArrayIfPresent_add = (tolist:GenericRowT[], updatedlist:GenericRowT[]) => { 
-	for(const d of updatedlist) {   tolist.push(d);   }
-}
-const updateArrayIfPresent_patch = (index_map:any, tolist:GenericRowT[], updatedlist:GenericRowT[]) => { 
-	for(const d of updatedlist) {   tolist[index_map.get(d.id)] = d;   }
-}
-const updateArrayIfPresent_delete = (index_map:any, tolist:GenericRowT[], removedlist:GenericRowT[]) => { 
-	// Sort indices in descending order to avoid index shifting issues when removing items
-	const indices_to_remove = removedlist
-		.map(item => index_map.get(item.id))
-		.filter(index => index !== undefined)
-		.sort((a, b) => b - a);
-	
-	// Remove items from highest index to lowest to maintain correct indices
-	for (const index of indices_to_remove) {
-		tolist.splice(index, 1);
-	}
+	*/
 }
 
 
