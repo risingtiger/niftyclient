@@ -614,11 +614,29 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 
 	const pending_to_send:PendingSyncOperationT[] = []
 
+	// Group operations by store and docid to handle duplicates
+	const operation_groups = new Map<string, PendingSyncOperationT[]>()
+	
 	for(const pending of all_pending) {
-		// check if there exists more than one operation for the same doc in the same store AI!
+		const key = `${pending.target_store}:${pending.docid}`
+		if (!operation_groups.has(key)) {
+			operation_groups.set(key, [])
+		}
+		operation_groups.get(key)!.push(pending)
 	}
 
-	const opts = { method: 'POST', body: JSON.stringify(all_pending) }
+	// For each group, keep only the most recent operation
+	for(const [_key, operations] of operation_groups) {
+		if (operations.length === 1) {
+			pending_to_send.push(operations[0])
+		} else {
+			// Sort by timestamp and keep the most recent
+			operations.sort((a, b) => b.ts - a.ts)
+			pending_to_send.push(operations[0])
+		}
+	}
+
+	const opts = { method: 'POST', body: JSON.stringify(pending_to_send) }
 	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
 	if (!r.ok) { res(false); return; }
 	
