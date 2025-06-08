@@ -374,13 +374,21 @@ const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) =
 	// we create a map because we have to assume this could be a large array and we want to avoid O(n^2) complexity
 	// thus why we createa a map of the ids
 
+	// First, collect IDs that should be deleted from updatedlist
+	const ids_to_delete = new Set();
+	for (const updated_row of updatedlist) {
+		if (updated_row.isdeleted) {
+			ids_to_delete.add(updated_row.id);
+		}
+	}
+	
+	// Create index map and remove deleted items from tolist
 	const index_map = new Map();
 	let write_index = 0;
 	
-	// First pass: rebuild index_map and compact array, removing isdeleted items
 	for (let read_index = 0; read_index < tolist.length; read_index++) {
 		const row = tolist[read_index];
-		if (!row.isdeleted) {
+		if (!ids_to_delete.has(row.id)) {
 			index_map.set(row.id, write_index);
 			if (write_index !== read_index) {
 				tolist[write_index] = row;
@@ -392,7 +400,7 @@ const updateArrayIfPresent = (tolist:GenericRowT[], updatedlist:GenericRowT[]) =
 	// Truncate array to new size
 	tolist.length = write_index;
 	
-	// Second pass: apply updates
+	// Apply updates for non-deleted records
 	for (const d of updatedlist) {
 		if (d.isdeleted) continue; // Skip deleted records from updates
 		
