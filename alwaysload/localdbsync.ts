@@ -645,18 +645,30 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 		if (operations.length === 1) {
 			pending_to_send.push(operations[0])
 		} else {
-			// Sort by timestamp and send the most recent or merge patches
-			operations.sort((a, b) => b.ts - a.ts)
-
-			if (operations[0].operation_type === 'patch') {
+			// Sort by timestamp (earliest first for proper oldts calculation)
+			operations.sort((a, b) => a.ts - b.ts)
+			
+			const earliest_operation = operations[0]
+			const latest_operation = operations[operations.length - 1]
+			
+			if (latest_operation.operation_type === 'patch') {
 				// Merge all patches into one
-				const mergedPayload:any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
-				mergedPayload.ts = operations[0].ts; // Use the timestamp of the most recent operation
-				pending_to_send.push({ ...operations[0], payload: mergedPayload })
+				const merged_payload: any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
+				
+				pending_to_send.push({
+					...latest_operation,
+					payload: merged_payload,
+					ts: latest_operation.ts,        // Latest timestamp for the final state
+					oldts: earliest_operation.oldts  // Earliest oldts for conflict detection
+				})
 			}
 			else {
-				// If the most recent operation is not a patch (aka a delete or add), just send it as is
-				pending_to_send.push(operations[0])
+				// For delete or add operations, use the most recent one
+				pending_to_send.push({
+					...latest_operation,
+					ts: latest_operation.ts,
+					oldts: earliest_operation.oldts  // Still use earliest oldts for conflict detection
+				})
 			}
 		}
 	}
