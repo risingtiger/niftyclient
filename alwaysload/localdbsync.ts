@@ -16,6 +16,7 @@ type PendingSyncOperationT = {
 	operation_type: OperationTypeT;
 	target_store: str;
 	ts: num;
+	oldts: num;
 	payload: GenericRowT | null;
 };
 
@@ -259,7 +260,7 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 		const r = await $N.FetchLassie('/api/firestore_add', opts, null)
 		if (!r.ok) { 
-			await record_failed_sync_operation('add', cname, data)
+			await record_failed_sync_operation('add', cname, data.ts, data.ts, data)
 			return
 		}
 	}
@@ -287,6 +288,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 
 	update_record_with_new_data(wholedata, newdata)
 
+	const oldts = wholedata.ts
 	wholedata.ts = Math.floor(Date.now() / 1000)
 
 	try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
@@ -308,7 +310,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
 
 		if (!r.ok) {
-			await record_failed_sync_operation('patch', cname, newdata);
+			await record_failed_sync_operation('patch', cname, wholedata.ts, oldts, newdata);
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // has been deleted at the server
@@ -348,6 +350,7 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 	try   { existingdata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
 	catch { rej(); return; }
 
+	const oldts = existingdata.ts
 	existingdata.isdeleted = true
 	existingdata.ts = Math.floor(Date.now() / 1000)
 
@@ -365,7 +368,7 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 		const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
 		if (!r.ok) {
-			await record_failed_sync_operation('delete', cname, { id: pathspec.docid!, ts: existingdata.ts });
+			await record_failed_sync_operation('delete', cname, existingdata.ts, oldts, { id: pathspec.docid!, ts: existingdata.ts });
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // record has been entirely removed at the server
@@ -402,6 +405,19 @@ const SetupLocalDBSyncPeriodic = () => {
 			localStorage.setItem(STORAGE_KEY, now.toString())
 			run_local_db_sync_periodic()
 		}
+
+		!! GOTTA PUT OLDTS BACK IN. IF USER KEEPS MODDING A LOCAL RECORD AND KEEPS UPDATING THE TS, THATS FUCKED. WE HAVE TO COMPARE THE ORIGINAL TS (the ts before change) TO COMPARE AT SERVER
+
+		!! ALSO, WHEN A LOCAL RECORD IS MODDED, AND THEN USER COMES BACK ONLINE AND GETS RECORDS CHANGED SINCE TS, AND GETS AN UPDATED VERSION OF A RECORD THEY MODDED LOCALLY, WE GOTTA DEAL WITH THAT, LIKE PROBABLY JUST DELETE THE LOCAL RECORD -- SINCE WE GOING OFF OF WHOEVER GETS A CRUD ACTION TO THE SERVER FIRST WINS
+
+
+
+
+		PUT IN INTERVAL THAT RUNS LIKE EVERY THIRD DAY THAT WIPES THE LOCAL DATABASE AND STARTS FRESH
+
+		PUT IN ANOTHER INTERVAL THAT WILL CHECK FOR LATEST EVERY FIVE MINUTES WHILE APP IS OPEN OR NOT OPEN WHATEVER
+
+		PUT IN A CHECK WHERE IF PENDING SYNC OPERATIONS COUNT IS GREATER THAN 10 - SHUT DOWN THE APP TILL THEY GET BACK ONLINE
 	}
 	
 	// Check immediately on init (which is every page load)
@@ -625,14 +641,23 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 		operation_groups.get(key)!.push(pending)
 	}
 
-	// For each group, keep only the most recent operation
 	for(const [_key, operations] of operation_groups) {
 		if (operations.length === 1) {
 			pending_to_send.push(operations[0])
 		} else {
-			// Sort by timestamp and keep the most recent
+			// Sort by timestamp and send the most recent or merge patches
 			operations.sort((a, b) => b.ts - a.ts)
-			pending_to_send.push(operations[0])
+
+			if (operations[0].operation_type === 'patch') {
+				// Merge all patches into one
+				const mergedPayload:any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
+				mergedPayload.ts = operations[0].ts; // Use the timestamp of the most recent operation
+				pending_to_send.push({ ...operations[0], payload: mergedPayload })
+			}
+			else {
+				// If the most recent operation is not a patch (aka a delete or add), just send it as is
+				pending_to_send.push(operations[0])
+			}
 		}
 	}
 
@@ -653,6 +678,8 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 const record_failed_sync_operation = (
 	type: OperationTypeT,
 	target_store: string,
+	ts: num,
+	oldts: num,
 	newdata: GenericRowT): Promise<void> => new Promise(async (res, rej) => {
 
 	let db:IDBDatabase;
@@ -667,7 +694,8 @@ const record_failed_sync_operation = (
 		docid:newdata.id,
 		operation_type: type,
 		target_store: target_store,
-		ts: newdata.ts,
+		ts,
+		oldts,
 		payload: newdata,  // payload is either whole or partial data -- more likely partial
 	}
 
