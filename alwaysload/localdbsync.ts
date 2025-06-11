@@ -15,9 +15,8 @@ type PendingSyncOperationT = {
 	docid: str,
 	operation_type: OperationTypeT;
 	target_store: str;
-	ts: num;
 	oldts: num;
-	payload: GenericRowT | null;
+	payload: GenericRowT;
 };
 
 type SyncObjectStoresT = { name: string, ts: num|null, lock:boolean, indexes:string[]|null }
@@ -35,10 +34,13 @@ export type PathSpecT = {
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
-const SYNC_INTERVAL_MINUTES   = 1
-const SYNC_INTERVAL_MS        = SYNC_INTERVAL_MINUTES * 60 * 1000
-const STORAGE_KEY             = 'localdbsync_last_run'
-const PENDING_SYNC_STORE_NAME = '__pending_sync_operations';
+const LAST_RUN_INTERVAL_MS                   = 1 * 60 * 1000
+const CHECK_LATEST_INTERVAL_MS               = 5 * 60 * 1000
+const WIPE_LOCAL_INTERVAL_MS                 = 72 * 60 * 60 * 1000 // 72 hours // 3 days
+const LAST_RUN_INTERVAL_LOCALSTORAGE_KEY     = 'localdbsync_last_run_interval_ts'
+const CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY = 'localdbsync_check_latest_interval_ts'
+const WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY   = 'localdbsync_wipe_local_interval_ts'
+const PENDING_SYNC_STORE_NAME                = '__pending_sync_operations';
 
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
@@ -75,7 +77,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	}
 
 
-	SetupLocalDBSyncPeriodic()
+	setup_local_db_interval_periodic()
 
 
 	console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
@@ -90,14 +92,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
-
-		if (_activepaths.length === 0) return
-
-		const r = await datasetter(_activepaths, {retries:2}, true, true)
-		if (r === null || r === 1) return
-
-		notify_of_datachange(r as Map<str, GenericRowT[]>)
-
+		run_check_latest()
 	})
 
 
@@ -171,23 +166,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		return pathspecs
 	}
-
-
-	function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
-
-		let is_too_large_to_update = false
-
-		if ([...returns].some(rr=> rr[1].length === 300)) is_too_large_to_update = true
-
-		if (is_too_large_to_update) {
-			SwitchStationHandleLocalDBSyncUpdateTooLarge()
-			return
-		}	
-
-		if ([...returns].some(rr => rr[1].length >= 1)) {
-			CMechDataChanged(returns)
-		}
-	}
 }
 
 
@@ -260,7 +238,7 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 		const r = await $N.FetchLassie('/api/firestore_add', opts, null)
 		if (!r.ok) { 
-			await record_failed_sync_operation('add', cname, data.ts, data.ts, data)
+			await record_failed_sync_operation('add', cname, data.ts, data)
 			return
 		}
 	}
@@ -290,6 +268,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 
 	const oldts = wholedata.ts
 	wholedata.ts = Math.floor(Date.now() / 1000)
+	newdata.ts = wholedata.ts
 
 	try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
 	catch { rej(); return; }
@@ -304,13 +283,13 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	{   
 		// handle the patch operation on the server
 
-		const body = { path:pathspec.path, newdata }
+		const body = { path:pathspec.path, oldts, newdata }
 		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
 
 		if (!r.ok) {
-			await record_failed_sync_operation('patch', cname, wholedata.ts, oldts, newdata);
+			await record_failed_sync_operation('patch', cname, oldts, newdata);
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // has been deleted at the server
@@ -363,12 +342,12 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 
 	{
-		const body = { path: pathspec.path, ts:existingdata.ts }
+		const body = { path: pathspec.path, oldts, ts: existingdata.ts }
 		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 		const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
 		if (!r.ok) {
-			await record_failed_sync_operation('delete', cname, existingdata.ts, oldts, { id: pathspec.docid!, ts: existingdata.ts });
+			await record_failed_sync_operation('delete', cname, oldts, { id: pathspec.docid!, ts: existingdata.ts });
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // record has been entirely removed at the server
@@ -394,38 +373,62 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 
 
-const SetupLocalDBSyncPeriodic = () => {
+const setup_local_db_interval_periodic = () => {
 
 	const run_sync_if_needed = () => {
-		const now = Date.now()
-		const last_run_str = localStorage.getItem(STORAGE_KEY)
-		const last_run = last_run_str ? parseInt(last_run_str) : 0
+		const now                  = Date.now()
+
+		const last_run_interval_ts_str         = localStorage.getItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY)
+		const last_run_interval_ts             = last_run_interval_ts_str ? parseInt(last_run_interval_ts_str) : 0
+
+		const check_latest_run_str             = localStorage.getItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
+		const check_latest_run_ts              = check_latest_run_str ? parseInt(check_latest_run_str) : 0
+
+		const wipe_local_run_str               = localStorage.getItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
+		const wipe_local_run_ts                = wipe_local_run_str ? parseInt(wipe_local_run_str) : 0
 		
-		if (now - last_run >= SYNC_INTERVAL_MS) {
-			localStorage.setItem(STORAGE_KEY, now.toString())
+		if (now - last_run_interval_ts >= LAST_RUN_INTERVAL_MS) {
+			localStorage.setItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY, now.toString())
 			run_local_db_sync_periodic()
 		}
 
-		!! GOTTA PUT OLDTS BACK IN. IF USER KEEPS MODDING A LOCAL RECORD AND KEEPS UPDATING THE TS, THATS FUCKED. WE HAVE TO COMPARE THE ORIGINAL TS (the ts before change) TO COMPARE AT SERVER
+		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS) {
+			localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString())
+			run_check_latest()
+		}
 
-		!! ALSO, WHEN A LOCAL RECORD IS MODDED, AND THEN USER COMES BACK ONLINE AND GETS RECORDS CHANGED SINCE TS, AND GETS AN UPDATED VERSION OF A RECORD THEY MODDED LOCALLY, WE GOTTA DEAL WITH THAT, LIKE PROBABLY JUST DELETE THE LOCAL RECORD -- SINCE WE GOING OFF OF WHOEVER GETS A CRUD ACTION TO THE SERVER FIRST WINS
-
-
-
-
-		PUT IN INTERVAL THAT RUNS LIKE EVERY THIRD DAY THAT WIPES THE LOCAL DATABASE AND STARTS FRESH
-
-		PUT IN ANOTHER INTERVAL THAT WILL CHECK FOR LATEST EVERY FIVE MINUTES WHILE APP IS OPEN OR NOT OPEN WHATEVER
-
-		PUT IN A CHECK WHERE IF PENDING SYNC OPERATIONS COUNT IS GREATER THAN 10 - SHUT DOWN THE APP TILL THEY GET BACK ONLINE
+		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS) {
+			localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString())
+			run_wipe_local()
+		}
 	}
 	
 	// Check immediately on init (which is every page load)
 	setTimeout(run_sync_if_needed, 3000)
 	
 	// Set up periodic checking
-	setInterval(run_sync_if_needed, SYNC_INTERVAL_MS)
+	setInterval(run_sync_if_needed, LAST_RUN_INTERVAL_MS)
 }
+
+
+
+
+function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
+
+	let is_too_large_to_update = false
+
+	if ([...returns].some(rr=> rr[1].length === 300)) is_too_large_to_update = true
+
+	if (is_too_large_to_update) {
+		SwitchStationHandleLocalDBSyncUpdateTooLarge()
+		return
+	}	
+
+	if ([...returns].some(rr => rr[1].length >= 1)) {
+		CMechDataChanged(returns)
+	}
+}
+
 
 
 
@@ -603,7 +606,36 @@ const update_record_with_new_data = (record: GenericRowT, newdata: any): void =>
 
 
 
+const run_check_latest = async () => {
+
+	if (_activepaths.length === 0) return
+
+	const r = await datasetter(_activepaths, {retries:2}, true, true)
+	if (r === null || r === 1) return
+
+	notify_of_datachange(r as Map<str, GenericRowT[]>)
+}
+
+
+
+
+const run_wipe_local = async () => {
+
+	// completely remove or reset the local indexeddb database named {DBNAME} AI!
+	localStorage.removeItem("pending_sync_operations_exists")
+}
+
+
+
+
 const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, _rej) => {
+	
+	// notes to consider for coming back later to make this actually legit for real customers
+
+	// 1. If the local pending operation is out of date (a newer record exists at the server), its just gonna go away, silently and the browser is going to silently replace actual local collections data with latest from server (not here, but in datasetter on page focus etc)
+	// 2. If count is over, it just fucking deletes them all. Once again, silent data loss, pretty bad
+	// 3. Too much silent shit going on. The user just silently loses data with zero warning. We need to surface these conflicts and give the user a chance to save or something. At the bare minimum give a chance to export before wiping the data out. 
+
 
 	const exists = localStorage.getItem("pending_sync_operations_exists")
 	if (!exists)   { res(true); return; }
@@ -613,6 +645,13 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 
 	if (count === 0) {
 		localStorage.removeItem("pending_sync_operations_exists");
+		res(true)
+		return
+	}
+	else if (count > 10) {
+		$N.Unrecoverable("Error", "Too many pending sync operations", "Ok", LoggerSubjectE.localdbsync_error_toomany_pending, "count: " + count, null)
+		localStorage.removeItem("pending_sync_operations_exists")
+		await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
 		res(true)
 		return
 	}
@@ -645,20 +684,21 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 		if (operations.length === 1) {
 			pending_to_send.push(operations[0])
 		} else {
-			// Sort by timestamp (earliest first for proper oldts calculation)
-			operations.sort((a, b) => a.ts - b.ts)
+			// Sort by timestamp (earliest first)
+			operations.sort((a, b) => a.payload.ts - b.payload.ts)
 			
 			const earliest_operation = operations[0]
 			const latest_operation = operations[operations.length - 1]
 			
 			if (latest_operation.operation_type === 'patch') {
+
 				// Merge all patches into one
 				const merged_payload: any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
+				merged_payload.ts         = latest_operation.payload.ts; // Use the latest timestamp for the final state
 				
 				pending_to_send.push({
 					...latest_operation,
 					payload: merged_payload,
-					ts: latest_operation.ts,        // Latest timestamp for the final state
 					oldts: earliest_operation.oldts  // Earliest oldts for conflict detection
 				})
 			}
@@ -666,7 +706,6 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 				// For delete or add operations, use the most recent one
 				pending_to_send.push({
 					...latest_operation,
-					ts: latest_operation.ts,
 					oldts: earliest_operation.oldts  // Still use earliest oldts for conflict detection
 				})
 			}
@@ -690,7 +729,6 @@ const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, 
 const record_failed_sync_operation = (
 	type: OperationTypeT,
 	target_store: string,
-	ts: num,
 	oldts: num,
 	newdata: GenericRowT): Promise<void> => new Promise(async (res, rej) => {
 
@@ -706,7 +744,6 @@ const record_failed_sync_operation = (
 		docid:newdata.id,
 		operation_type: type,
 		target_store: target_store,
-		ts,
 		oldts,
 		payload: newdata,  // payload is either whole or partial data -- more likely partial
 	}
