@@ -621,8 +621,41 @@ const run_check_latest = async () => {
 
 const run_wipe_local = async () => {
 
-	// completely remove or reset the local indexeddb database named {DBNAME} AI!
-	localStorage.removeItem("pending_sync_operations_exists")
+	try {
+		// Close any existing database connections
+		const db = await $N.IDB.GetDB()
+		db.close()
+		
+		// Delete the entire database
+		const deleteRequest = indexedDB.deleteDatabase(DBNAME)
+		
+		await new Promise<void>((resolve, reject) => {
+			deleteRequest.onsuccess = () => resolve()
+			deleteRequest.onerror = () => reject(deleteRequest.error)
+			deleteRequest.onblocked = () => {
+				// Handle case where database deletion is blocked
+				console.warn('Database deletion blocked, forcing close')
+				setTimeout(() => resolve(), 1000)
+			}
+		})
+		
+		// Clear related localStorage items
+		localStorage.removeItem("pending_sync_operations_exists")
+		localStorage.removeItem("synccollections")
+		localStorage.removeItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY)
+		localStorage.removeItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
+		localStorage.removeItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
+		
+		// Reset sync object stores state
+		_syncobjectstores = []
+		_activepaths = []
+		
+	} catch (error) {
+		console.error('Error wiping local database:', error)
+		// Even if there's an error, try to clean up localStorage
+		localStorage.removeItem("pending_sync_operations_exists")
+		localStorage.removeItem("synccollections")
+	}
 }
 
 
