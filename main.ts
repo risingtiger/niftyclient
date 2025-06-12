@@ -12,11 +12,11 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
-import './alwaysload/logger.js';
+import { Init as LoggerInit } from './alwaysload/logger.js';
 import './alwaysload/engagementlisten.js';
 import {Init as CMechInit} from './alwaysload/cmech.js';
 import {Init as IDBInit } from './alwaysload/indexeddb.js';
@@ -61,27 +61,47 @@ const LAZYLOAD_DATA_FUNCS = {
 
 window.addEventListener("load", async (_e) => {
 
+
+
+
+	// for testing purposes, 
+	if (window.location.href.includes("localhost")) {
+		
+	}
+
+
+
+
+
+
+	const performance_timer = performance.now();
+
 	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE_LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
 	const all_localdb_objectstores = [ ...SETTINGS.INSTANCE.INFO.localdb_objectstores, ...SETTINGS.MAIN.INFO.localdb_objectstores ]
 
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
-		//LazyLoadFilesInit(lazyloads)
 		$N.EngagementListen.Init()
 		LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		CMechInit(lazyload_data_funcs)
+		LoggerInit();
+		
 	}
 
-	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyloads)
 
 	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
-	lazyloads.filter(l => l.type === "view").forEach(r => SwitchStationAddRoute(r))
+	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => SwitchStationAddRoute(r)).map(l=> [l.viewname, l.pattern])
 	SwitchStationInit();
 
-	setTimeout(()=> SSEInit, 5000)
-})
+	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
 
+	setTimeout(()=> SSEInit, 5000)
+
+
+	const performance_timer_b = performance.now() - performance_timer;
+	console.log(`App loaded in ${performance_timer_b.toFixed(2)} ms`)
+})
 
 
 
@@ -136,20 +156,10 @@ $N.ToastShow = ToastShow;
 
 
 async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string|null, redirectionurl:string|null) {
-	
-	/*
-	await new Promise((res, _rej) => {
-		const deleteRequest = indexedDB.deleteDatabase(SETTINGS.INSTANCE.INFO.firebase.project);
-		deleteRequest.onsuccess = () => {res(true); };
-		deleteRequest.onerror =   () => {res(true); }; // Resolve even on error to proceed
-	})
-	*/
 
 	const redirect = redirectionurl || `/v/appmsgs?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
-	$N.Logger.Log(LoggerTypeE.error, logsubj, ( logerrmsg || "" ));
-
-	localStorage.removeItem("synccollections"); // Corrected from removeChild to removeItem
+	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg||"");
 }
 $N.Unrecoverable = Unrecoverable;
 
@@ -189,72 +199,7 @@ function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string
 
 
 
-
-const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _reject) => {
-
-	/*
-
-    {
-      "type": "view",
-      "urlmatch": "^machines$",
-      "name": "machines",
-      "is_instance": true,
-      "dependencies": [
-        {"type": "component", "name": "ol"},
-        {"type": "component", "name": "pol"},
-        {"type": "component", "name": "form"},
-        {"type": "component", "name": "in"},
-        {"type": "component", "name": "dselect"},
-        {"type": "component", "name": "btn"},
-        {"type": "component", "name": "toast"},
-        {"type": "component", "name": "metersreport"},
-        {"type": "component", "name": "machinedetails"},
-        {"type": "component", "name": "machinemap"}
-      ],
-      "auth": ["user", "admin", "store_manager", "scanner"],
-      "localdb_preload": ["machines"]
-    },
-    {
-      "type": "view",
-      "urlmatch": "^machines/:id$",
-      "name": "machine",
-      "is_instance": true,
-      "dependencies": [
-        {"type": "component", "name": "ol"},
-        {"type": "component", "name": "reveal"},
-        {"type": "component", "name": "form"},
-        {"type": "component", "name": "in"},
-        {"type": "component", "name": "dselect"},
-        {"type": "component", "name": "btn"},
-        {"type": "component", "name": "toast"},
-        {"type": "component", "name": "metersreport"},
-        {"type": "component", "name": "machinedetails"},
-        {"type": "component", "name": "machinemap"}
-      ],
-      "auth": ["user", "admin", "store_manager", "scanner"],
-      "localdb_preload": ["machines"]
-    },
-    {
-      "type": "view",
-      "urlmatch": "^machines/:id/telemetry$",
-      "name": "machinetelemetry",
-      "is_instance": true,
-      "dependencies": [
-        {"type": "component", "name": "graphing"},
-        {"type": "component", "name": "ol"},
-        {"type": "component", "name": "toast"}
-      ],
-      "auth": ["user", "admin", "store_manager", "scanner"],
-      "localdb_preload": ["machines"]
-    },
-	*/
-
-	// Extract name and urlmatch from lazyloads
-	const view_routes = lazyloads
-		.filter(l => l.type === "view")
-		.map(l => [l.name, l.urlmatch]);
-	
-
+const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<void>((resolve, _reject) => {
 
 	// Check if very first time loading the service worker, so we can skip the controllerchange event
 	let hasPreviousController = navigator.serviceWorker.controller ? true : false;
@@ -265,11 +210,12 @@ const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _r
 
          navigator.serviceWorker.ready.then(() => {                                                             
 			registration.active?.postMessage({                                                                 
-				action:"initial_pass_auth_info",                                                               
+				action:"initial_data_pass",                                                               
 				id_token: localStorage.getItem("id_token"),                                                    
 				token_expires_at: localStorage.getItem("token_expires_at"),                                    
 				refresh_token: localStorage.getItem("refresh_token"),                                          
-				user_email: localStorage.getItem("user_email")                                                 
+				user_email: localStorage.getItem("user_email"),
+				lazyload_view_urlpatterns,
 			});                                                                                                
 
 			resolve()
@@ -292,7 +238,6 @@ const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _r
 			}
 
 			else if (event.data.action === 'error_out') {
-				$N.Logger.Log(LoggerTypeE.error, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
 
 				if (event.data.subject === LoggerSubjectE.sw_fetch_not_authorized) {
 					Unrecoverable("Not Authenticated", "Please Login", "Login", LoggerSubjectE.sw_fetch_not_authorized, event.data.errmsg, "/v/login")
@@ -301,9 +246,11 @@ const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _r
 				}
 			}
 
+			/*
 			else if (event.data.action === 'logit') {
-				$N.Logger.Log(Number(event.data.type) as LoggerTypeE, event.data.subject as LoggerSubjectE, `${event.data.msg}`)
+				// can add this back in to logger if needed
 			}
+			*/
 		});
 
 		navigator.serviceWorker.addEventListener('controllerchange', onNewServiceWorkerControllerChange);
@@ -317,11 +264,9 @@ const setup_service_worker = (lazyloads:any[]) => new Promise<void>((resolve, _r
 
 			// This event is fired when the service worker controller changes. skip on very first load
 			if (!hasPreviousController) {hasPreviousController = true; return;}
-
 			 
 			const redirect = `/v/appmsgs?appupdate=done`;
 			setalertbox("App Update", "app has been updated. needs restarted", "Restart App", redirect);
-			$N.Logger.Log(LoggerTypeE.info, LoggerSubjectE.app_update, "");
 		}
 	});
 })
