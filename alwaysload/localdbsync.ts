@@ -34,21 +34,35 @@ export type PathSpecT = {
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
-const LAST_RUN_INTERVAL_MS                   = 1 * 60 * 1000
-const CHECK_LATEST_INTERVAL_MS               = 5 * 60 * 1000
+const PERIODIC_PAGELOAD_DELAY_MS             = 3 * 1000
+const PERIODIC_INTERVAL_MS                   = 1 * 60 * 1000
+const SYNC_PENDING_INTERVAL_MS               = 1 * 60 * 1000 // every 1 minute
+const CHECK_LATEST_INTERVAL_MS               = 5 * 60 * 1000 
 const WIPE_LOCAL_INTERVAL_MS                 = 72 * 60 * 60 * 1000 // 72 hours // 3 days
-const LAST_RUN_INTERVAL_LOCALSTORAGE_KEY     = 'localdbsync_last_run_interval_ts'
+const SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY = 'localdbsync_sync_pending_interval_ts'
 const CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY = 'localdbsync_check_latest_interval_ts'
 const WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY   = 'localdbsync_wipe_local_interval_ts'
-const PENDING_SYNC_STORE_NAME                = '__pending_sync_operations';
+const PENDING_SYNC_STORE_NAME                = 'localdbsync_pending_sync_operations';
+const COLLECTION_TS							 = 'localdbsync_collections_ts'
 
 let _syncobjectstores:SyncObjectStoresT[] = []
 let _activepaths:PathSpecT[] = []
 let _a_millis = 0
 
 
-//let _listens: FirestoreLoadSpecT = new Map()
-//let _nonsync_tses: Map<str,num> = new Map()
+
+
+	
+// notes to consider for coming back later to make this actually legit for real customers
+
+// 1. If the local pending operation is out of date (a newer record exists at the server), its just gonna go away, silently and the browser is going to silently replace actual local collections data with latest from server (not here, but in datasetter on page focus etc)
+// 2. If count is over, it just fucking deletes them all. Once again, silent data loss, pretty bad
+// 3. When run_wipe_local is called, it instantly just fucking murders every bit of data, including any pending. Just, bleeeeeeeep, GONE!. So yeeah,, thats fucked too.
+// 4. WAAAAY Too much silent shit going on. The user just silently loses data with zero warning. We need to surface these conflicts and give the user a chance to save or something. At the bare minimum give a chance to export before wiping the data out. 
+
+
+
+
 
 
 const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name: str, db_version: num) => { 
@@ -60,7 +74,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 	{ 
 		const objectstores_tosync_names	    	   = localdb_objectstores_tosync.map(item => item.name)
-		const localstorage_syncobjectstores        = JSON.parse(localStorage.getItem("synccollections") || "[]") as {name:str, ts:num|null}[]
+		const localstorage_syncobjectstores        = JSON.parse(localStorage.getItem(COLLECTION_TS) || "[]") as {name:str, ts:num|null}[]
 		const synccollections_not_in_localstorage  = objectstores_tosync_names.filter((name) => !localstorage_syncobjectstores.find(item => item.name === name))
 
 		synccollections_not_in_localstorage.forEach((name) => {
@@ -69,7 +83,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		_syncobjectstores = localstorage_syncobjectstores.map((dc,_i)=> ({ name: dc.name, ts: dc.ts, lock: false, indexes: localdb_objectstores_tosync.find(l_ots => l_ots.name === dc.name)?.indexes || null }))
 
-		localStorage.setItem("synccollections", JSON.stringify(localstorage_syncobjectstores))
+		localStorage.setItem(COLLECTION_TS, JSON.stringify(localstorage_syncobjectstores))
 
 		_activepaths = _syncobjectstores
 			.filter(so => so.ts !== null && so.ts > 0)
@@ -80,19 +94,8 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	setup_local_db_interval_periodic()
 
 
-	console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
-
-	console.log(`I also need to put in something where on page refresh or navigation, if last time in app has been more than X seconds ago, wait a bit then go fetch latest changes
-
-	Also, If have an interval. Say every 5 minutes, if the app is active, just go grab latest. I know its a lot of traffic, but I dont trust the data to not go stale if I don't do something like that`)
-
-	console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
-
-
-
-
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
-		run_check_latest()
+		RunCheckLatest()
 	})
 
 
@@ -131,7 +134,9 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		try { await $N.IDB.TXResult(tx); } catch { return; }
 
-		CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]]))
+		const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
+
+		CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata]]]))
 
 		return;
 	});
@@ -166,6 +171,19 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		return pathspecs
 	}
+}
+
+
+
+
+const RunCheckLatest = async () => {
+
+	if (_activepaths.length === 0) return
+
+	const r = await datasetter(_activepaths, {retries:2}, true, true)
+	if (r === null || r === 1) return
+
+	notify_of_datachange(r as Map<str, GenericRowT[]>)
 }
 
 
@@ -226,7 +244,8 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 	res(1);
 
-	const returnmap = new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]])
+	const datapath = "1:"+pathspec.collection+"/"+data.id
+	const returnmap = new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]])
 	CMechDataChanged(returnmap)
 
 
@@ -277,13 +296,14 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 
 	res(1);
 
-	CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [wholedata as GenericRowT]]]))
+	const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
+	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]]))
 
 
 	{   
 		// handle the patch operation on the server
 
-		const body = { path:pathspec.path, oldts, newdata }
+		const body = { path:pathspec.path, oldts, newdata:change_newdata_for_firestore_update(newdata) }
 		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
@@ -295,12 +315,12 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 		else if (( r.data as any ).code === 10) { // has been deleted at the server
 			await $N.IDB.DeleteOne(cname, pathspec.docid!);
 			const data = { id: pathspec.docid, isdeleted: true }
-			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
+			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [data as GenericRowT]]]))
 			return;
 		}
 		else if (( r.data as any ).code === 11) { // newer data at server
 			await $N.IDB.PutOne(cname, ( r.data as any ).data);
-			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [( r.data as any ).data]]]))
+			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [( r.data as any ).data]]]))
 			return;
 		}
 		else if (( r.data as any ).code === 1) { // all good
@@ -309,6 +329,32 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 		else { 
 			return;
 		}
+	}
+
+
+	function change_newdata_for_firestore_update(newdata:GenericRowT) : GenericRowT {
+
+		// firestore does not like nested objects, so we need to flatten them
+		// this is a very simple implementation, but it should work for most cases
+
+		const firestore_ready_data:GenericRowT = {}
+
+		for (const key in newdata) {
+			if (typeof newdata[key] === 'object' && newdata[key] !== null) {
+				if (newdata[key].__path) {
+					firestore_ready_data[key] = newdata[key];
+				}
+				else {
+					for (const subkey in newdata[key]) {
+						firestore_ready_data[`${key}.${subkey}`] = newdata[key][subkey]
+					}
+				}
+			} else {
+				firestore_ready_data[key] = newdata[key]
+			}
+		}
+
+		return firestore_ready_data
 	}
 })
 
@@ -337,8 +383,8 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 	catch { rej(); return; }
 	
 	res(1);
-	CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [existingdata as GenericRowT]]]))
-
+	const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
+	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [existingdata]]]))
 
 
 	{
@@ -353,12 +399,12 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 		else if (( r.data as any ).code === 10) { // record has been entirely removed at the server
 			await $N.IDB.DeleteOne(cname, pathspec.docid!);
 			const data = { id: pathspec.docid, isdeleted: true }
-			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
+			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [data as GenericRowT]]]))
 			return;
 		}
 		else if (( r.data as any ).code === 11) { // newer data at server
 			await $N.IDB.PutOne(cname, ( r.data as any ).data);
-			CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [existingdata as GenericRowT]]]))
+			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [existingdata as GenericRowT]]]))
 			return;
 		}
 		else if (( r.data as any ).code === 1) { // all good
@@ -373,41 +419,179 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 
 
+const RunSyncPending = async () => new Promise<boolean>(async (res, _rej) => {
+
+	const exists = localStorage.getItem(PENDING_SYNC_STORE_NAME + "_exists") === "true" || false
+	if (!exists)   { res(true); return; }
+
+
+	const count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(() => 0)
+
+	if (count === 0) {
+		localStorage.removeItem(PENDING_SYNC_STORE_NAME + "_exists");
+		res(true)
+		return
+	}
+	else if (count > 10) {
+		$N.Unrecoverable("Error", "Too many pending sync operations", "Ok", LoggerSubjectE.localdbsync_error_toomany_pending, "count: " + count, null)
+		localStorage.removeItem(PENDING_SYNC_STORE_NAME + "_exists")
+		await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
+		res(true)
+		return
+	}
+		
+
+	const ping_r = await $N.FetchLassie('/api/ping')
+	if (!ping_r.ok) {   res(false); return;  }
+	
+
+	const all_pending_r = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]).catch(()=>null)
+	if (!all_pending_r || !all_pending_r.get(PENDING_SYNC_STORE_NAME) || !all_pending_r.get(PENDING_SYNC_STORE_NAME)?.length) {   res(false); return;  }
+
+
+	const all_pending = all_pending_r.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
+
+	const pending_to_send:PendingSyncOperationT[] = []
+
+	{ 
+		// Pending operations can be duplicates (the user modded the same document multiple times while offline for example), so we group them by store and docid
+		// We will merge patches and keep the latest operation for deletes or adds
+		// This is to ensure we don't send multiple operations for the same document
+		// We use the earliest timestamp for conflict detection, and the latest timestamp for the final state of the document
+
+		// Group operations by store and docid to handle duplicates
+		const operation_groups = new Map<string, PendingSyncOperationT[]>()
+		
+		for(const pending of all_pending) {
+			const key = `${pending.target_store}:${pending.docid}`
+			if (!operation_groups.has(key)) {
+				operation_groups.set(key, [])
+			}
+			operation_groups.get(key)!.push(pending)
+		}
+
+		for(const [_key, operations] of operation_groups) {
+			if (operations.length === 1) {
+				pending_to_send.push(operations[0])
+			} else {
+				// Sort by timestamp (earliest first)
+				operations.sort((a, b) => a.payload.ts - b.payload.ts)
+				
+				const earliest_operation = operations[0]
+				const latest_operation = operations[operations.length - 1]
+				
+				if (latest_operation.operation_type === 'patch') {
+
+					// Merge all patches into one
+					const merged_payload: any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
+					merged_payload.ts         = latest_operation.payload.ts; // Use the latest timestamp for the final state
+					
+					pending_to_send.push({
+						...latest_operation,
+						payload: merged_payload,
+						oldts: earliest_operation.oldts  // Earliest oldts for conflict detection
+					})
+				}
+				else {
+					// For delete or add operations, use the most recent one
+					pending_to_send.push({
+						...latest_operation,
+						oldts: earliest_operation.oldts  // Still use earliest oldts for conflict detection
+					})
+				}
+			}
+		}
+	}
+
+	const opts = { method: 'POST', body: JSON.stringify(pending_to_send) }
+	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
+	if (!r.ok) { res(false); return; }
+	
+
+	await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
+
+	localStorage.removeItem(PENDING_SYNC_STORE_NAME + "_exists");
+
+	res(true)
+})
+
+
+
+
+const RunWipeLocal = async () => {
+
+	try {
+		// Close any existing database connections
+		const db = await $N.IDB.GetDB()
+		db.close()
+		
+		// Delete the entire database
+		const deleteRequest = indexedDB.deleteDatabase(DBNAME)
+		
+		await new Promise<void>((resolve, reject) => {
+			deleteRequest.onsuccess = () => resolve()
+			deleteRequest.onerror = () => reject(deleteRequest.error)
+			deleteRequest.onblocked = () => {
+				// Handle case where database deletion is blocked
+				console.warn('Database deletion blocked, forcing close')
+				setTimeout(() => resolve(), 1000)
+			}
+		})
+		
+		// Clear related localStorage items
+		localStorage.removeItem("pending_sync_operations_exists")
+		localStorage.removeItem(COLLECTION_TS)
+		localStorage.removeItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY)
+		localStorage.removeItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
+		localStorage.removeItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
+
+		$N.Unrecoverable("Info", "App Reset Needed", "Ok", LoggerSubjectE.localdbsync_third_day_reset, "", null)
+		
+	} catch (error) {
+		console.error('Error wiping local database:', error)
+		// Even if there's an error, try to clean up localStorage
+		localStorage.removeItem("pending_sync_operations_exists")
+		localStorage.removeItem(COLLECTION_TS)
+	}
+}
+
+
+
+
 const setup_local_db_interval_periodic = () => {
 
 	const run_sync_if_needed = () => {
+
+		// this is designed to store time in localStorage so that we can keep interval timing across multiple page loads
+
 		const now                  = Date.now()
 
-		const last_run_interval_ts_str         = localStorage.getItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY)
-		const last_run_interval_ts             = last_run_interval_ts_str ? parseInt(last_run_interval_ts_str) : 0
+		const sync_pending_interval_ts_str     = localStorage.getItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY)
+		let   sync_pending_interval_ts         = sync_pending_interval_ts_str ? parseInt(sync_pending_interval_ts_str) : 0
 
 		const check_latest_run_str             = localStorage.getItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
-		const check_latest_run_ts              = check_latest_run_str ? parseInt(check_latest_run_str) : 0
+		let   check_latest_run_ts              = check_latest_run_str ? parseInt(check_latest_run_str) : 0
 
 		const wipe_local_run_str               = localStorage.getItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
-		const wipe_local_run_ts                = wipe_local_run_str ? parseInt(wipe_local_run_str) : 0
+		let   wipe_local_run_ts                = wipe_local_run_str ? parseInt(wipe_local_run_str) : 0
+
+		// if any of these are not set, set them to now so our functions dont run immediately
+		if (!sync_pending_interval_ts) { sync_pending_interval_ts = now; localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); }
+		if (!check_latest_run_ts)  { check_latest_run_ts          = now; localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString()); }
+		if (!wipe_local_run_ts)    { wipe_local_run_ts            = now; localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); }
 		
-		if (now - last_run_interval_ts >= LAST_RUN_INTERVAL_MS) {
-			localStorage.setItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY, now.toString())
-			run_local_db_sync_periodic()
-		}
 
-		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS) {
-			localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString())
-			run_check_latest()
-		}
-
-		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS) {
-			localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString())
-			run_wipe_local()
-		}
+		// Run the tasks at their respective intervals
+		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunSyncPending(); }
+		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS)		{ localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunCheckLatest(); }
+		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS)			{ localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunWipeLocal(); }
 	}
 	
 	// Check immediately on init (which is every page load)
-	setTimeout(run_sync_if_needed, 3000)
+	setTimeout(run_sync_if_needed, PERIODIC_PAGELOAD_DELAY_MS)
 	
-	// Set up periodic checking
-	setInterval(run_sync_if_needed, LAST_RUN_INTERVAL_MS)
+	// Set up periodic checking in case the user stays on the page for a long time
+	setInterval(run_sync_if_needed, PERIODIC_INTERVAL_MS)
 }
 
 
@@ -432,13 +616,14 @@ function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
 
 
 
-const handle_firestore_doc_add_or_patch = (pathspec:PathSpecT, data:object) => new Promise<num>(async (res,_rej)=> {
+const handle_firestore_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {
 
 	if (pathspec.syncobjectstore) {   
 		await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
 	}
 
-	//CMechDataChanged(new Map<str, GenericRowT[]>([[pathspec.syncobjectstore.name, [data as GenericRowT]]]))
+	const datapathspec = "1:"+pathspec.collection+"/"+data.id
+	CMechDataChanged(new Map<str, GenericRowT[]>([[datapathspec, [data as GenericRowT]]]))
 
 	res(1)
 })
@@ -515,7 +700,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 	let   continue_calling  = true	
 	const paths             = syncobjectstores.map(dc=> dc.name)
 	const tses              = syncobjectstores.map(dc=> dc.ts || null)
-	const returns           = new Map<str,GenericRowT[]>( paths.map(path=> [path, []]) )
+	const returns           = new Map<str,GenericRowT[]>( paths.map(path=> ["1:"+path, []]) )
 	const body              = { runid:runidstring, paths, tses }
 
 	while (continue_calling) {
@@ -533,7 +718,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 	const newts = Math.floor(Date.now()/1000);
 	syncobjectstores.forEach(dc => dc.ts = newts);
-	localStorage.setItem("synccollections", JSON.stringify(_syncobjectstores
+	localStorage.setItem(COLLECTION_TS, JSON.stringify(_syncobjectstores
 		.map(dc => ({ name: dc.name, ts: dc.ts }))));
 
 	cleanup();
@@ -549,7 +734,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 
 	function pushtoreturns( path:string, docs:GenericRowT[] ) {
-		const rp = returns.get(path)!
+		const rp = returns.get("1:"+path)!
 		const available_space = returnnewdata_limit - rp.length
 		rp.push(...docs.slice(0, available_space))
 	}
@@ -606,156 +791,10 @@ const update_record_with_new_data = (record: GenericRowT, newdata: any): void =>
 
 
 
-const run_check_latest = async () => {
-
-	if (_activepaths.length === 0) return
-
-	const r = await datasetter(_activepaths, {retries:2}, true, true)
-	if (r === null || r === 1) return
-
-	notify_of_datachange(r as Map<str, GenericRowT[]>)
-}
 
 
 
 
-const run_wipe_local = async () => {
-
-	try {
-		// Close any existing database connections
-		const db = await $N.IDB.GetDB()
-		db.close()
-		
-		// Delete the entire database
-		const deleteRequest = indexedDB.deleteDatabase(DBNAME)
-		
-		await new Promise<void>((resolve, reject) => {
-			deleteRequest.onsuccess = () => resolve()
-			deleteRequest.onerror = () => reject(deleteRequest.error)
-			deleteRequest.onblocked = () => {
-				// Handle case where database deletion is blocked
-				console.warn('Database deletion blocked, forcing close')
-				setTimeout(() => resolve(), 1000)
-			}
-		})
-		
-		// Clear related localStorage items
-		localStorage.removeItem("pending_sync_operations_exists")
-		localStorage.removeItem("synccollections")
-		localStorage.removeItem(LAST_RUN_INTERVAL_LOCALSTORAGE_KEY)
-		localStorage.removeItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
-		localStorage.removeItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
-		
-		// Reset sync object stores state
-		_syncobjectstores = []
-		_activepaths = []
-		
-	} catch (error) {
-		console.error('Error wiping local database:', error)
-		// Even if there's an error, try to clean up localStorage
-		localStorage.removeItem("pending_sync_operations_exists")
-		localStorage.removeItem("synccollections")
-	}
-}
-
-
-
-
-const run_local_db_sync_periodic = async () => new Promise<boolean>(async (res, _rej) => {
-	
-	// notes to consider for coming back later to make this actually legit for real customers
-
-	// 1. If the local pending operation is out of date (a newer record exists at the server), its just gonna go away, silently and the browser is going to silently replace actual local collections data with latest from server (not here, but in datasetter on page focus etc)
-	// 2. If count is over, it just fucking deletes them all. Once again, silent data loss, pretty bad
-	// 3. Too much silent shit going on. The user just silently loses data with zero warning. We need to surface these conflicts and give the user a chance to save or something. At the bare minimum give a chance to export before wiping the data out. 
-
-
-	const exists = localStorage.getItem("pending_sync_operations_exists")
-	if (!exists)   { res(true); return; }
-
-
-	const count = await $N.IDB.Count(PENDING_SYNC_STORE_NAME).catch(() => 0)
-
-	if (count === 0) {
-		localStorage.removeItem("pending_sync_operations_exists");
-		res(true)
-		return
-	}
-	else if (count > 10) {
-		$N.Unrecoverable("Error", "Too many pending sync operations", "Ok", LoggerSubjectE.localdbsync_error_toomany_pending, "count: " + count, null)
-		localStorage.removeItem("pending_sync_operations_exists")
-		await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
-		res(true)
-		return
-	}
-		
-
-	const ping_r = await $N.FetchLassie('/api/ping')
-	if (!ping_r.ok) {   res(false); return;  }
-	
-
-	const all_pending_r = await $N.IDB.GetAll([ PENDING_SYNC_STORE_NAME ]).catch(()=>null)
-	if (!all_pending_r || !all_pending_r.get(PENDING_SYNC_STORE_NAME) || !all_pending_r.get(PENDING_SYNC_STORE_NAME)?.length) {   res(false); return;  }
-
-
-	const all_pending = all_pending_r.get(PENDING_SYNC_STORE_NAME) as PendingSyncOperationT[]
-
-	const pending_to_send:PendingSyncOperationT[] = []
-
-	// Group operations by store and docid to handle duplicates
-	const operation_groups = new Map<string, PendingSyncOperationT[]>()
-	
-	for(const pending of all_pending) {
-		const key = `${pending.target_store}:${pending.docid}`
-		if (!operation_groups.has(key)) {
-			operation_groups.set(key, [])
-		}
-		operation_groups.get(key)!.push(pending)
-	}
-
-	for(const [_key, operations] of operation_groups) {
-		if (operations.length === 1) {
-			pending_to_send.push(operations[0])
-		} else {
-			// Sort by timestamp (earliest first)
-			operations.sort((a, b) => a.payload.ts - b.payload.ts)
-			
-			const earliest_operation = operations[0]
-			const latest_operation = operations[operations.length - 1]
-			
-			if (latest_operation.operation_type === 'patch') {
-
-				// Merge all patches into one
-				const merged_payload: any = operations.reduce((acc, op) => ({ ...acc, ...op.payload }), {})
-				merged_payload.ts         = latest_operation.payload.ts; // Use the latest timestamp for the final state
-				
-				pending_to_send.push({
-					...latest_operation,
-					payload: merged_payload,
-					oldts: earliest_operation.oldts  // Earliest oldts for conflict detection
-				})
-			}
-			else {
-				// For delete or add operations, use the most recent one
-				pending_to_send.push({
-					...latest_operation,
-					oldts: earliest_operation.oldts  // Still use earliest oldts for conflict detection
-				})
-			}
-		}
-	}
-
-	const opts = { method: 'POST', body: JSON.stringify(pending_to_send) }
-	const r = await $N.FetchLassie('/api/firestore_sync_pending', opts)
-	if (!r.ok) { res(false); return; }
-	
-
-	await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
-
-	localStorage.removeItem("pending_sync_operations_exists");
-
-	res(true)
-})
 
 
 
@@ -800,7 +839,7 @@ async function redirect_from_error(errmsg:str) {
 
 
 
-export { Init, EnsureObjectStoresActive } 
+export { Init, RunCheckLatest, RunSyncPending, RunWipeLocal, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
 
