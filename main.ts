@@ -66,7 +66,25 @@ window.addEventListener("load", async (_e) => {
 
 	// for testing purposes, 
 	if (window.location.href.includes("localhost")) {
+		const test_button = document.createElement("button");
+		test_button.textContent = "Sync";
+		test_button.style.position = "fixed";
+		test_button.style.bottom = "20px";
+		test_button.style.right = "20px";
+		test_button.style.zIndex = "9999";
+		test_button.style.padding = "8px 12px";
+		test_button.style.fontSize = "12px";
+		test_button.style.backgroundColor = "#007bff";
+		test_button.style.color = "white";
+		test_button.style.border = "none";
+		test_button.style.borderRadius = "4px";
+		test_button.style.cursor = "pointer";
 		
+		test_button.addEventListener("click", () => {
+			LocalDBSyncRunCheckLatest();
+		});
+		
+		document.body.appendChild(test_button);
 	}
 
 
