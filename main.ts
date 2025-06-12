@@ -12,7 +12,7 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunSyncPending as LocalDBSyncRunSyncPending } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
