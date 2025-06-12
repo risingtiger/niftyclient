@@ -12,7 +12,7 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunSyncPending as LocalDBSyncRunSyncPending } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunSyncPending as LocalDBSyncRunSyncPending, RunWipeLocal as LocalDBSyncRunWipeLocal } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
@@ -61,16 +61,13 @@ const LAZYLOAD_DATA_FUNCS = {
 
 window.addEventListener("load", async (_e) => {
 
-
-
-
 	// for testing purposes, 
 	if (window.location.href.includes("localhost")) {
 		const test_div = document.createElement("div");
 		test_div.id = "local_testing_purposes";
 		
 		const test_button = document.createElement("button");
-		test_button.textContent = "Sync";
+		test_button.textContent = "Check Latest";
 		
 		test_button.addEventListener("click", () => {
 			LocalDBSyncRunCheckLatest();
@@ -87,11 +84,6 @@ window.addEventListener("load", async (_e) => {
 		test_div.appendChild(test_button_pending);
 		document.body.appendChild(test_div);
 	}
-
-
-
-
-
 
 	const performance_timer = performance.now();
 
