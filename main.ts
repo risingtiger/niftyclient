@@ -80,8 +80,16 @@ window.addEventListener("load", async (_e) => {
 			LocalDBSyncRunSyncPending();
 		});
 		
+		const test_button_wipe = document.createElement("button");
+		test_button_wipe.textContent = "Wipe Local";
+		
+		test_button_wipe.addEventListener("click", () => {
+			LocalDBSyncRunWipeLocal();
+		});
+		
 		test_div.appendChild(test_button);
 		test_div.appendChild(test_button_pending);
+		test_div.appendChild(test_button_wipe);
 		document.body.appendChild(test_div);
 	}
 
