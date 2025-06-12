@@ -15,7 +15,7 @@
 
 @font-face { 
   font-family: "icons";
-  src: url("./media/iconsfont/icons.woff2");
+  src: url("/assets/media/iconsfont/icons.woff2");
 }
 
 
@@ -236,3 +236,9 @@ body, td {
   border-radius: 10px;
 }
 
+
+
+
+#local_testing_purposes {
+
+}
