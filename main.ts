@@ -76,7 +76,15 @@ window.addEventListener("load", async (_e) => {
 			LocalDBSyncRunCheckLatest();
 		});
 		
+		const test_button_pending = document.createElement("button");
+		test_button_pending.textContent = "Sync Pending";
+		
+		test_button_pending.addEventListener("click", () => {
+			LocalDBSyncRunSyncPending();
+		});
+		
 		test_div.appendChild(test_button);
+		test_div.appendChild(test_button_pending);
 		document.body.appendChild(test_div);
 	}
 
