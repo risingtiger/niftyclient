@@ -8,7 +8,7 @@ declare var $N: $NT;
 
 
 // these are loaded on Init and stay loaded indefinitely
-let _lazyload_data_funcs:GenericRowT = {}
+let _lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>> = []
 
 // these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 let _loadeddata:Map<str, CMechLoadedDataT> = new Map() // map by view name of Map by path name with data
@@ -18,7 +18,7 @@ let _pathparams:Map<str, GenericRowT> = new Map() // map by view name
 
 
 
-const Init = (lazyload_data_funcs:GenericRowT) => {
+const Init = (lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) => {
 	_lazyload_data_funcs = lazyload_data_funcs
 }
 
@@ -64,8 +64,8 @@ const AddView = (
 
 
 		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [path, val] of promises_r[1].entries())   loadeddata.set(path, val)
-		for (const [path, val] of promises_r[2].entries())   loadeddata.set(path, val)
+		for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
+		for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
 
 		_loadeddata.set(componentname, loadeddata)
 	}
@@ -275,8 +275,8 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	_searchparams.set(componentname, newsearchparams)
 
 	const loadeddata = new Map<str, GenericRowT[]>();
-	for (const [path, val] of promises_r[1].entries())   loadeddata.set(path, val)
-	for (const [path, val] of promises_r[2].entries())   loadeddata.set(path, val)
+	for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
+	for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
 
 	_loadeddata.set(componentname, loadeddata)
 
@@ -296,7 +296,27 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 
-	// map key is path e.g. 'machines/1234' or 'machines/1234/parts/5678' or just 'machines'
+	// updated is a map, key being a string like: '1:machines'. 1: localdb, 2: remotedb, 3:remoteapi	
+	// if 1, it is always a collection like '1:machines' or '1:users'
+	// if 1, the data is always an array, even if just one object. id of object is always present, and is the id of the object in the collection
+
+
+
+	GOTTA CHANGE SOME THINGS HERE
+
+	updated is always gonna be a path. if its 1: then its always a collection or (aka 'machines')
+
+	_loadeddata is a map of component name and loadeddata. loadeddata is (if 1:) either a collection or a doc (aka either 'machines' or 'machines/1234') 
+
+	so , now, I need to parse loadeddata and updated. if updated is a collection and loadeddata is a doc, I gotta find if the updated collection is of loadeddata. aka ( url of machines and machines/1234)
+
+
+
+
+	Then, get back to testing the Check latest and make sure machines and machines/1234 work as expected. if updated is 123 but user is viewing 456 make sure it ignores it
+
+	
+
 	// map value is always an array -- even if of just one object
 
 	const viewsel = document.getElementById("views")!
@@ -307,13 +327,13 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
 		let   matching_loadeddata:GenericRowT[]|null = null
 		
-		for (const [path, updatedlist] of updated) {
+		for (const [datapath, updatedlist] of updated) {
 
-			console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			console.log(`change this. this all works great on 'machines', but on 'machines/1234' done dits furbed. get loadeddata either matching the path or if path startsWith 'machines'.
-			keep in mind that the updated Map is ONLY ever going to have keys of entire collections, e.g. 'machines', never 'machines/1234'. But _loadeddata is
-			going to have keys of 'machines' and 'machines/1234'. So we need to check if the path startsWith 'machines' and then get the loadeddata or if path is just 'machines'`)
-			console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			const p         = datapath.split(":")
+			const type      = Number( p[0] )
+
+			// if type 1, test for loadeddata keys like 'machines' or 'machines/1234' or 'machines/1234' 
+			// we need to test against all loadeddata keys, so we can find if the updated data is a collection or a doc of the loadeddata AI!
 
 			matching_loadeddata = loadeddata.get(path) || null
 			if (!matching_loadeddata) continue
