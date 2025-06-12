@@ -300,43 +300,46 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 	// if 1, it is always a collection like '1:machines' or '1:users'
 	// if 1, the data is always an array, even if just one object. id of object is always present, and is the id of the object in the collection
 
-
-
-	GOTTA CHANGE SOME THINGS HERE
-
-	updated is always gonna be a path. if its 1: then its always a collection or (aka 'machines')
-
-	_loadeddata is a map of component name and loadeddata. loadeddata is (if 1:) either a collection or a doc (aka either 'machines' or 'machines/1234') 
-
-	so , now, I need to parse loadeddata and updated. if updated is a collection and loadeddata is a doc, I gotta find if the updated collection is of loadeddata. aka ( url of machines and machines/1234)
-
-
-
-
-	Then, get back to testing the Check latest and make sure machines and machines/1234 work as expected. if updated is 123 but user is viewing 456 make sure it ignores it
-
-	
-
-	// map value is always an array -- even if of just one object
-
 	const viewsel = document.getElementById("views")!
-
 
 	for (const [view_component_name, loadeddata] of _loadeddata) { // right now, since we migrated to a multi page app, this loop will I believe only ever run once
 
 		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
 		let   matching_loadeddata:GenericRowT[]|null = null
+		let   found_match = false
 		
 		for (const [datapath, updatedlist] of updated) {
 
 			const p         = datapath.split(":")
 			const type      = Number( p[0] )
+			const path      = p[1]
 
-			// if type 1, test for loadeddata keys like 'machines' or 'machines/1234' or 'machines/1234' 
-			// we need to test against all loadeddata keys, so we can find if the updated data is a collection or a doc of the loadeddata AI!
+			// Test against all loadeddata keys to find if the updated data matches
+			for (const [loadeddata_path, loadeddata_array] of loadeddata) {
+				
+				// Direct match (e.g., 'machines' matches 'machines')
+				if (loadeddata_path === path) {
+					matching_loadeddata = loadeddata_array
+					found_match = true
+					break
+				}
+				
+				// Check if updated collection matches a doc path (e.g., 'machines' update affects 'machines/1234')
+				if (loadeddata_path.includes('/') && loadeddata_path.startsWith(path + '/')) {
+					matching_loadeddata = loadeddata_array
+					found_match = true
+					break
+				}
+				
+				// Check if updated doc matches a collection path (e.g., 'machines/1234' update affects 'machines')
+				if (path.includes('/') && path.startsWith(loadeddata_path + '/')) {
+					matching_loadeddata = loadeddata_array
+					found_match = true
+					break
+				}
+			}
 
-			matching_loadeddata = loadeddata.get(path) || null
-			if (!matching_loadeddata) continue
+			if (!found_match) continue
 
 			const list_of_add_and_patches:GenericRowT[] = []
 			const list_of_deletes:GenericRowT[]  = []
@@ -345,8 +348,7 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 			updateArrayIfPresent(matching_loadeddata, list_of_add_and_patches, list_of_deletes)
 		}
 
-		if (!matching_loadeddata) continue
-
+		if (!found_match || !matching_loadeddata) continue
 
 		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED, _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)		
 		viewel.sc()
