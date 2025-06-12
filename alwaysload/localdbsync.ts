@@ -525,6 +525,23 @@ const RunWipeLocal = async () => {
 		const db = await $N.IDB.GetDB()
 		db.close()
 		
+		// Wait for the database to actually close
+		await new Promise<void>((resolve) => {
+			// Check if database is closed by trying to start a transaction
+			const check_closed = () => {
+				try {
+					// If database is closed, this will throw an error
+					db.transaction(['dummy'], 'readonly')
+					// If we get here, database is still open, wait a bit more
+					setTimeout(check_closed, 10)
+				} catch {
+					// Database is closed, we can proceed
+					resolve()
+				}
+			}
+			check_closed()
+		})
+		
 		// Delete the entire database
 		const deleteRequest = indexedDB.deleteDatabase(DBNAME)
 		
