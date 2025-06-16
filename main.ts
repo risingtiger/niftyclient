@@ -30,6 +30,25 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 let _shared_worker: SharedWorker|null = null;
 let _worker_port: MessagePort|null = null;
 
+function handle_shared_worker_message(e: MessageEvent) {
+	if (e.data.action === 'SSE_EVENT' || 
+		e.data.action === 'SSE_CONNECTION_STATUS' || 
+		e.data.action === 'SSE_CONNECTED' || 
+		e.data.action === 'SSE_ERROR') {
+		
+		// Forward SSE messages to the SSE module
+		if ($N.SSEvents && $N.SSEvents.HandleMessage) {
+			$N.SSEvents.HandleMessage(e.data);
+		}
+	}
+	else if (e.data.action === 'WORKER_CONNECTED') {
+		const resolve = (handle_shared_worker_message as any)._currentResolve;
+		if (resolve) {
+			resolve();
+		}
+	}
+}
+
 
 const LAZYLOAD_DATA_FUNCS = {
 
@@ -185,22 +204,8 @@ const init_shared_worker = () => new Promise<void>((res, _rej) => {
 	_worker_port.removeEventListener('message', handle_shared_worker_message); // Remove any previous listeners to avoid duplicates
 	_worker_port.addEventListener('message', handle_shared_worker_message);
 
-
-	function handle_shared_worker_message(e: MessageEvent) {
-		if (e.data.action === 'SSE_EVENT' || 
-			e.data.action === 'SSE_CONNECTION_STATUS' || 
-			e.data.action === 'SSE_CONNECTED' || 
-			e.data.action === 'SSE_ERROR') {
-			
-			// Forward SSE messages to the SSE module
-			if ($N.SSEvents && $N.SSEvents.HandleMessage) {
-				$N.SSEvents.HandleMessage(e.data);
-			}
-		}
-		else if (e.data.action === 'WORKER_CONNECTED') {
-			res()	
-		}
-	}
+	// Store the resolve function so the global handler can access it
+	(handle_shared_worker_message as any)._currentResolve = res;
 })
 
 
