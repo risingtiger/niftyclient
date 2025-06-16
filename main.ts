@@ -17,7 +17,7 @@ import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
 import { Init as LoggerInit } from './alwaysload/logger.js';
-import './alwaysload/engagementlisten.js';
+import { Init as EngagementListenInit } from './alwaysload/engagementlisten.js';
 import {Init as CMechInit} from './alwaysload/cmech.js';
 import {Init as IDBInit } from './alwaysload/indexeddb.js';
 import './alwaysload/utils.js';
@@ -26,7 +26,9 @@ import './alwaysload/utils.js';
 //{--replace_slot.js--}
 
 
-let serviceworker_reg: ServiceWorkerRegistration|null;
+let _serviceworker_reg: ServiceWorkerRegistration|null;
+let _shared_worker: SharedWorker|null = null;
+let _worker_port: MessagePort|null = null;
 
 
 const LAZYLOAD_DATA_FUNCS = {
@@ -101,7 +103,7 @@ window.addEventListener("load", async (_e) => {
 
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
-		$N.EngagementListen.Init()
+		EngagementListenInit()
 		LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		CMechInit(lazyload_data_funcs)
 		LoggerInit();
@@ -115,7 +117,9 @@ window.addEventListener("load", async (_e) => {
 
 	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
 
-	setTimeout(()=> SSEInit, 5000)
+	
+	await init_shared_worker()
+	SSEInit()
 
 
 	const performance_timer_b = performance.now() - performance_timer;
@@ -174,6 +178,37 @@ $N.ToastShow = ToastShow;
 
 
 
+const init_shared_worker = () => new Promise<void>((res, _rej) => {
+	_shared_worker = new SharedWorker('/shared_worker.js');
+	_worker_port = _shared_worker.port;
+	
+	_worker_port.removeEventListener('message', handle_shared_worker_message); // Remove any previous listeners to avoid duplicates
+	_worker_port.addEventListener('message', handle_shared_worker_message);
+
+
+	function handle_shared_worker_message(e: MessageEvent) {
+		if (e.data.action === 'SSE_EVENT' || 
+			e.data.action === 'SSE_CONNECTION_STATUS' || 
+			e.data.action === 'SSE_CONNECTED' || 
+			e.data.action === 'SSE_ERROR') {
+			
+			// Forward SSE messages to the SSE module
+			if ($N.SSEvents && $N.SSEvents.HandleMessage) {
+				$N.SSEvents.HandleMessage(e.data);
+			}
+		}
+		else if (e.data.action === 'WORKER_CONNECTED') {
+			res()	
+		}
+	}
+})
+
+
+$N.GetSharedWorkerPort = ()=>_worker_port!;
+
+
+
+
 async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string|null, redirectionurl:string|null) {
 
 	const redirect = redirectionurl || `/v/appmsgs?logsubj=${logsubj}`;
@@ -225,7 +260,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 
 	 navigator.serviceWorker.register('/sw.js').then(registration => {
 
-		serviceworker_reg = registration;
+		_serviceworker_reg = registration;
 
          navigator.serviceWorker.ready.then(() => {                                                             
 			registration.active?.postMessage({                                                                 
@@ -249,10 +284,10 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			}
 
 			else if (event.data.action === 'update_init') {
-				$N.SSEvents.ForceStop()
+				_worker_port!.postMessage({action: "FORCE_STOP"});
 				setTimeout(() => {
-					if (serviceworker_reg)
-						serviceworker_reg?.update()
+					if (_serviceworker_reg)
+						_serviceworker_reg?.update()
 				}, 300)
 			}
 
@@ -275,7 +310,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 		navigator.serviceWorker.addEventListener('controllerchange', onNewServiceWorkerControllerChange);
 
 		navigator.serviceWorker.addEventListener('updatefound', (_e:any) => {
-			$N.SSEvents.ForceStop()
+			_worker_port!.postMessage({action: "FORCE_STOP"});
 		});
 
 
