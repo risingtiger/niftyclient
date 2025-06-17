@@ -6,8 +6,20 @@ import { $NT } from "../defs.js"
 
 declare var $N: $NT;
 
-//subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov"; // switch_station_route_load_fail | indexeddb_error | sse_listener_error | sw_fetch_not_authorized | sw_fetch_error | localdbsync_error | localdbsync_error_toomany_pending | localdbsync_third_day_reset | app_update | engagement_pageview | engagement_overlayview
-// convert the comment above to a multiline comment with each subject on a new line along with its description AI!
+/*
+subject options:
+- "srf": switch_station_route_load_fail
+- "ixe": indexeddb_error
+- "sse": sse_listener_error
+- "sw4": sw_fetch_not_authorized
+- "swe": sw_fetch_error
+- "lde": localdbsync_error
+- "ldp": localdbsync_error_toomany_pending
+- "ldr": localdbsync_third_day_reset
+- "aup": app_update
+- "epv": engagement_pageview
+- "eov": engagement_overlayview
+*/
 type LogItemT = {
 	type: 10|20|25|30|40; // debug | info | info_engagement | warning | error
 	subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov"; 
