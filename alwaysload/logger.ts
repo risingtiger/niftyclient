@@ -1,10 +1,19 @@
 
 
-import { $NT, LoggerTypeE, LoggerSubjectE, GenericRowT } from "../defs.js"
+import { str } from "../defs_server_symlink.js"
+import { $NT } from "../defs.js"
 
 
 declare var $N: $NT;
 
+//subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov"; // switch_station_route_load_fail | indexeddb_error | sse_listener_error | sw_fetch_not_authorized | sw_fetch_error | localdbsync_error | localdbsync_error_toomany_pending | localdbsync_third_day_reset | app_update | engagement_pageview | engagement_overlayview
+// convert the comment above to a multiline comment with each subject on a new line along with its description AI!
+type LogItemT = {
+	type: 10|20|25|30|40; // debug | info | info_engagement | warning | error
+	subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov"; 
+	message: string;
+	ts: number; 
+}
 
 enum DeviceTypeE {
 	desktop = "dsk",
@@ -23,67 +32,33 @@ enum BrowserE {
 
 
 
-function Log(type:LoggerTypeE, subject:LoggerSubjectE, message:string) {
-
-	if ( window.location.hostname === "localhost" ) {
-		console.log(`[${type}] [${subject}] ${message}`)
-		return
-	}
+const LOG_STORE_NAME = "pending_logs";
+const MAX_SENDBEACON_PAYLOAD_SIZE = 60 * 1024; // 60KB
 
 
-	const logs = localStorage.getItem("logs") || ""
 
-	if (logs.length > 100000) {
-		// there is an error or user just has not logged in in a while. Too much to send, so wipe it
-		localStorage.setItem("logs", "")
-		return;
-	}
 
-	const ts = Math.floor(Date.now() / 1000)
-
-	const newlog = `${type},${subject},${message},${ts}`
-
-	const newstr = `${logs}${newlog}--`
-
-	localStorage.setItem("logs", newstr)
-
-	if (newstr.length > 2000) {
-		Save()
-	}
+function Init() {
+	$N.EngagementListen.Add_Listener(document.body, "logger", "hidden", null, () => {
+		sendlogs()
+	})
 }
 
 
 
+async function Log(type: LoggerTypeE, subject: LoggerSubjectE, message: string) {
 
-async function Save() {
-
-	let logs = localStorage.getItem("logs")
-	let user_email = localStorage.getItem("user_email")
-
-	if (!user_email || !logs) 
-		return
+    if (window.location.hostname === "localhost")   return;
 
 
-	let device = get_device()
-	let browser = get_browser()
+	let ts = Math.floor(Date.now() / 1000);
 
-	if (logs.length > 5) {
-		logs = logs.slice(0, -2) // remove the last -- from the logs
+	if (message.length > 36) {message = message.slice(0, 33) + "...";}
 
-		const url = "/api/logger/save"
+    const log_entry = {type, subject, message, ts};
 
-		const fetchopts = {   
-			method: "POST",
-			body: JSON.stringify({user_email, device, browser, logs}),
-		}
-
-		const r = await $N.FetchLassie(url, fetchopts, null)
-		if (!r.ok) {
-			// if the save fails, we will just leave the logs in localstorage
-		} else {
-			localStorage.setItem("logs", "")
-		}
-	}
+    try   { await $N.IDB.AddOne(LOG_STORE_NAME, log_entry); } 
+	catch {}
 }
 
 
@@ -107,11 +82,37 @@ async function Get() {
 
 
 
-async function logger_ticktock() {
-	setTimeout(()=> {
-		Save()
-		logger_ticktock()
-	}, 1000 * 60 * 60 * 24)
+async function sendlogs() {
+
+	let   all_logs:any
+
+    try   { all_logs = await $N.IDB.GetAll([ LOG_STORE_NAME ]); }
+    catch { return }
+
+
+	if (all_logs.get(LOG_STORE_NAME)?.length === 0)    return;
+
+
+    let logs_str = all_logs.get(LOG_STORE_NAME)?.map(format_logitem).join("\n") || "";
+	let user_email = localStorage.getItem("user_email") || "unknown";
+
+	logs_str = `${user_email}\n${get_device()}\n${get_browser()}\n` + logs_str; // server will use string indexes to parse back out device and browser
+
+	if (logs_str.length > MAX_SENDBEACON_PAYLOAD_SIZE)  {
+		await $N.IDB.ClearAll(LOG_STORE_NAME).catch(() => null);
+		return;
+	}
+
+    if (navigator.sendBeacon("/api/logger/save", logs_str)) {
+		await $N.IDB.ClearAll(LOG_STORE_NAME).catch(() => null);
+	} 
+}
+
+
+
+
+function format_logitem(logitem: LogItemT): str {
+	return `${logitem.type},${logitem.subject},${logitem.message},${logitem.ts}`; 
 }
 
 
@@ -138,31 +139,35 @@ function get_device() {
 
 
 
+
 function get_browser() {
 
-  const ua = navigator.userAgent;
-  let browser = BrowserE.other;
+	const ua = navigator.userAgent;
+	let browser = BrowserE.other;
 
-  if (/Firefox\/\d+/.test(ua)) {
-    browser = BrowserE.firefox;
-  } else if (/Edg\/\d+/.test(ua)) {
-    browser = BrowserE.chrome;
-  } else if (/Chrome\/\d+/.test(ua) && !/Edg\/\d+/.test(ua) && !/OPR\/\d+/.test(ua)) {
-    browser = BrowserE.chrome;
-  } else if (/Safari\/\d+/.test(ua) && !/Chrome\/\d+/.test(ua) && !/OPR\/\d+/.test(ua) && !/Edg\/\d+/.test(ua)) {
-    browser = BrowserE.safari;
-  } else if (/OPR\/\d+/.test(ua)) {
-    browser = BrowserE.chrome;
-  }
+	if (/Firefox\/\d+/.test(ua)) {
+	browser = BrowserE.firefox;
+	} else if (/Edg\/\d+/.test(ua)) {
+	browser = BrowserE.chrome;
+	} else if (/Chrome\/\d+/.test(ua) && !/Edg\/\d+/.test(ua) && !/OPR\/\d+/.test(ua)) {
+	browser = BrowserE.chrome;
+	} else if (/Safari\/\d+/.test(ua) && !/Chrome\/\d+/.test(ua) && !/OPR\/\d+/.test(ua) && !/Edg\/\d+/.test(ua)) {
+	browser = BrowserE.safari;
+	} else if (/OPR\/\d+/.test(ua)) {
+	browser = BrowserE.chrome;
+	}
 
-  return browser;
+	return browser;
 }
 
 
-logger_ticktock()
 
-
+export { Init }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Logger = { Log, Save, Get };
+((window as any).$N as any).Logger = { Log, Get };
+
+
+
+
