@@ -1,6 +1,6 @@
 
 import { bool } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, CMechLoadStateE, $NT, GenericRowT } from "../../../defs.js"
+import { CMechLoadedDataT, $NT, GenericRowT } from "../../../defs.js"
 
 
 
@@ -21,6 +21,8 @@ type ModelT = {
 type StateT = {
     showlogs: bool,
 	showappupdated: bool
+	showdatawipe: bool,
+	show_gen_logsubj: bool,
 	logs: string[],
     logsubj: string,
 }
@@ -40,6 +42,8 @@ class VAppMsgs extends HTMLElement {
     s:StateT = {
 		showlogs: false,
 		showappupdated: false,
+		showdatawipe: false,
+		show_gen_logsubj: false,
 		logs: [],
         logsubj: ""
 	}
@@ -83,12 +87,20 @@ class VAppMsgs extends HTMLElement {
 
 
 
-	kd(_loadeddata: CMechLoadedDataT, loadstate:CMechLoadStateE, _pathparams:GenericRowT, searchparams:GenericRowT) {
-		if (loadstate === CMechLoadStateE.INITIAL || loadstate === CMechLoadStateE.SEARCHCHANGED) {
+	kd(_loadeddata: CMechLoadedDataT, loadstate:string, _pathparams:GenericRowT, searchparams:GenericRowT) {
+		if (loadstate === 'initial' || loadstate === 'searchchanged') {
 			this.s.logsubj = searchparams.logsubj || ''
-
 			this.s.showappupdated = searchparams.appupdate || false
 
+			if (searchparams.appupdate) {
+				this.s.showappupdated = true
+			}
+			else if (this.s.logsubj === 'ldr') { // data wipe
+				this.s.showdatawipe = true
+			}
+			else if (this.s.logsubj) { // generic
+				this.s.show_gen_logsubj = true;
+			}
 		}
 	}
 

@@ -1,5 +1,5 @@
 import { bool } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, CMechLoadStateE, $NT, GenericRowT, LoggerSubjectE, LoggerTypeE } from "../../../defs.js"
+import { CMechLoadedDataT, $NT, GenericRowT } from "../../../defs.js"
 
 
 
@@ -92,8 +92,8 @@ class VLogin extends HTMLElement {
 
 
 
-	kd(_loadeddata: CMechLoadedDataT, loadstate:CMechLoadStateE, _pathparams:GenericRowT, searchparams:GenericRowT) {
-		if (loadstate === CMechLoadStateE.INITIAL || loadstate === CMechLoadStateE.SEARCHCHANGED) {
+	kd(_loadeddata: CMechLoadedDataT, loadstate:string, _pathparams:GenericRowT, searchparams:GenericRowT) {
+		if (loadstate === 'initial' || loadstate === 'searchchanged') {
             // Check for error parameter in URL
             if (searchparams.error) {
                 this.s.errorMessage = decodeURIComponent(searchparams.error as string);

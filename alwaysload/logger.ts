@@ -58,7 +58,7 @@ function Init() {
 
 
 
-async function Log(type: LoggerTypeE, subject: LoggerSubjectE, message: string) {
+async function Log(type: number, subject:string, message: string) {
 
     if (window.location.hostname === "localhost")   return;
 

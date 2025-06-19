@@ -1,7 +1,7 @@
 
 
 import { num, str } from "../defs_server_symlink.js"
-import { $NT, GenericRowT, CMechLoadStateE, CMechViewT, CMechViewPartT, CMechLoadedDataT, EngagementListenerTypeT } from "../defs.js"
+import { $NT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
 import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
@@ -102,7 +102,7 @@ const AddView = (
 		if (el.opts?.kdonvisibled) { 
 			el.kd(
 					_loadeddata.get(componentname)!, 
-					CMechLoadStateE.VISIBLED,
+					'visibled',
 					_pathparams.get(componentname)!,
 					_searchparams.get(componentname)!
 				)
@@ -125,7 +125,7 @@ const AddView = (
 		if (has_late_loaded && has_visibled && el.opts?.kdonlateloaded) {
 			el.kd(
 					_loadeddata.get(componentname)!, 
-					CMechLoadStateE.LATELOADED,
+					'lateloaded',
 					_pathparams.get(componentname)!,
 					_searchparams.get(componentname)!
 				)
@@ -156,10 +156,10 @@ const ViewConnectedCallback = async (component:HTMLElement & CMechViewT, opts:an
 
 	const loadeddata = _loadeddata.get(viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL, _pathparams.get(viewname)!, _searchparams.get(viewname)!)
+	component.kd(loadeddata, 'initial', _pathparams.get(viewname)!, _searchparams.get(viewname)!)
 	component.sc()
 
-	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {   component.sc();   });
+	$N.EngagementListen.Add_Listener(component, "component", "resize", null, async ()=> {   component.sc();   });
 
 	// component.subelshldr array will be populated by the sub elements of the view if they exist after initial render -- keep in mind they will be EVEN AFTER the view is initially hydrated at any point later 
 
@@ -197,10 +197,10 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 
 	const loadeddata    = _loadeddata.get(ancestor_viewname)!
 
-	component.kd(loadeddata, CMechLoadStateE.INITIAL, _pathparams.get(ancestor_viewname)!, _searchparams.get(ancestor_viewname)!)
+	component.kd(loadeddata, 'initial', _pathparams.get(ancestor_viewname)!, _searchparams.get(ancestor_viewname)!)
 	component.sc()
 
-	$N.EngagementListen.Add_Listener(component, "component", EngagementListenerTypeT.resize, null, async ()=> {component.sc()})
+	$N.EngagementListen.Add_Listener(component, "component", "resize", null, async ()=> {component.sc()})
 
 	res()
 })
@@ -280,11 +280,11 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 	_loadeddata.set(componentname, loadeddata)
 
-	activeviewel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
+	activeviewel.kd(loadeddata, 'searchchanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 	activeviewel.sc()
 
 	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, CMechLoadStateE.SEARCHCHANGED, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
+		subel.kd(loadeddata, 'searchchanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
@@ -300,62 +300,60 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 	// if 1, it is always a collection like '1:machines' or '1:users'
 	// if 1, the data is always an array, even if just one object. id of object is always present, and is the id of the object in the collection
 
-	const viewsel = document.getElementById("views")!
+	const viewsel                      = document.getElementById("views")!
+	const update_types:number[]        = []
+	const update_paths:str[]           = []
+	const update_lists:GenericRowT[][] = []
+
+	for (const [datapath, updatedlist] of updated) {
+		update_types.push(Number( datapath.charAt(0) )) // 1: localdb, 2: remotedb, 3: remoteapi 
+		update_paths.push(datapath.slice(2)) 
+		update_lists.push(updatedlist)
+	}
 
 	for (const [view_component_name, loadeddata] of _loadeddata) { // right now, since we migrated to a multi page app, this loop will I believe only ever run once
 
 		const viewel = viewsel.querySelector(`v-${view_component_name}`) as HTMLElement & CMechViewT
-		let   matching_loadeddata:GenericRowT[]|null = null
-		let   found_match = false
-		
-		for (const [datapath, updatedlist] of updated) {
 
-			const p         = datapath.split(":")
-			const type      = Number( p[0] )
-			const path      = p[1]
+		const loadeddata_types:number[]         = []
+		const loadeddata_paths:str[]            = []
+		const loadeddata_arrays:GenericRowT[][] = []
 
-			// Test against all loadeddata keys to find if the updated data matches
-			for (const [loadeddata_path, loadeddata_array] of loadeddata) {
-				
-				// Direct match (e.g., 'machines' matches 'machines')
-				if (loadeddata_path === path) {
-					matching_loadeddata = loadeddata_array
-					found_match = true
-					break
+		for (const [loadeddata_path_raw, loadeddata_array] of loadeddata) {
+			loadeddata_types.push(Number( loadeddata_path_raw.charAt(0) )) // 1: localdb, 2: remotedb, 3: remoteapi
+			loadeddata_paths.push(loadeddata_path_raw.slice(2))
+			loadeddata_arrays.push(loadeddata_array)
+		}
+
+		for(let i = 0; i < update_types.length; i++) {
+
+			let loadeddata_index = -1
+
+			for (let j = 0; j < loadeddata_types.length; j++) {
+				if (loadeddata_types[j] !== update_types[i]) continue;
+				if( loadeddata_paths[j] === update_paths[i] ) {
+					loadeddata_index = j; break;
 				}
-				
-				// Check if updated collection matches a doc path (e.g., 'machines' update affects 'machines/1234')
-				if (loadeddata_path.includes('/') && loadeddata_path.startsWith(path + '/')) {
-					matching_loadeddata = loadeddata_array
-					found_match = true
-					break
-				}
-				
-				// Check if updated doc matches a collection path (e.g., 'machines/1234' update affects 'machines')
-				if (path.includes('/') && path.startsWith(loadeddata_path + '/')) {
-					matching_loadeddata = loadeddata_array
-					found_match = true
-					break
+				if( update_types[i] === 1 && loadeddata_paths[j].includes('/') && loadeddata_paths[j].startsWith(update_paths[i] + '/') ) {
+					loadeddata_index = j; break;
 				}
 			}
 
-			if (!found_match) continue
+			if (loadeddata_index === -1) continue; // no match found
 
 			const list_of_add_and_patches:GenericRowT[] = []
 			const list_of_deletes:GenericRowT[]  = []
-			for (const d of updatedlist) { if (d.isdeleted) list_of_deletes.push(d); else list_of_add_and_patches.push(d); }
+			for (const d of update_lists[i]) { if (d.isdeleted) list_of_deletes.push(d); else list_of_add_and_patches.push(d); }
 
-			updateArrayIfPresent(matching_loadeddata, list_of_add_and_patches, list_of_deletes)
-		}
+			updateArrayIfPresent(loadeddata_arrays[loadeddata_index], list_of_add_and_patches, list_of_deletes)
 
-		if (!found_match || !matching_loadeddata) continue
+			viewel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)		
+			viewel.sc()
 
-		viewel.kd(loadeddata, CMechLoadStateE.DATACHANGED, _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)		
-		viewel.sc()
-
-		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-			subel.kd(loadeddata, CMechLoadStateE.DATACHANGED, _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)
-			subel.sc()
+			for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+				subel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)
+				subel.sc()
+			}
 		}
 	}
 }

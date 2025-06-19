@@ -1,8 +1,7 @@
 
 
 import { num, str, bool } from '../defs_server_symlink.js'
-import { SSETriggersE } from '../defs_server_symlink.js'
-import { $NT, LoggerSubjectE, EngagementListenerTypeT, GenericRowT  } from '../defs.js'
+import { $NT, GenericRowT  } from '../defs.js'
 import { HandleLocalDBSyncUpdateTooLarge as SwitchStationHandleLocalDBSyncUpdateTooLarge } from './switchstation.js'
 import { DataChanged as CMechDataChanged } from './cmech.js'
 
@@ -94,22 +93,22 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	setup_local_db_interval_periodic()
 
 
-	$N.EngagementListen.Add_Listener(document.body, 'firestore', EngagementListenerTypeT.visible, 100, async ()=> {
+	$N.EngagementListen.Add_Listener(document.body, 'firestore', 'visible', 100, async ()=> {
 		RunCheckLatest()
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", [SSETriggersE.FIRESTORE_DOC_ADD], 100, (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", [1], 100, (event:{path:string,data:object})=> {
 		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", [SSETriggersE.FIRESTORE_DOC_PATCH], 100, (event:{path:string,data:object, ispartial?:bool})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", [2], 100, (event:{path:string,data:object, ispartial?:bool})=> {
 		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [SSETriggersE.FIRESTORE_DOC_DELETE], 100, async (event:{path:string,ts:number})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [3], 100, async (event:{path:string,ts:number})=> {
 
 		const pathspec = parse_into_pathspec(event.path)
 
@@ -134,17 +133,16 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		try { await $N.IDB.TXResult(tx); } catch { return; }
 
-		const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
-
+		const datapath = "1:"+pathspec.collection
 		CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata]]]))
 
 		return;
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", [SSETriggersE.FIRESTORE_COLLECTION], 100, async (event:{paths:str[]})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", [4], 100, async (event:{paths:str[]})=> {
 
-		// event.paths is only going to be collections, never a singe document. Single doc goes through SSETriggersE.FIRESTORE_DOC
+		// event.paths is only going to be collections, never a singe document. Single doc goes through FIRESTORE_DOC (3)
 
 		const pathspecs = findrelevantpathspecs_from_ssepaths(event.paths)
 		if (!pathspecs) return
@@ -216,7 +214,7 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 
 
 
-const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {  
+const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
 
 	const pathspec = parse_into_pathspec(path)
 	let   wholedata:GenericRowT = {}
@@ -224,7 +222,7 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 
 	try { db = await $N.IDB.GetDB(); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 
 	data.ts = Math.floor(Date.now() / 1000)
 	data.id = crypto.randomUUID();
@@ -240,11 +238,11 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 	try   { await $N.IDB.TXResult(tx); } 
 	catch { aye_errs = true; }
 
-	if (aye_errs) { rej(); return; }
+	if (aye_errs) { record_failed(); return; }
 
 	res(1);
 
-	const datapath = "1:"+pathspec.collection+"/"+data.id
+	const datapath = "1:"+pathspec.collection
 	const returnmap = new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]])
 	CMechDataChanged(returnmap)
 
@@ -257,7 +255,8 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 		const r = await $N.FetchLassie('/api/firestore_add', opts, null)
 		if (!r.ok) { 
-			await record_failed_sync_operation('add', cname, data.ts, data)
+			//await record_failed_sync_operation('add', cname, data.ts, data)
+			record_failed();
 			return
 		}
 	}
@@ -266,14 +265,14 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,rej)=> {
 
 
 
-const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,rej)=> {  
+const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
 
 	const pathspec = parse_into_pathspec(pathstr)
 
 	let db:any
 
 	try   { db = await $N.IDB.GetDB(); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 
 	const cname              = pathspec.syncobjectstore.name;
 	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
@@ -281,7 +280,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	let   wholedata: GenericRowT;
 
 	try   { wholedata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 
 	update_record_with_new_data(wholedata, newdata)
 
@@ -290,13 +289,13 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	newdata.ts = wholedata.ts
 
 	try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 
-	try { await $N.IDB.TXResult(tx); } catch { rej(); return; }
+	try { await $N.IDB.TXResult(tx); } catch { record_failed(); return; }
 
 	res(1);
 
-	const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
+	const datapath = "1:"+pathspec.collection
 	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]]))
 
 
@@ -309,7 +308,8 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
 
 		if (!r.ok) {
-			await record_failed_sync_operation('patch', cname, oldts, newdata);
+			record_failed()
+			//await record_failed_sync_operation('patch', cname, oldts, newdata);
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // has been deleted at the server
@@ -361,7 +361,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 
 
 
-const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {  
+const Delete = (pathstr:str) => new Promise<num>(async (res,_rej)=> {  
 
 	const pathspec = parse_into_pathspec(pathstr)
 
@@ -373,17 +373,17 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 	let  existingdata:GenericRowT = {};
 
 	try   { existingdata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 
 	const oldts = existingdata.ts
 	existingdata.isdeleted = true
 	existingdata.ts = Math.floor(Date.now() / 1000)
 
 	try   { await $N.IDB.PutOne_S(objectStore, existingdata); }
-	catch { rej(); return; }
+	catch { record_failed(); return; }
 	
 	res(1);
-	const datapath = "1:"+pathspec.collection+"/"+pathspec.docid!
+	const datapath = "1:"+pathspec.collection
 	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [existingdata]]]))
 
 
@@ -393,7 +393,8 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 		const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
 		if (!r.ok) {
-			await record_failed_sync_operation('delete', cname, oldts, { id: pathspec.docid!, ts: existingdata.ts });
+			record_failed()
+			//await record_failed_sync_operation('delete', cname, oldts, { id: pathspec.docid!, ts: existingdata.ts });
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // record has been entirely removed at the server
@@ -419,7 +420,7 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,rej)=> {
 
 
 
-const RunSyncPending = async () => new Promise<boolean>(async (res, _rej) => {
+const RunSyncPending__not_doing_pending_operations_yet = async () => new Promise<boolean>(async (res, _rej) => {
 
 	const exists = localStorage.getItem(PENDING_SYNC_STORE_NAME + "_exists") === "true" || false
 	if (!exists)   { res(true); return; }
@@ -433,7 +434,7 @@ const RunSyncPending = async () => new Promise<boolean>(async (res, _rej) => {
 		return
 	}
 	else if (count > 10) {
-		$N.Unrecoverable("Error", "Too many pending sync operations", "Ok", LoggerSubjectE.localdbsync_error_toomany_pending, "count: " + count, null)
+		$N.Unrecoverable("Error", "Too many pending sync operations", "Ok", "ldp", "count: " + count, null) //localdbsync_error_toomany_pending
 		localStorage.removeItem(PENDING_SYNC_STORE_NAME + "_exists")
 		await $N.IDB.ClearAll(PENDING_SYNC_STORE_NAME).catch(()=>null) // could theortically fail, but since we just previously connected to database I will assume we are ok
 		res(true)
@@ -531,7 +532,7 @@ const RunWipeLocal = async () => {
 			const check_closed = () => {
 				try {
 					// If database is closed, this will throw an error
-					db.transaction(['dummy'], 'readonly')
+					db.transaction([PENDING_SYNC_STORE_NAME], 'readonly')
 					// If we get here, database is still open, wait a bit more
 					setTimeout(check_closed, 10)
 				} catch {
@@ -556,13 +557,13 @@ const RunWipeLocal = async () => {
 		})
 		
 		// Clear related localStorage items
-		localStorage.removeItem("pending_sync_operations_exists")
+		localStorage.removeItem( PENDING_SYNC_STORE_NAME + "_exists")
 		localStorage.removeItem(COLLECTION_TS)
 		localStorage.removeItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY)
 		localStorage.removeItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY)
 		localStorage.removeItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY)
 
-		$N.Unrecoverable("Info", "App Reset Needed", "Ok", LoggerSubjectE.localdbsync_third_day_reset, "", null)
+		$N.Unrecoverable("Info", "App Data Refresh Needed", "Ok", "ldr", "", null) //localdbsync_third_day_reset
 		
 	} catch (error) {
 		console.error('Error wiping local database:', error)
@@ -599,7 +600,7 @@ const setup_local_db_interval_periodic = () => {
 		
 
 		// Run the tasks at their respective intervals
-		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunSyncPending(); }
+		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); /*RunSyncPending();*/ }
 		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS)		{ localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunCheckLatest(); }
 		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS)			{ localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunWipeLocal(); }
 	}
@@ -639,7 +640,7 @@ const handle_firestore_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT)
 		await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
 	}
 
-	const datapathspec = "1:"+pathspec.collection+"/"+data.id
+	const datapathspec = "1:"+pathspec.collection
 	CMechDataChanged(new Map<str, GenericRowT[]>([[datapathspec, [data as GenericRowT]]]))
 
 	res(1)
@@ -815,6 +816,13 @@ const update_record_with_new_data = (record: GenericRowT, newdata: any): void =>
 
 
 
+const record_failed = () => {
+	RunWipeLocal()
+}
+
+
+
+
 const record_failed_sync_operation = (
 	type: OperationTypeT,
 	target_store: string,
@@ -850,13 +858,13 @@ const record_failed_sync_operation = (
 
 
 async function redirect_from_error(errmsg:str) {
-	$N.Unrecoverable("Error", "Error in LocalDBSync", "Reset App", LoggerSubjectE.indexeddb_error, errmsg, null)
+	$N.Unrecoverable("Error", "Error in LocalDBSync", "Reset App", "ixe", errmsg, null) //indexeddb_error
 }
 
 
 
 
-export { Init, RunCheckLatest, RunSyncPending, RunWipeLocal, EnsureObjectStoresActive } 
+export { Init, RunCheckLatest, RunWipeLocal, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
 

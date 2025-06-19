@@ -88,7 +88,7 @@ const ClearAll = (objectstore_name:str) => new Promise(async (res, rej) => {
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
 
-	const tx = ( _db as IDBDatabase ).transaction(objectstore_name, 'readonly');
+	const tx = ( _db as IDBDatabase ).transaction(objectstore_name, 'readwrite');
 	let   aye_errs = false
 
 	const objstore = tx.objectStore(objectstore_name)
@@ -125,6 +125,42 @@ const AddOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(a
 
 
 
+const PutOne = (objectstore_name:str, data:GenericRowT) => new Promise<string>(async (res, rej) => {
+
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
+
+	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readwrite');
+	const objectstore = transaction.objectStore(objectstore_name);
+	let   keystring   = ""
+	
+	try   { keystring = await PutOne_S(objectstore, data) }
+	catch { rej() }
+	
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => res(keystring); 
+})
+
+
+
+
+const DeleteOne = (objectstore_name:str, id:string) => new Promise<string>(async (res, rej) => {
+
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
+
+	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readwrite');
+	const objectstore = transaction.objectStore(objectstore_name);
+
+	const request     = objectstore.delete(id);
+
+	request.onsuccess = (ev:any) => res(ev.target.result); // result of add is the key of the added item
+	request.onerror   = (ev:any) => rej((ev.target as IDBRequest).error);
+})
+
+
+
+
 const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
@@ -151,7 +187,10 @@ const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => 
 
 const GetAll_S = (objectstore:IDBObjectStore) => new Promise<GenericRowT[]>((res, rej) => {
 	const request = objectstore.getAll();
-	request.onsuccess = (ev:any) => res(ev.target.result);
+	request.onsuccess = (ev:any) => {
+		const records = ev.target.result.filter((r:any) => !r.isdeleted);
+		res(records);
+	}
 	request.onerror   = (ev:any) => rej(ev.target.error);
 })
 
@@ -250,7 +289,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, ClearAll, AddOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
+((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, ClearAll, AddOne, PutOne, DeleteOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
 
 
 

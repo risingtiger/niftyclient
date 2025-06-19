@@ -1,0 +1,133 @@
+{
+  "INFO": {
+    "localdb_objectstores": [
+      {"name": "localdbsync_pending_sync_operations"},
+      {"name": "pending_logs"}
+    ]
+  },
+  "LAZYLOADS": [
+	  {
+		"type": "view",
+		"urlmatch": "^appmsgs$",
+		"name": "appmsgs",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "view",
+		"urlmatch": "^login$",
+		"name": "login",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "view",
+		"urlmatch": "^setup_push_allowance$",
+		"name": "setup_push_allowance",
+		"is_instance": false,
+		"dependencies": [
+		  { "type": "component", "name": "ol" },
+		  { "type": "component", "name": "btn" }
+		],
+		"auth": ["admin", "store_manager", "scanner"]
+	  },
+	  {
+		"type": "component",
+		"name": "graphing",
+		"is_instance": false,
+		"dependencies": [{ "type": "thirdparty", "name": "chartist" }],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "ol",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "pol",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "tl",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "reveal",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "form",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "dselect",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "in",
+		"is_instance": false,
+		"dependencies": [
+		  { "type": "component", "name": "dselect" },
+		  { "type": "component", "name": "animeffect" }
+		],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "animeffect",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "toast",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "btn",
+		"is_instance": false,
+		"dependencies": [
+		  { "type": "component", "name": "animeffect" }
+		],
+		"auth": []
+	  },
+	  {
+		"type": "thirdparty",
+		"name": "chartist",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "lib",
+		"name": "testlib",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  }
+	]
+}

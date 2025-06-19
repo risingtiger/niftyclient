@@ -69,9 +69,24 @@ h2 {
     font-size: 1.2em;
     margin: 20px auto;
     padding: 15px;
-    background-color: #4CAF50;
+    background-color: white;
     color: white;
     border-radius: 8px;
+
+	& h2 {
+		font-size: 21px;
+		padding-bottom: 37px;
+	}
+	
+	& button {
+		background: var(--actioncolor);
+		border: none;
+		border-radius: 10px;
+		padding: 9px 25px;
+		font-size: 18px;
+		color: white;
+		cursor: pointer;
+	}
 }
 
 

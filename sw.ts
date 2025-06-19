@@ -20,7 +20,7 @@ let _id_token          = ""
 let _token_expires_at  = 0
 let _refresh_token     = ""
 let _user_email        = ""
-let _view_routes_name_urlmatch:Array<string[]> = []
+let _lazyload_view_urlpatterns:Array<string[]> = []
 let _isoffline         = false
 let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
 let timeouthandler:any = null
@@ -79,7 +79,7 @@ self.addEventListener('fetch', (e:any) => {
 		let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
 		let response:Response|null = null
 
-		const pathpart = ( new URL(e.request.url) ).pathname;
+		const pathname = ( new URL(e.request.url) ).pathname;
 
 		// Handle special cases first
 		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
@@ -89,21 +89,20 @@ self.addEventListener('fetch', (e:any) => {
 		}
 		
 		// Determine request URL type based on path
-		if (pathpart.startsWith('/v/')) {
+		if (pathname.startsWith('/v/')) {
 			requesturltype = RequestURLType.VIEW_URL;
-			response = await handle_file_call(e.request, requesturltype)
+			response = await handle_file_call(e.request, pathname, requesturltype)
 
-		} else if (pathpart.startsWith('/api/')) {
+		} else if (pathname.startsWith('/api/')) {
 			requesturltype = RequestURLType.INTERNAL_API;
 			response = await handle_data_call(e.request)
 
-		} else if (pathpart.startsWith('/assets/')) {
+		} else if (pathname.startsWith('/assets/') || pathname.startsWith('/favicon.ico') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
 			requesturltype = RequestURLType.FILE;
-			response = await handle_file_call(e.request, requesturltype)
+			response = await handle_file_call(e.request, pathname, requesturltype)
 
 		} else {
 			// Error out for unrecognized URL patterns
-			logit(40, "swe", `Unrecognized URL pattern: ${e.request.url}`);
 			res(new Response(null, { status: 400, statusText: 'Bad Request - Unrecognized URL pattern' }));
 			return;
 		}
@@ -129,7 +128,7 @@ self.addEventListener('message', async (e:any) => {
 		_token_expires_at = Number(e.data.token_expires_at);
 		_refresh_token = e.data.refresh_token;
 		_user_email = e.data.user_email;
-		_view_routes_name_urlmatch = e.data.view_routes_name_urlmatch;
+		_lazyload_view_urlpatterns = e.data.lazyload_view_urlpatterns;
 	}
 })
 
@@ -223,23 +222,6 @@ async function check_update_polling() {
 
 const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
-
-
-
-
-	/*
-	now sometin be fucked with the data fetch. getting bunch o errors on 
-    POST http://localhost:3004/api/firestore_get_batch net::ERR_ABORTED 503 (Network error)
-	even when connected to the network.
-		*/
-
-
-
-
-
-
-
-
 	if (_isoffline && !r.headers.get('call_even_if_offline')) {
 		res(new Response(null, { status: 503, statusText: 'Network error - App Offline' }))
 		return
@@ -275,16 +257,18 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
-	const server_response = await fetch(new_request)
-		.catch(() => {
-			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-			_isoffline = true;
-			check_connectivity()
-			res(new Response( null, { status: 503, statusText: 'Network error' } ))
-			return null
-		})
-	if (!server_response) return;
+	let server_response:any
 
+	try			 { server_response = await fetch(new_request) }
+	catch (_err) {
+		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
+		_isoffline = true;
+		clearTimeout(abortsignal_timeoutid)
+		check_connectivity()
+		res(new Response( null, { status: 503, statusText: 'Network error' } ))
+
+		return null
+	}
 
 	_isoffline = false;
 
@@ -308,45 +292,16 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	} else {
 		res(server_response) 
 	} 
-
-	if (server_response.status !== 200)   logit( 40, "swe", `${ new_request.url } - ${ server_response.status } - ${ server_response.statusText }` )
 })
 
 
 
 
-const get_view_name_from_url = (url: string): string | null => {
-	if (!_view_routes_name_urlmatch || _view_routes_name_urlmatch.length === 0) {
-		return null;
-	}
+const handle_file_call = (nr:Request, pathname:string, requesturltype:RequestURLType) => new Promise<Response>(async (res, _rej) => { 
 
-	for (const [viewname, urlmatch] of _view_routes_name_urlmatch) {
-		try {
-			const regex = new RegExp(urlmatch);
-			if (regex.test(url)) {
-				return viewname;
-			}
-		} catch (e) {
-			// Skip invalid regex patterns
-			continue;
-		}
-	}
+	const viewname            = requesturltype === RequestURLType.VIEW_URL ? get_view_name_from_url(pathname) : null;
+	const request_for_viewurl = viewname ? new Request("/v/"+viewname) : null
 	
-	return null;
-}
-
-const handle_file_call = (nr:Request, requesturltype:RequestURLType) => new Promise<Response>(async (res, _rej) => { 
-
-	let request_for_viewurl = requesturltype === RequestURLType.VIEW_URL ? new Request(nr.url) : null
-	
-	// Get the view name if this is a view URL
-	const viewname = requesturltype === RequestURLType.VIEW_URL ? 
-		get_view_name_from_url(nr.url) : null;
-	
-	if (requesturltype === RequestURLType.VIEW_URL && viewname) {
-		logit(20, "view_match", `URL ${nr.url} matched view: ${viewname}`);
-	}
-
 	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(request_for_viewurl || nr)
 
@@ -370,14 +325,30 @@ const handle_file_call = (nr:Request, requesturltype:RequestURLType) => new Prom
 			res(response)
 
 		} catch (err:any) {
-			logit(40, "swe", `${nr.url} - Network error`)
 			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 			_isoffline = true;
+			clearTimeout(abortsignal_timeoutid)
 			check_connectivity()
 			res(set_failed_file_response(nr))
 		}
 	}
 })
+
+
+
+
+const get_view_name_from_url = (pathname: string): string | null => {
+
+	pathname = pathname.slice(3) // remove leading "/v/"
+
+	for (const [viewname, pattern] of _lazyload_view_urlpatterns) {
+		const regex = new RegExp(pattern);
+
+		if (regex.test(pathname))    return viewname;
+	}
+	
+	return null;
+}
 
 
 
@@ -447,10 +418,11 @@ const set_failed_file_response_other = (_nr:Request) => {
 
 function set_abort_signal(headers:Headers) {
 
-	let controller = new AbortController()
-	const { signal } = controller;
-	const exitdelay = headers.get("exitdelay") || EXITDELAY;
-	const abortsignal_timeoutid     = setTimeout(() => { controller.abort(); }, Number(exitdelay));
+	let controller              = new AbortController()
+	const { signal }            = controller;
+	const custom_exitdelay      = headers.get("exitdelay")
+	const exitdelay             = custom_exitdelay ? parseFloat(custom_exitdelay)*1000 : EXITDELAY;
+	const abortsignal_timeoutid = setTimeout(() => { controller.abort(); }, exitdelay);
 
 	return { signal, abortsignal_timeoutid }
 }
@@ -560,6 +532,7 @@ const error_out = (subject:string, errmsg:string="") => new Promise((res, _rej) 
 
 
 
+/*
 function logit(type:number, subject:string, msg:string="") {
 
 	(self as any).clients.matchAll().then((clients:any) => {
@@ -575,6 +548,7 @@ function logit(type:number, subject:string, msg:string="") {
 		},100)
 	})
 }
+*/
 
 
 
@@ -630,7 +604,6 @@ const load_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej
             }
             return 0; 
         } catch (error:any) {
-            logit(40, "sw_preload_err", `Error preloading ${url}: ${error.message}`);
             return 0; 
         }
     });

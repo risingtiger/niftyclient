@@ -1,10 +1,9 @@
 
 
-import { bool, num, str, SSETriggersE } from './defs_server_symlink.js'
+import { bool, num, str } from './defs_server_symlink.js'
 
 
 export type GenericRowT = { [key:string]: any }
-
 
 export type LazyLoadT = {
     type: "view" | "component" | "thirdparty" | "lib",
@@ -47,25 +46,15 @@ export type FirestoreFetchResultT = Map<string, Array<object>>|null
 
 
 
-export const enum EngagementListenerTypeT {
-    visible = "visible",
-    hidden = "hidden",
-	resize = "resize",
-}
-
-
 export type EngagementListenerT = {
 	el: HTMLElement,
     name: string,
-    type: EngagementListenerTypeT,
+    type: "visible" | "hidden" | "resize",
 	priority: number,
     callback:()=>void
 }
 
 
-export const enum CMechLoadStateE {
-	INITIAL, SEARCHCHANGED, DATACHANGED, VISIBLED, LATELOADED
-}
 export type CMechViewT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
@@ -74,7 +63,7 @@ export type CMechViewT = {
 	opts: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
@@ -84,49 +73,12 @@ export type CMechViewPartT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	kd:(loadeddata:CMechLoadedDataT, loadstate:CMechLoadStateE, pathparams: GenericRowT, searchparams:GenericRowT)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 
-export const enum LoggerTypeE {
-	debug = 10,
-    info = 20,
-	info_engagement = 25,
-	warning = 30,
-	error = 40
-}
-
-
-export const enum LoggerSubjectE {
-	switch_station_route_load_fail = "srf",
-	indexeddb_error = "ixe",
-	sse_listener_error = "sse",
-	sw_fetch_not_authorized = "sw4",
-	sw_fetch_error = "swe",
-	localdbsync_error = "lde",
-	app_update = "aup",
-	engagement_pageview = "epv",
-	engagement_overlayview = "eov",
-}
-
-
-export const enum DataSyncStoreMetaStateE  { 
-	EMPTY, 
-	STALE, 
-	QUELOAD, 
-	LOADING, 
-	LOADED_AND_CHANGED, 
-	LOADED_AND_UNCHANGED,
-	OK 
-}
-export type DataSyncStoreMetaT = {
-	n: string, // store name
-	i: null|string, // item id or null if entire store
-	l: DataSyncStoreMetaStateE, // 
-	ts: number // timestamp
-}
 
 
 
@@ -139,10 +91,9 @@ export type DataSyncStoreMetaT = {
 
 export type $NT = {
 	SSEvents: {
-		ForceStop: () => void,
-		WaitTilConnectedOrTimeout: () => Promise<boolean>,
-		Add_Listener: (el:HTMLElement, listener_name:string, eventname:SSETriggersE[], priority:number|null, callback_func:any) => void
+		Add_Listener: (el:HTMLElement, listener_name:string, eventname:number[], priority:number|null, callback_func:any) => void
 		Remove_Listener: (el:HTMLElement, name:string)=>void
+		HandleMessage: (data:any)=>void
 	},
 
 	InfluxDB: {
@@ -151,9 +102,8 @@ export type $NT = {
 
 	EngagementListen: {
 		Init: () => void,
-		Add_Listener: (el:HTMLElement, name:string, type:EngagementListenerTypeT, priority:number|null, callback:()=>void) => void
-		Remove_Listener: (name:string, type:EngagementListenerTypeT) => void
-		LogEngagePoint: (logsubj:LoggerSubjectE, componentname:str) => void
+		Add_Listener: (el:HTMLElement, name:string, type:"visible" | "hidden" | "resize", priority:number|null, callback:()=>void) => void
+		Remove_Listener: (name:string, type:"visible" | "hidden" | "resize") => void
 	}
 
 	LocalDBSync: {
@@ -174,7 +124,7 @@ export type $NT = {
 	FetchLassie_IsOffline: () => boolean
 
 	Logger: {
-		Log: (type:LoggerTypeE, subject:LoggerSubjectE, message:str) => void,
+		Log: (type:number, subject:string, message:str) => void, // refer to logger.ts for type and subject comments
 		Save: () => void
 		Get: () => void
 	}
@@ -185,7 +135,8 @@ export type $NT = {
 	}
 
 	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
-	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:LoggerSubjectE, logerrmsg:string, redirectionurl:string|null) => void
+	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:string, logerrmsg:string, redirectionurl:string|null) => void
+	GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
 		NavigateTo: (newPath: string) => void,
@@ -199,6 +150,8 @@ export type $NT = {
 		GetAll:  (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
 		ClearAll:(objectstore_name:str) => Promise<num>,
 		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		PutOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		DeleteOne: (objectstore_name:str, id:str) => Promise<string>,
 		Count:  (objectstore_name:str) => Promise<number>,
 		GetOne_S: (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
 		GetAll_S: (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,

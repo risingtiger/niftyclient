@@ -1,6 +1,6 @@
 
 
-import { $NT, GenericRowT, LazyLoadT, LoggerSubjectE } from  "./../defs.js" 
+import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
 import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
@@ -14,7 +14,6 @@ type Route = {
 	pathparams_propnames: Array<str>
 }
 
-let isSwipeBackGesture   = false;
 let _routes:Array<Route> = [];
 
 
@@ -75,8 +74,11 @@ const Init = async ()=> {
 
 
 const AddRoute = (lazyload_view:LazyLoadT)=> {
-	const {regex, paramnames: pathparams_propnames} = RegExParams(lazyload_view.urlmatch!)
+
+	const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(lazyload_view.urlmatch!)
 	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames })
+
+	return { viewname: lazyload_view.name, pattern }
 }
 
 
@@ -98,6 +100,18 @@ async function NavigateBack(opts:{ default:str}) {
 		// No history, go to default
 		window.location.href = "/v/" + opts.default;
 	}
+
+
+	/*
+    const r = await routeChanged(newPath, 'forward');
+	if (r === null) { 
+		return; 
+	}
+
+	newPath = "/v/" + newPath
+
+    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
+	*/
 }
 
 
@@ -151,9 +165,6 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, _rej) => 
 
 	document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
-	$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, viewsel.children[0].tagName.toLowerCase())
-
-
 	res(1);
 })
 
@@ -180,8 +191,6 @@ const old__routeChanged = (path: string, direction:'firstload'|'back'|'forward' 
 		( viewsel.children[0] as HTMLElement ).dataset.active = "true"
 
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
-
-		$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, viewsel.children[0].tagName.toLowerCase())
     }
 
     else if (direction === "forward") {
@@ -214,8 +223,6 @@ const old__routeChanged = (path: string, direction:'firstload'|'back'|'forward' 
             activeview.removeEventListener("transitionend", activeTransitionEnd);
 
 			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
-
-			$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_pageview, activeview.tagName.toLowerCase())
         });
     }
 
@@ -317,12 +324,9 @@ function get_route_uri(url: str) : [Array<str>, num] {
 
 const handle_route_fail = (route:Route, redirect:boolean = false) => {
 
-	const viewsel = document.querySelector("#views v-" + route.lazyload_view.name) as HTMLElement;
-
-	if (viewsel) {viewsel.remove()}
-
 	if (redirect) {
-		$N.Unrecoverable(LoggerSubjectE.switch_station_route_load_fail, "Unable to Load App Page", "Restart App", LoggerSubjectE.switch_station_route_load_fail, "Unable to Load App Page", null)
+		const routename = route.lazyload_view.name;
+		$N.Unrecoverable("App Load Error", "Unable to Load App Page", "Restart App", "srf", `route:${routename}`, null) // switch_station_route_load_fail
 	} else {
 		$N.ToastShow("Unable to Load View", 4)
 	}

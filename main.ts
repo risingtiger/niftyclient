@@ -1,5 +1,5 @@
 import { str, GenericRowT } from "./defs_server_symlink.js";
-import { LazyLoadT, $NT, INSTANCE_T, LoggerTypeE, LoggerSubjectE } from "./defs.js";
+import { $NT } from "./defs.js";
 
 
 declare var $N: $NT;
@@ -12,7 +12,7 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunSyncPending as LocalDBSyncRunSyncPending, RunWipeLocal as LocalDBSyncRunWipeLocal } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunWipeLocal as LocalDBSyncRunWipeLocal } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit } from './alwaysload/sse.js';
@@ -29,25 +29,6 @@ import './alwaysload/utils.js';
 let _serviceworker_reg: ServiceWorkerRegistration|null;
 let _shared_worker: SharedWorker|null = null;
 let _worker_port: MessagePort|null = null;
-
-function handle_shared_worker_message(e: MessageEvent) {
-	if (e.data.action === 'SSE_EVENT' || 
-		e.data.action === 'SSE_CONNECTION_STATUS' || 
-		e.data.action === 'SSE_CONNECTED' || 
-		e.data.action === 'SSE_ERROR') {
-		
-		// Forward SSE messages to the SSE module
-		if ($N.SSEvents && $N.SSEvents.HandleMessage) {
-			$N.SSEvents.HandleMessage(e.data);
-		}
-	}
-	else if (e.data.action === 'WORKER_CONNECTED') {
-		const resolve = (handle_shared_worker_message as any)._currentResolve;
-		if (resolve) {
-			resolve();
-		}
-	}
-}
 
 
 const LAZYLOAD_DATA_FUNCS = {
@@ -94,13 +75,6 @@ window.addEventListener("load", async (_e) => {
 			LocalDBSyncRunCheckLatest();
 		});
 		
-		const test_button_pending = document.createElement("button");
-		test_button_pending.textContent = "Sync Pending";
-		
-		test_button_pending.addEventListener("click", () => {
-			LocalDBSyncRunSyncPending();
-		});
-		
 		const test_button_wipe = document.createElement("button");
 		test_button_wipe.textContent = "Wipe Local";
 		
@@ -109,7 +83,6 @@ window.addEventListener("load", async (_e) => {
 		});
 		
 		test_div.appendChild(test_button);
-		test_div.appendChild(test_button_pending);
 		test_div.appendChild(test_button_wipe);
 		document.body.appendChild(test_div);
 	}
@@ -134,15 +107,13 @@ window.addEventListener("load", async (_e) => {
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => SwitchStationAddRoute(r)).map(l=> [l.viewname, l.pattern])
 	SwitchStationInit();
 
-	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
-
-	
-	await init_shared_worker()
-	SSEInit()
-
-
 	const performance_timer_b = performance.now() - performance_timer;
 	console.log(`App loaded in ${performance_timer_b.toFixed(2)} ms`)
+
+	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
+	
+	init_shared_worker()
+	setTimeout(()=> SSEInit(), 1800)
 })
 
 
@@ -197,16 +168,25 @@ $N.ToastShow = ToastShow;
 
 
 
-const init_shared_worker = () => new Promise<void>((res, _rej) => {
+function init_shared_worker() {
 	_shared_worker = new SharedWorker('/shared_worker.js');
 	_worker_port = _shared_worker.port;
 	
 	_worker_port.removeEventListener('message', handle_shared_worker_message); // Remove any previous listeners to avoid duplicates
 	_worker_port.addEventListener('message', handle_shared_worker_message);
-
-	// Store the resolve function so the global handler can access it
-	(handle_shared_worker_message as any)._currentResolve = res;
-})
+}
+function handle_shared_worker_message(e: MessageEvent) {
+	if (e.data.action === 'SSE_EVENT' || 
+		e.data.action === 'SSE_CONNECTION_STATUS' || 
+		e.data.action === 'SSE_CONNECTED' || 
+		e.data.action === 'SSE_ERROR') {
+		
+		// Forward SSE messages to the SSE module
+		if ($N.SSEvents && $N.SSEvents.HandleMessage) {
+			$N.SSEvents.HandleMessage(e.data);
+		}
+	}
+}
 
 
 $N.GetSharedWorkerPort = ()=>_worker_port!;
@@ -214,11 +194,11 @@ $N.GetSharedWorkerPort = ()=>_worker_port!;
 
 
 
-async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: LoggerSubjectE, logerrmsg: string|null, redirectionurl:string|null) {
+async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: string, logerrmsg: string|null, redirectionurl:string|null) {
 
 	const redirect = redirectionurl || `/v/appmsgs?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
-	$N.Logger.Log(LoggerTypeE.error, logsubj, logerrmsg||"");
+	$N.Logger.Log(40, logsubj, logerrmsg||"");
 }
 $N.Unrecoverable = Unrecoverable;
 
@@ -298,10 +278,10 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 
 			else if (event.data.action === 'error_out') {
 
-				if (event.data.subject === LoggerSubjectE.sw_fetch_not_authorized) {
-					Unrecoverable("Not Authenticated", "Please Login", "Login", LoggerSubjectE.sw_fetch_not_authorized, event.data.errmsg, "/v/login")
+				if (event.data.subject === "sw4") { // sw fetch not authorized
+					Unrecoverable("Not Authenticated", "Please Login", "Login", "sw4", event.data.errmsg, "/v/login")
 				} else {
-					Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject as LoggerSubjectE, event.data.errmsg, null)
+					Unrecoverable("App Error", event.data.errmsg, "Restart App", event.data.subject, event.data.errmsg, null)
 				}
 			}
 

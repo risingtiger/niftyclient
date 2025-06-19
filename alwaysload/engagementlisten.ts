@@ -1,16 +1,16 @@
 
 
-import { bool, num, str, SSETriggersE } from '../defs_server_symlink.js'
-import { EngagementListenerTypeT, EngagementListenerT, LoggerTypeE, LoggerSubjectE, $NT } from "../defs.js"
+//import { bool, num, str, SSETriggersE } from '../defs_server_symlink.js'
+import { EngagementListenerT } from "../defs.js"
 
 
-declare var $N: $NT;
+//declare var $N: $NT;
 const elisteners:EngagementListenerT[] = []
 
 
 
 
-function Add_Listener(el:HTMLElement, name:string, type_:EngagementListenerTypeT, priority_:number|null, callback_:()=>void) {
+function Add_Listener(el:HTMLElement, name:string, type_:any, priority_:number|null, callback_:()=>void) {
 
     const type = type_
 
@@ -40,7 +40,7 @@ function Add_Listener(el:HTMLElement, name:string, type_:EngagementListenerTypeT
 
 
 
-function Remove_Listener(el:HTMLElement, name:string, type_:EngagementListenerTypeT) {   
+function Remove_Listener(el:HTMLElement, name:string, type_:any) {   
     const i = elisteners.findIndex(l=> l.el.tagName === el.tagName && l.name === name && l.type === type_)
     if (i === -1) return
     elisteners.splice(i, 1)   
@@ -54,14 +54,14 @@ function Init() {
 	document.addEventListener('visibilitychange', () => { 
 		if (document.visibilityState === 'visible') {
 			setTimeout(() => { 
-				for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.visible)) {
+				for(const l of elisteners.filter(l=> l.type === 'visible')) {
 					l.callback()
 				}
 			}, 500)
 		}
 		else if (document.visibilityState === 'hidden') {
 			setTimeout(() => { 
-				for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.hidden)) {
+				for(const l of elisteners.filter(l=> l.type === 'hidden')) {
 					l.callback()
 				}
 			}, 500)
@@ -69,7 +69,7 @@ function Init() {
 	})
 
 	window.addEventListener('resize', () => {
-		for(const l of elisteners.filter(l=> l.type === EngagementListenerTypeT.resize)) {
+		for(const l of elisteners.filter(l=> l.type === 'resize')) {
 			l.callback()
 		}
 	});
@@ -77,15 +77,9 @@ function Init() {
 
 
 
-
-function LogEngagePoint(logsubj:LoggerSubjectE, componentname:str) {
-	$N.Logger.Log(LoggerTypeE.info_engagement, logsubj, componentname)
-}
-
-
-
+export { Init } 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).EngagementListen = { Init, Add_Listener, Remove_Listener, LogEngagePoint };
+((window as any).$N as any).EngagementListen = { Init, Add_Listener, Remove_Listener };
 
 

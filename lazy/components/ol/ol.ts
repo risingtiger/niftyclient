@@ -1,10 +1,9 @@
 
 
-import { $NT, GenericRowT, LazyLoadT, LoggerSubjectE } from  "../../../defs.js" 
+//import { $NT, GenericRowT, LazyLoadT } from  "../../../defs.js" 
 import { str, num, bool } from "../../../defs_server_symlink.js";
 
 
-declare var $N: $NT;
 declare var render: any;
 declare var html: any;
 
@@ -105,7 +104,6 @@ class COl extends HTMLElement {
 
         if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
             child.addEventListener("hydrated", continue_to_open.bind(this))
-			$N.EngagementListen.LogEngagePoint(LoggerSubjectE.engagement_overlayview, child.tagName.toLowerCase())
         } else {
             continue_to_open.bind(this)()
         }

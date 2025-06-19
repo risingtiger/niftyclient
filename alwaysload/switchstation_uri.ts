@@ -15,7 +15,7 @@ const RegExParams = (original_matchstr:string) => {
 	const regex      = new RegExp(pattern);
 	const paramnames = pathparamnames;
 
-	return {regex, paramnames}
+	return {regex, paramnames, pattern}
 }
 
 
