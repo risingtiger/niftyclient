@@ -12,8 +12,6 @@ let timeoutWaitingAnimateId:any = null
 
 
 function Init(lazyloads_:LazyLoadT[]) {
-	// rewrite this function to push to _loaded now that _loaded is a Set instead of an array AI!
-	debugger
     _lazyloads = lazyloads_
     
     const script_tags = document.head.querySelectorAll('script[is_lazyload_asset]')
@@ -28,8 +26,11 @@ function Init(lazyloads_:LazyLoadT[]) {
             return src.includes(lazy_load.name) || src === expected_path
         })
         
-        if (matching_lazyload && !_loaded.find(l => l.type === matching_lazyload.type && l.name === matching_lazyload.name)) {
-            _loaded.push(matching_lazyload)
+        if (matching_lazyload) {
+            const load_key = `${matching_lazyload.type}:${matching_lazyload.name}`
+            if (!_loaded.has(load_key)) {
+                _loaded.add(load_key)
+            }
         }
     }
 }
@@ -62,8 +63,8 @@ function LoadView(lazyloadview:LazyLoadT) {   return new Promise<number|null>(as
 
 function addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
 
-	let is_already_loaded = _loaded.find(l=> l.type === load.type && l.name === load.name) 
-	if (is_already_loaded !== undefined) {
+	const load_key = `${load.type}:${load.name}`
+	if (_loaded.has(load_key)) {
 		return;
 	}
 
@@ -93,7 +94,10 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 	try   { await Promise.all(promises); }
 	catch { res(null); return; }
 
-	for(const load of loadque) { _loaded.push(load); }
+	for(const load of loadque) { 
+		const load_key = `${load.type}:${load.name}`
+		_loaded.add(load_key)
+	}
 
     res(1)
 })}
