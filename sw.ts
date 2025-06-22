@@ -5,9 +5,8 @@ enum RequestURLType { INTERNAL_API, FILE, VIEW_URL}
 
 const AFTER_ACTIVATE_PRELOAD_ASSETS = [
 	"/v/appmsgs",
-	"/assets/lazy/views/appmsgs/appmsgs.js",
-	"/assets/lazy/views/login/login.js",
-	"/assets/instance/lazy/views/home/home.js"
+	"/v/login",
+	"/v/home",
 ]
 
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
@@ -81,11 +80,19 @@ self.addEventListener('fetch', (e:any) => {
 
 		const pathname = ( new URL(e.request.url) ).pathname;
 
-		// Handle special cases first
-		if (e.request.url.includes("identitytoolkit.googleapis.com") || e.request.url.includes("sse_add_listener")) {
-			const r = await fetch(e.request)
-			res(r)
-			return
+		if (
+			e.request.url.includes("identitytoolkit.googleapis.com") || 
+			e.request.url.includes("sse_add_listener") ||
+			// not caching shared_worker because browsers stink	- shared workers reset between page loads if cached. kind of dumb
+			// this will likely quite surely become lost to memory and reach up and bite my ass about the time I've fully forgotten about it
+			// at some point I'm gonna change shared_worker and trigger a app update and some one somewhere is gonna get an old shared_worker.js file with otherwise new app files and jerk into unknown state land
+			//  which, who knows, could cause dancing ponies and shimmering rainbows, but more likely, a cascade of bit failures down the waterfall of broken app dreams
+			e.request.url.includes("shared_worker.js"))
+		{
+			//const r = await fetch(e.request)
+			//res(r)
+			console.log("in sw. just skipped fetch interception")
+			return; // just ignore these requests and let the browser handle them
 		}
 		
 		// Determine request URL type based on path

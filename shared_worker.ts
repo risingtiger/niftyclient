@@ -1,11 +1,14 @@
 
 
-let _connected_ports  : MessagePort[]       = []
+let _connected_ports  : MessagePort[]      = []
 let _sse_event_source : EventSource | null = null
-let _sse_connection_id: string | null     = null
+let _sse_connection_id: string | null      = null
 
+let _count = 0;
 
 self.addEventListener('connect', (e: any) => {
+	_count++;
+	console.log("shared worker connected and count is: " + _count);
     const port = e.ports[0] as MessagePort
     _connected_ports.push(port)
     
@@ -13,7 +16,7 @@ self.addEventListener('connect', (e: any) => {
         handle_message(msg.data)
     })
     
-    port.start()
+    // not actually needed to call since on message event does it. port.start()// should already be started by setting the message listener, but just in case here it is too
     
     port.addEventListener('close', () => {
         const index = _connected_ports.indexOf(port)
