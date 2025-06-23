@@ -693,12 +693,23 @@ class CIn2 extends Lit_Element {
 
 		const thiscomponent = this;
 
-		// for eqch event call removeEventListener too. call a local function that calls the method on this component that can reference thiscomponent AI!
+		// Create local functions that reference the component
+		const handle_input = (e: Event) => thiscomponent.inputchanged(e);
+		const handle_focus = (e: Event) => thiscomponent.focused(e);
+		const handle_blur = (e: Event) => thiscomponent.blurred(e);
+		const handle_keyup = (e: KeyboardEvent) => thiscomponent.keyupped(e);
 
-		inputel.addEventListener("input", (e)=> this.inputchanged(e)); 
-		inputel.addEventListener("focus", (e)=> this.focused(e)); 
-		inputel.addEventListener("blur",  (e)=> this.blurred(e)); 
-		inputel.addEventListener("keyup", (e)=> this.keyupped(e)); 
+		// Remove existing event listeners
+		inputel.removeEventListener("input", handle_input);
+		inputel.removeEventListener("focus", handle_focus);
+		inputel.removeEventListener("blur", handle_blur);
+		inputel.removeEventListener("keyup", handle_keyup);
+
+		// Add event listeners
+		inputel.addEventListener("input", handle_input); 
+		inputel.addEventListener("focus", handle_focus); 
+		inputel.addEventListener("blur", handle_blur); 
+		inputel.addEventListener("keyup", handle_keyup); 
 	}
 
 
