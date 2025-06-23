@@ -10,7 +10,7 @@ declare var html: any;
 
 
 
-enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4 }
+//enum ModeT { EDIT = 0, VIEW = 1, SAVING = 2, SAVED = 3, ERRORED = 4 }
 enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
 type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
 //enum InputTypeT { NONE = 0, TEXT = 1, PHONE = 2, EMAIL = 3, PASSWORD = 4, NUMBER = 5, URL = 6, DATE = 7, TIME = 8, DATETIME = 9, MONTH = 10, WEEK = 11, COLOR = 12, SEARCH = 13, FILE = 14, RANGE = 15 }
@@ -20,7 +20,6 @@ type AttributesT = {
 }
 
 type StateT = {
-    mode: ModeT,
     isanimating: bool,
     val: str,
 	newval: str,
@@ -62,7 +61,7 @@ const ATTRIBUTES:AttributesT = { val: "" }
 class CIn2 extends Lit_Element {
 
 	a:AttributesT = { ...ATTRIBUTES };
-    s:StateT = { mode: ModeT.VIEW, val: "", newval: "", isanimating: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0 }
+    s:StateT = { val: "", newval: "", isanimating: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0 }
     m:ModelT = { name: "", type: TypeT.TOGGLE, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
     
     animatehandles: AnimationHandlesT = { view: null, edit: null } // label: null }
@@ -94,8 +93,6 @@ class CIn2 extends Lit_Element {
 		this.s.options = this.getAttribute("options") || ""
 		this.s.min = this.getAttribute("min") || ""
 		this.s.max = this.getAttribute("max") || ""
-
-		this.s.mode = ModeT.VIEW
 
         if (attr_typestr === "toggle") {
             this.m.type = TypeT.TOGGLE
@@ -235,7 +232,51 @@ class CIn2 extends Lit_Element {
 
 
 
+    inputchanged(_e:Event) {
+		console.log("input event fired")
+		this.sc()
+	}
+
+
+
+
+    focused(e:Event) {
+		( e.currentTarget as any ).select();
+		this.sc()
+	}
+
+
+
+
+    blurred(e:Event) {
+		const val = ( e.currentTarget as HTMLInputElement ).value || "";
+		console.log(val)
+	}
+
+
+
+
+    keyupped(e:KeyboardEvent) {
+		if (e.key === "Enter") {
+			console.log("input enter keyup fired")
+			e.preventDefault();
+			this.runupdate()
+			this.sc()
+		}
+	}
+
+
+
+
     actionicon_clicked(_e:Event) {
+		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
+		inputel!.focus()
+	}
+
+
+
+
+    label_clicked(_e:Event) {
 		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
 		inputel!.focus()
 	}
@@ -650,29 +691,14 @@ class CIn2 extends Lit_Element {
 		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
 		if (!inputel) { return; }
 
-		inputel.addEventListener("input", ()=>{ 
-			console.log("input event fired")
-			this.sc()
-		});
-		inputel.addEventListener("focus", ()=>{ 
-			console.log("input focus fired")
-			inputel.select();
-			this.s.mode = ModeT.EDIT;
-			this.sc()
-		});
-		inputel.addEventListener("blur", ()=>{ 
-			if (this.s.mode !== ModeT.EDIT) return;
-			this.s.mode = ModeT.VIEW;
-			this.sc()
-		});
-		inputel.addEventListener("keyup", (e:any)=>{ 
-			if (e.key === "Enter" && this.s.mode === ModeT.EDIT) {
-				console.log("input enter keyup fired")
-				e.preventDefault();
-				this.runupdate()
-				this.sc()
-			}
-		});
+		const thiscomponent = this;
+
+		// for eqch event call removeEventListener too. call a local function that calls the method on this component that can reference thiscomponent AI!
+
+		inputel.addEventListener("input", (e)=> this.inputchanged(e)); 
+		inputel.addEventListener("focus", (e)=> this.focused(e)); 
+		inputel.addEventListener("blur",  (e)=> this.blurred(e)); 
+		inputel.addEventListener("keyup", (e)=> this.keyupped(e)); 
 	}
 
 
