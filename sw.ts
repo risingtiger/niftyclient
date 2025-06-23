@@ -29,6 +29,7 @@ let timeouthandler:any = null
 
 
 self.addEventListener('install', (event:any) => {
+	//(self as any).skipWaiting();
 	event.waitUntil((async () => {
 
 		// Optionally, pre-cache any needed static assets here:
@@ -81,18 +82,12 @@ self.addEventListener('fetch', (e:any) => {
 		const pathname = ( new URL(e.request.url) ).pathname;
 
 		if (
-			e.request.url.includes("identitytoolkit.googleapis.com") || 
-			e.request.url.includes("sse_add_listener") ||
-			// not caching shared_worker because browsers stink	- shared workers reset between page loads if cached. kind of dumb
-			// this will likely quite surely become lost to memory and reach up and bite my ass about the time I've fully forgotten about it
-			// at some point I'm gonna change shared_worker and trigger a app update and some one somewhere is gonna get an old shared_worker.js file with otherwise new app files and jerk into unknown state land
-			//  which, who knows, could cause dancing ponies and shimmering rainbows, but more likely, a cascade of bit failures down the waterfall of broken app dreams
-			e.request.url.includes("shared_worker.js"))
+			e.request.url.includes("identitytoolkit.googleapis.com") ||
+			e.request.url.includes("sse_add_listener"))
 		{
-			//const r = await fetch(e.request)
-			//res(r)
-			console.log("in sw. just skipped fetch interception")
-			return; // just ignore these requests and let the browser handle them
+			const r = await fetch(e.request)
+			res(r)
+			return 
 		}
 		
 		// Determine request URL type based on path
@@ -293,7 +288,8 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 				client.postMessage({ action: 'update_init' });
 			})
 		})
-		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle update including page redirection
+		// resolve, otherwise the fetch request will stay pending and disrupt service worker from updating
+		res(new Response( null, { status: 410, statusText: 'Outdated' } ))
 		return
 
 	} else {

@@ -281,13 +281,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 				setTimeout(() => {
 					if (_serviceworker_reg)
 						_serviceworker_reg?.update()
-				}, 100)
-
-				// fuck it! just yank the fucking cord!
-				setTimeout(() => {
-					const baseurl = `${window.location.protocol}//${window.location.host}`
-					window.location.href = `http://www.yavada.com/bouncebacktonifty.html?round=1&origin=${encodeURIComponent(baseurl)}`
-				}, 3000)
+				}, 300)
 			}
 
 			else if (event.data.action === 'error_out') {
@@ -320,6 +314,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			 
 			const redirect = `/v/appmsgs?appupdate=done`;
 			window.location.href = redirect;
+			//setalertbox("App Update", "app has been updated. needs restarted", "Restart App", redirect);
 		}
 	});
 })

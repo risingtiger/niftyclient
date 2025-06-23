@@ -5,6 +5,7 @@ import { str, num } from  "../defs_server_symlink.js"
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
 import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
+import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
 declare var $N: $NT;
 
@@ -19,13 +20,17 @@ let _routes:Array<Route> = [];
 
 
 
-const Init = async ()=> {
+const Init = (lazyloads:LazyLoadT[])=> {
+
+	LazyLoadFilesInit(lazyloads);
+
+	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])
 
 	const pathname        = window.location.pathname.slice(3)
-    const searchParams    = window.location.search ? window.location.search : '';
-    const initialPath     = window.location.pathname + searchParams;
 
 	setuproute(pathname);
+
+	return lazyload_view_urlpatterns
 
 
 
@@ -73,19 +78,13 @@ const Init = async ()=> {
 
 
 
-const AddRoute = (lazyload_view:LazyLoadT)=> {
-
-	const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(lazyload_view.urlmatch!)
-	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames })
-
-	return { viewname: lazyload_view.name, pattern }
-}
-
 
 
 
 async function NavigateTo(newPath: string) {
-	window.location.href = "/v/" + newPath;
+	//window.location.href = "/v/" + newPath;
+	history.pushState({ }, '', newPath);
+	setuproute(newPath)
 }
 
 
@@ -145,11 +144,29 @@ function HandleLocalDBSyncUpdateTooLarge() {
 
 
 
+const addroute = (lazyload_view:LazyLoadT) => {
+
+	const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(lazyload_view.urlmatch!)
+	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames })
+
+	return { viewname: lazyload_view.name, pattern }
+}
+
+
+
+
 const setuproute = (path: string) => new Promise<num|null>(async (res, _rej) => {
+
+    const [urlmatches, routeindex] = get_route_uri(path);
+	try   { await LazyLoadLoadView(_routes[routeindex].lazyload_view); }
+	catch {
+		handle_route_fail(_routes[routeindex], true)
+		res(null);
+		return;
+	}
 
 	const viewsel            = document.getElementById("views") as HTMLElement;
 
-    const [urlmatches, routeindex] = get_route_uri(path);
 
 
 	const loadresult = await routeload(routeindex, path, urlmatches);
@@ -160,8 +177,8 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, _rej) => 
 		return;
 	}
 
-	( viewsel.children[0] as HTMLElement ).style.display = "block";
-	( viewsel.children[0] as HTMLElement ).dataset.active = "true"
+	( viewsel.children[viewsel.children.length-1] as HTMLElement ).style.display = "block";
+	( viewsel.children[viewsel.children.length-1] as HTMLElement ).dataset.active = "true"
 
 	document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
@@ -304,6 +321,12 @@ const routeload = (routeindex:num, _uri:str, urlmatches:str[]) => new Promise<st
 
 
 
+const loadlazies = (lazyload_view:LazyLoadT) => new Promise<void>(async (res, _rej) => {
+})
+
+
+
+
 function get_route_uri(url: str) : [Array<str>, num] {
 
     for (let i = 0; i < _routes.length; i++) {
@@ -336,7 +359,7 @@ const handle_route_fail = (route:Route, redirect:boolean = false) => {
 
 
 
-export { Init, AddRoute, HandleLocalDBSyncUpdateTooLarge }
+export { Init, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, UpdateSearchParams };

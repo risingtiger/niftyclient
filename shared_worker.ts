@@ -8,7 +8,7 @@ let _count = 0;
 
 self.addEventListener('connect', (e: any) => {
 	_count++;
-	console.log("shared worker connected and count is: " + _count);
+	console.log("shared_worker, count: " + _count);
     const port = e.ports[0] as MessagePort
     _connected_ports.push(port)
     
@@ -16,7 +16,7 @@ self.addEventListener('connect', (e: any) => {
         handle_message(msg.data)
     })
     
-    // not actually needed to call since on message event does it. port.start()// should already be started by setting the message listener, but just in case here it is too
+    port.start()
     
     port.addEventListener('close', () => {
         const index = _connected_ports.indexOf(port)
@@ -33,22 +33,7 @@ self.addEventListener('connect', (e: any) => {
 
 
 function force_stop() {
-	_connected_ports.forEach(port => {
-		try {
-			port.close()
-		} catch (e) {
-			// Ignore errors if port is already closed
-		}
-	})
-	
-	_connected_ports = []
-	
-	if (_sse_event_source) {
-		_sse_event_source.close()
-		_sse_event_source = null
-	}
-	
-	_sse_connection_id = null
+	self.close()
 }
 
 
@@ -57,8 +42,8 @@ function force_stop() {
 function handle_message(data: any) {
     switch (data.action) {
         case 'SSE_INIT_CONNECTION':
-			_sse_connection_id = data.sse_id
 			if (!_sse_event_source) {
+				_sse_connection_id = data.sse_id
 				establish_sse_connection(data.sse_id)
 			}
             break
@@ -94,11 +79,11 @@ function establish_sse_connection(sse_id: string) {
     _sse_event_source = new EventSource(event_source_url)
     
     _sse_event_source.onerror = (_e) => {
-        broadcast_to_all_ports({action: 'SSE_ERROR'})
+        //broadcast_to_all_ports({action: 'SSE_ERROR'})
     }
     
     _sse_event_source.addEventListener("connected", (_e) => {
-        broadcast_to_all_ports({action: 'SSE_CONNECTED'})
+        //broadcast_to_all_ports({action: 'SSE_CONNECTED'})
     })
     
     _sse_event_source.addEventListener("a_1", (e) => { // doc add

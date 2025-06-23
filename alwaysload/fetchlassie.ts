@@ -69,6 +69,11 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 		return;
 	}
 
+	if (result.status === 410) {
+		// this is an app update. Just stop since main will initiate update UI process
+		return
+	}
+
 	const returnobj:FetchResultT = {
 		status: result.status,
 		statusText: result.statusText,

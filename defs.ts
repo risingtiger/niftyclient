@@ -136,7 +136,7 @@ export type $NT = {
 
 	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
 	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:string, logerrmsg:string, redirectionurl:string|null) => void
-	GetSharedWorkerPort:() => MessagePort
+	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
 		NavigateTo: (newPath: string) => void,

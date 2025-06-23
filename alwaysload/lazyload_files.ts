@@ -5,7 +5,7 @@ import { LazyLoadT } from "../defs.js";
 
 
 let _lazyloads:LazyLoadT[] = [];
-const _loaded:Set<string> = new Set();
+const _loaded:Map<string, LazyLoadT> = new Map();
 let timeoutWaitingAnimateId:any = null
 
 
@@ -15,24 +15,19 @@ function Init(lazyloads_:LazyLoadT[]) {
     _lazyloads = lazyloads_
     
     const script_tags = document.head.querySelectorAll('script[is_lazyload_asset]')
+	const keymap = new Map<string, LazyLoadT>()
+	lazyloads_.forEach(lazyload => {
+		const key = get_filepath(lazyload.type, lazyload.name, lazyload.is_instance)
+		keymap.set(key, lazyload)
+	})
     
-    for (const script_tag of script_tags) {
-        const src = script_tag.getAttribute('src')
-        if (!src) continue
-        
-        // Find corresponding LazyLoad from _lazyloads array
-        const matching_lazyload = _lazyloads.find(lazy_load => {
-            const expected_path = get_filepath(lazy_load.type, lazy_load.name, lazy_load.is_instance)
-            return src.includes(lazy_load.name) || src === expected_path
-        })
-        
-        if (matching_lazyload) {
-            const load_key = `${matching_lazyload.type}:${matching_lazyload.name}`
-            if (!_loaded.has(load_key)) {
-                _loaded.add(load_key)
-            }
-        }
-    }
+	script_tags.forEach(script => {
+		const src = script.getAttribute('src')
+		if (!src) return;
+
+		const lazyload = keymap.get(src)!
+		_loaded.set(src, lazyload)
+	})
 }
 
 
@@ -63,21 +58,16 @@ function LoadView(lazyloadview:LazyLoadT) {   return new Promise<number|null>(as
 
 function addtoque(load:LazyLoadT, loadque:LazyLoadT[]) {
 
-	const load_key = `${load.type}:${load.name}`
-	if (_loaded.has(load_key)) {
-		return;
-	}
+	const load_key = get_filepath(load.type, load.name, load.is_instance)
 
-	for (const dep of load.dependencies) {
-		const dep_load = _lazyloads.find(l=> l.type === dep.type && l.name === dep.name)
-		if (dep_load === undefined) {
-			console.error("LazyLoad dependency not found", dep)
-		} else {
+	if (load.dependencies && load.dependencies.length !== 0) {
+		for (const dep of load.dependencies) {
+			const dep_load = _lazyloads.find(l=> l.type === dep.type && l.name === dep.name)!
 			addtoque(dep_load, loadque)
 		}
 	}
 
-	loadque.push(load)
+	if (!_loaded.has(load_key))  loadque.push(load);
 }
 
 
@@ -95,8 +85,8 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 	catch { res(null); return; }
 
 	for(const load of loadque) { 
-		const load_key = `${load.type}:${load.name}`
-		_loaded.add(load_key)
+		const load_key = get_filepath(load.type, load.name, load.is_instance)
+		_loaded.set(load_key, load);
 	}
 
     res(1)
@@ -107,7 +97,7 @@ function retrieve_loadque(loadque: LazyLoadT[]) { return new Promise<number|null
 
 const import_file = (path: string) => new Promise<any>((res, rej) => {
 
-	path = (path.split(".js")[0]) + "__" + Date.now() + "__.js"
+	//path = (path.split(".js")[0]) + "__" + Date.now() + "__.js"
 
 	import(path)
 		.then((module: any) => {

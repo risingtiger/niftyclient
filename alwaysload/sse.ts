@@ -1,6 +1,5 @@
 
 import { str } from "../defs_server_symlink.js"
-import { $NT } from "../defs.js"
 
 
 type SSE_Listener = {
@@ -12,25 +11,77 @@ type SSE_Listener = {
 }
 
 
-declare var $N: $NT;
-
-
 const _sse_listeners:SSE_Listener[] = []
-
+let _sse_event_source:EventSource|null = null
 
 
 
 function Init() {   
-    boot_up()
-}
 
+    let sse_id = localStorage.getItem('sse_id')
 
+    if (!sse_id) {
+        sse_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        localStorage.setItem('sse_id', sse_id)
+    }
 
-
-function HandleMessage(data: any) {
-	const trigger = data.trigger
-	const event_data = JSON.parse(data.data)
-	handle_firestore_docs_from_worker(event_data, trigger)
+    const is_localhost = self.location.hostname === 'localhost'
+    
+    let event_source_url = ''
+    
+    if (is_localhost) 
+        event_source_url = "/sse_add_listener?id=" + sse_id
+    
+    else if (location.hostname.includes('purewater')) 
+        event_source_url = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + sse_id
+    
+    else if (location.hostname.includes('purewater')) 
+        event_source_url = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + sse_id
+    
+    else 
+        event_source_url = "https://xenwebapp-962422772741.us-central1.run.app/sse_add_listener?id=" + sse_id
+    
+    _sse_event_source = new EventSource(event_source_url)
+    
+    _sse_event_source.onerror = (_e) => {
+        //broadcast_to_all_ports({action: 'SSE_ERROR'})
+    }
+    
+    _sse_event_source.addEventListener("connected", (_e) => {
+        //broadcast_to_all_ports({action: 'SSE_CONNECTED'})
+    })
+    
+    _sse_event_source.addEventListener("a_1", (e) => { // doc add
+        handle_message({
+            action: 'SSE_EVENT', 
+            trigger: 1, 
+            data: e.data
+        })
+    })
+    
+    _sse_event_source.addEventListener("a_2", (e) => { // doc patch
+        handle_message({
+            action: 'SSE_EVENT', 
+            trigger: 2, 
+            data: e.data
+        })
+    })
+    
+    _sse_event_source.addEventListener("a_3", (e) => { // doc delete
+        handle_message({
+            action: 'SSE_EVENT', 
+            trigger: 3, 
+            data: e.data
+        })
+    })
+    
+    _sse_event_source.addEventListener("a_4", (e) => { // collection add
+        handle_message({
+            action: 'SSE_EVENT', 
+            trigger: 4, 
+            data: e.data
+        })
+    })
 }
 
 
@@ -65,6 +116,15 @@ function Add_Listener(el:HTMLElement, name:str, triggers:number[], priority_:num
 
 
 
+function Close() {
+	if (_sse_event_source) {
+		_sse_event_source.close()
+	}
+}
+
+
+
+
 function Remove_Listener(el:HTMLElement, name:str) {   
 	const i = _sse_listeners.findIndex(l=> l.el.tagName === el.tagName && l.name === name)
 	if (i === -1) return
@@ -74,22 +134,11 @@ function Remove_Listener(el:HTMLElement, name:str) {
 
 
 
-function boot_up() {
-
-    let id = localStorage.getItem('sse_id')
-
-    if (!id) {
-        id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-        localStorage.setItem('sse_id', id)
-    }
-
-    const worker_port = $N.GetSharedWorkerPort()
-	worker_port.postMessage({action: 'SSE_INIT_CONNECTION', sse_id: id})
+function handle_message(data: any) {
+	const trigger = data.trigger
+	const event_data = JSON.parse(data.data)
+	handle_firestore_docs_from_worker(event_data, trigger)
 }
-
-
-
-
 
 
 
@@ -100,13 +149,26 @@ function handle_firestore_docs_from_worker(data:any, trigger:number) {
 	ls.forEach(l=> l.cb(data))
 }
 
+/*
+function boot_up_with_shared_worker() {
+
+    let id = localStorage.getItem('sse_id')
+
+    if (!id) {
+        id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        localStorage.setItem('sse_id', id)
+    }
+
+    const worker_port = $N.GetSharedWorkerPort()
+	if(worker_port) worker_port.postMessage({action: 'SSE_INIT_CONNECTION', sse_id: id})
+}
+*/
 
 
 
 
-
-export { Init }
+export { Init, Close }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SSEvents = {Add_Listener, Remove_Listener, HandleMessage };
+((window as any).$N as any).SSEvents = {Add_Listener, Remove_Listener };
 
