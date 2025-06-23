@@ -285,9 +285,8 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 
 				// fuck it! just yank the fucking cord!
 				setTimeout(() => {
-					const baseurl = 
-					// get the base url. for example, if the url is https://purewater.web.app/v/machines then get 'https://purewater.web.app' AI!
-					window.location.href = "http://www.yavada.com/bouncebacktonifty.html?round=1&origin="
+					const baseurl = `${window.location.protocol}//${window.location.host}`
+					window.location.href = `http://www.yavada.com/bouncebacktonifty.html?round=1&origin=${encodeURIComponent(baseurl)}`
 				}, 3000)
 			}
 
