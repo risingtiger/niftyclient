@@ -655,8 +655,8 @@ class CIn2 extends Lit_Element {
 			this.sc()
 		});
 		inputel.addEventListener("focus", ()=>{ 
-			// make it so that on focus all the text of the input is selected AI!
 			console.log("input focus fired")
+			inputel.select();
 			this.s.mode = ModeT.EDIT;
 			this.sc()
 		});
