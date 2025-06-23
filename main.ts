@@ -9,13 +9,13 @@ declare var SETTINGS:any
 
 // --THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
 
-import { Init as SwitchStationInit, AddRoute as SwitchStationAddRoute } from './alwaysload/switchstation.js';
+import { Init as SwitchStationInit } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
 import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunWipeLocal as LocalDBSyncRunWipeLocal } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
-import { Init as SSEInit } from './alwaysload/sse.js';
+import { Init as SSEInit, Close as SSEClose } from './alwaysload/sse.js';
 import { Init as LoggerInit } from './alwaysload/logger.js';
 import { Init as EngagementListenInit } from './alwaysload/engagementlisten.js';
 import {Init as CMechInit} from './alwaysload/cmech.js';
@@ -27,8 +27,8 @@ import './alwaysload/utils.js';
 
 
 let _serviceworker_reg: ServiceWorkerRegistration|null;
-let _shared_worker: SharedWorker|null = null;
-let _worker_port: MessagePort|null = null;
+//let _shared_worker: SharedWorker|null = null;
+//let _worker_port: MessagePort|null = null;
 
 
 const LAZYLOAD_DATA_FUNCS = {
@@ -104,16 +104,17 @@ window.addEventListener("load", async (_e) => {
 
 
 	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
-	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => SwitchStationAddRoute(r)).map(l=> [l.viewname, l.pattern])
-	SwitchStationInit();
+
+	const lazyload_view_urlpatterns = SwitchStationInit(lazyloads);
 
 	const performance_timer_b = performance.now() - performance_timer;
 	console.log(`App loaded in ${performance_timer_b.toFixed(2)} ms`)
 
 	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
-	
-	init_shared_worker()
+	//init_shared_worker()
 	setTimeout(()=> SSEInit(), 1800)
+	//await new Promise<void>((res)=> setTimeout(()=>{ res() }, 500)); 
+
 })
 
 
@@ -168,15 +169,21 @@ $N.ToastShow = ToastShow;
 
 
 
+/*
 function init_shared_worker() {
 	_shared_worker = new SharedWorker('/shared_worker.js');
 	_worker_port = _shared_worker.port;
 	
 	_worker_port.removeEventListener('message', handle_shared_worker_message); // Remove any previous listeners to avoid duplicates
 	_worker_port.addEventListener('message', handle_shared_worker_message);
+	_worker_port.start();
 }
 function handle_shared_worker_message(e: MessageEvent) {
-	if (e.data.action === 'SSE_EVENT' || 
+
+	if (e.data.action === 'WORKER_CONNECTED') {
+		console.log("Shared Worker connected");
+	
+	} else if (e.data.action === 'SSE_EVENT' || 
 		e.data.action === 'SSE_CONNECTION_STATUS' || 
 		e.data.action === 'SSE_CONNECTED' || 
 		e.data.action === 'SSE_ERROR') {
@@ -187,9 +194,10 @@ function handle_shared_worker_message(e: MessageEvent) {
 		}
 	}
 }
-
-
 $N.GetSharedWorkerPort = ()=>_worker_port!;
+*/
+
+
 
 
 
@@ -269,11 +277,18 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			}
 
 			else if (event.data.action === 'update_init') {
-				_worker_port!.postMessage({action: "FORCE_STOP"});
+				SSEClose()
 				setTimeout(() => {
 					if (_serviceworker_reg)
 						_serviceworker_reg?.update()
-				}, 300)
+				}, 100)
+
+				// fuck it! just yank the fucking cord!
+				setTimeout(() => {
+					const baseurl = 
+					// get the base url. for example, if the url is https://purewater.web.app/v/machines then get 'https://purewater.web.app' AI!
+					window.location.href = "http://www.yavada.com/bouncebacktonifty.html?round=1&origin="
+				}, 3000)
 			}
 
 			else if (event.data.action === 'error_out') {
@@ -295,7 +310,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 		navigator.serviceWorker.addEventListener('controllerchange', onNewServiceWorkerControllerChange);
 
 		navigator.serviceWorker.addEventListener('updatefound', (_e:any) => {
-			_worker_port!.postMessage({action: "FORCE_STOP"});
+			SSEClose()
 		});
 
 
@@ -305,7 +320,7 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			if (!hasPreviousController) {hasPreviousController = true; return;}
 			 
 			const redirect = `/v/appmsgs?appupdate=done`;
-			setalertbox("App Update", "app has been updated. needs restarted", "Restart App", redirect);
+			window.location.href = redirect;
 		}
 	});
 })
