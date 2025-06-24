@@ -113,8 +113,6 @@ c-dselect + c-animeffect {
     width: 30px;
     height: 18px;
     user-select: none;
-    transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
-    transition-property: background-color, border-color;
 
     margin-top: 6px;
     margin-right: 2px;
@@ -129,9 +127,16 @@ c-dselect + c-animeffect {
         background-color: #d9dadc;
         user-select: none;
         transform: translateX(2px);
-        transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
-        transition-property: background-color, transform;
     }
+}
+:host span.switch.animate {
+	transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+	transition-property: background-color, border-color, transform;
+
+	& > .inner {
+		transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+		transition-property: background-color, transform;
+	}
 }
 :host span.switch.istrue {
     border-color: rgba(255, 255, 255, 0);

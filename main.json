@@ -89,7 +89,10 @@
 		"type": "component",
 		"name": "in2",
 		"is_instance": false,
-		"dependencies": [],
+		"dependencies": [
+		  { "type": "component", "name": "dselect" },
+		  { "type": "component", "name": "animeffect" }
+		],
 		"auth": []
 	  },
 	  {

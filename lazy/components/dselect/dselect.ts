@@ -244,7 +244,7 @@ class CDselect extends HTMLElement {
 
             setTimeout(() => {
                 this.removeAttribute("open")
-                this.dispatchEvent(new CustomEvent("changed", { detail }))
+                this.dispatchEvent(new CustomEvent("update", { detail }))
                 this.els.instigator.focus()
             }, 200)
         }
@@ -267,7 +267,7 @@ class CDselect extends HTMLElement {
 
         setTimeout(() => {
             this.removeAttribute("open")
-            this.dispatchEvent(new CustomEvent("changed", { detail }))
+            this.dispatchEvent(new CustomEvent("update", { detail }))
             this.els.instigator.focus()
         }, 200)
     }
