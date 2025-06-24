@@ -316,29 +316,6 @@ dl.define {
     }
 }
 
-c-form {
-    & ul.items > li {
-        & > h5 {
-            color: rgb(190 56 151);
-        }
-
-        & > c-in {
-            display: block;
-            flex: 1;
-        }
-
-        & > i.action {
-            font-size: 20px;
-            padding: 16px 11px 0 11px;
-            color: var(--actioncolor);
-        }
-
-        & > span.switch {
-            padding: 6px 9px 0 0;
-        }
-    }
-}
-
 span.justinput {
     display: inline-block;
     position: relative;

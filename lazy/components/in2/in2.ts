@@ -20,7 +20,7 @@ type AttributesT = {
 }
 
 type StateT = {
-    isanimating: bool,
+    issaving: bool,
     val: str,
 	newval: str,
 	options: str,
@@ -61,8 +61,9 @@ const ATTRIBUTES:AttributesT = { val: "" }
 class CIn2 extends Lit_Element {
 
 	a:AttributesT = { ...ATTRIBUTES };
-    s:StateT = { val: "", newval: "", isanimating: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0 }
+    s:StateT = { val: "", newval: "", issaving: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0 }
     m:ModelT = { name: "", type: TypeT.TOGGLE, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
+	controlel:HTMLElement = document.body
     
     animatehandles: AnimationHandlesT = { view: null, edit: null } // label: null }
     keyframes: KeyframesT = { view: null, edit: null } // label: null }
@@ -83,7 +84,6 @@ class CIn2 extends Lit_Element {
 
     connectedCallback() {   
 
-
         const attr_typestr = this.getAttribute("type") || "text"
 
         this.s.val   = this.getAttribute("val") || ""
@@ -93,6 +93,9 @@ class CIn2 extends Lit_Element {
 		this.s.options = this.getAttribute("options") || ""
 		this.s.min = this.getAttribute("min") || ""
 		this.s.max = this.getAttribute("max") || ""
+
+		this.a.val = this.s.val
+
 
         if (attr_typestr === "toggle") {
             this.m.type = TypeT.TOGGLE
@@ -110,6 +113,8 @@ class CIn2 extends Lit_Element {
         this.addEventListener("click", (e:any) => this.clicked(e), true)
 
         this.sc()
+
+		this.controlel = this.shadow.querySelector(".controlel") as HTMLElement;
     }
 
 
@@ -171,15 +176,42 @@ class CIn2 extends Lit_Element {
 
 
 
+    sc() {   
+		render(this.template(this.a, this.s, this.m), this.shadow);   
+		/*
+		inputel.addEventListener("input", (e)=> this.inputchanged(e)); 
+		inputel.addEventListener("focus", (e)=> this.focused(e)); 
+		inputel.addEventListener("blur",  (e)=> this.blurred(e)); 
+		inputel.addEventListener("keyup", (e)=> this.keyupped(e)); 
+		*/
+	}
+
+
+
+
     public updatedone(newval?:str) {      
-		const m = Date.now()
-		const diff = m - this.s.updatemoment
+
+		const diff = Date.now() - this.s.updatemoment
 
 		if (diff > 1000) {
 			this.setAttribute("val", newval || this.s.newval);
+
+			// DISABLE FOR NOW
+
+			/*
+			this.s.issaving = false;
+			this.sc()
+			*/
 		} else {
 			setTimeout(() => { 
 				this.setAttribute("val", newval || this.s.newval);
+				/*
+
+				// DISABLE FOR NOW
+
+				this.s.issaving = false;
+				this.sc()
+				*/
 			}, 1000);
 		}
 	}
@@ -188,8 +220,8 @@ class CIn2 extends Lit_Element {
 
 
     public updatefailed(reverttoval:str, _error:str) {      
-		const m = Date.now()
-		const diff = m - this.s.updatemoment
+
+		const diff = Date.now() - this.s.updatemoment
 
 		if (diff > 1000) {
 			this.setAttribute("val", reverttoval || this.s.val);
@@ -201,56 +233,37 @@ class CIn2 extends Lit_Element {
 	}
 
 
-    clicked(e:Event) {
-		//e.stopPropagation()
-		//e.preventDefault()
-
-		/*
-        if (this.s.mode === ModeT.VIEW) {
-			this.s.mode = ModeT.EDIT
-			this.sc()
-        }
-
-        else if (this.s.mode === ModeT.EDIT) {
-			this.runupdate()
-			this.sc()
-        }
-		*/
-
-
-        /*
-        if (this.s.mode === ModeT.VIEW && this.m.dselect_initial_mode === ModeT.EDIT) {
-            this.to_dselect_edit()
-        }
-
-        else {
-            this.to_edit()
-        }
-        */
+    clicked(_e:Event) {
     }
 
 
 
 
-    inputchanged(_e:Event) {
-		console.log("input event fired")
+    inputchanged() {
+		this.dispatchEvent(new CustomEvent("input", {detail: { 
+			name:this.m.name, 
+			newval:this.s.newval, 
+			oldval:this.s.val
+		}}))
+	}
+
+
+
+
+    focused() {
+		( this.controlel as HTMLInputElement ).select();
 		this.sc()
 	}
 
 
 
 
-    focused(e:Event) {
-		( e.currentTarget as any ).select();
-		this.sc()
-	}
+    blurred() {
+		const val = ( this.controlel as HTMLInputElement ).value || "";
 
-
-
-
-    blurred(e:Event) {
-		const val = ( e.currentTarget as HTMLInputElement ).value || "";
-		console.log(val)
+		if (val !== this.s.val) {
+			confirm("Do you want to save changes?") ? this.runupdate() : console.log('nope');
+		}
 	}
 
 
@@ -258,7 +271,6 @@ class CIn2 extends Lit_Element {
 
     keyupped(e:KeyboardEvent) {
 		if (e.key === "Enter") {
-			console.log("input enter keyup fired")
 			e.preventDefault();
 			this.runupdate()
 			this.sc()
@@ -268,33 +280,117 @@ class CIn2 extends Lit_Element {
 
 
 
+	toggle_toggled(e:Event) {
+		if (this.s.val === "true") {
+			this.s.newval = "false"
+		} else {
+			this.s.newval = "true"
+		}
+		this.sc()
+	}
+
+
+
+
     actionicon_clicked(_e:Event) {
-		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
-		inputel!.focus()
+		this.controlel.focus()
 	}
 
 
 
 
     label_clicked(_e:Event) {
-		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
-		inputel!.focus()
+		this.controlel.focus()
 	}
 
 
 
 
+	rendercontrol() {
 
-    __not_used_set_existing_dom_according_to_attr_val() {
 		if (this.m.type === TypeT.TOGGLE) {
+
+			return html`<span 
+							class="switch ${this.s.val==='true'?'istrue':''}"
+							@click="${(e:any)=>this.toggle_toggled(e)}"
+							class="controlel"><span class="inner"></span></span>`;
+
+		} else if (this.m.type === TypeT.DSELECT) {
+
+			return html`<c-dselect 
+							options="${this.getAttribute('options') || ''}" 
+							@input="${()=>this.inputchanged()}"  
+							@blur="${()=>this.blurred()}" 
+							@focus="${()=>this.focused()}" 
+							val="${this.s.val}"></c-dselect>`;
+
+		} else if (this.m.type === TypeT.INPUT) {
+
+			let minmax = this.s.min ? `min="${this.s.min}"` : "";
+			minmax += this.s.max ? ` max="${this.s.max}"` : "";
+			return html`
+				<input 
+							@input="${()=>this.inputchanged()}"  
+							@blur="${()=>this.blurred()}" 
+							@focus="${()=>this.focused()}" 
+							@keyup="${(e:any)=>this.keyupped(e)}" 
+							class="controlel"
+							type="${this.m.inputtype}" 
+							value="${this.s.val}" 
+							placeholder="${this.m.placeholder}" 
+							enterkeyhint="done" ${minmax} name="${this.m.name}"></input>`;
 		}
 	}
 
 
 
 
-    __not_used_insert_edit(immediate_focus = false) {
+    runupdate() { 
 
+		if (this.m.type === TypeT.TOGGLE) {
+			this.s.newval = this.s.val === "true" ? "false" : "true"
+
+		} else if (this.m.type === TypeT.INPUT) {
+			const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
+			this.s.newval = inputel!.value!
+
+		} else if (this.m.type === TypeT.DSELECT) {
+			this.s.newval = this.els.dselect?.getAttribute("val") || ""
+		}
+
+		if (this.s.newval === this.s.val) {      
+			this.s.newval = ""
+		}
+
+		this.s.updatemoment = Date.now()
+
+		this.dispatchEvent(new CustomEvent("update", {detail: { 
+			name:this.m.name, 
+			newval:this.s.newval, 
+			oldval:this.s.val,
+			failed: this.updatefailed.bind(this),
+			done: this.updatedone.bind(this)
+		}}))
+
+		this.s.issaving = true;
+		this.sc()
+    }
+
+
+
+
+
+    __not_used_set_existing_dom_according_to_attr_val() {
+		// if (this.m.type === TypeT.TOGGLE) {
+		// }
+	}
+
+
+
+
+    __not_used_insert_edit(_immediate_focus = false) {
+
+		/*
         this.els.edit = document.createElement("span")
         this.els.edit.id = "edit"
 
@@ -397,55 +493,10 @@ class CIn2 extends Lit_Element {
         }
 
         this.els.section?.appendChild(this.els.edit)
+		*/
     }
 
 
-	rendercontrol() {
-
-		if (this.m.type === TypeT.TOGGLE) {
-			return html`<span class="switch ${this.s.val==='true'?'istrue':''}"><span class="inner"></span></span>`;
-		} else if (this.m.type === TypeT.DSELECT) {
-			return html`<c-dselect options="${this.getAttribute('options') || ''}" val="${this.s.val}"></c-dselect>`;
-		} else if (this.m.type === TypeT.INPUT) {
-			let minmax = this.s.min ? `min="${this.s.min}"` : "";
-			minmax += this.s.max ? ` max="${this.s.max}"` : "";
-			return html`<input type="${this.m.inputtype}" value="${this.s.val}" placeholder="${this.m.placeholder}" enterkeyhint="done" ${minmax} name="${this.m.name}"></input>`;
-		}
-	}
-
-
-
-
-    runupdate() { 
-
-		if (this.m.type === TypeT.TOGGLE) {
-			this.s.newval = this.s.val === "true" ? "false" : "true"
-
-		} else if (this.m.type === TypeT.INPUT) {
-			const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
-			this.s.newval = inputel!.value!
-
-		} else if (this.m.type === TypeT.DSELECT) {
-			this.s.newval = this.els.dselect?.getAttribute("val") || ""
-		}
-
-		if (this.s.newval === this.s.val) {      
-			this.s.mode = ModeT.VIEW
-			this.s.newval = ""
-		}
-
-		this.s.mode = ModeT.SAVING
-
-		this.s.updatemoment = Date.now()
-
-		this.dispatchEvent(new CustomEvent("update", {detail: { 
-			name:this.m.name, 
-			newval:this.s.newval, 
-			oldval:this.s.val,
-			failed: this.updatefailed.bind(this),
-			done: this.updatedone.bind(this)
-		}}))
-    }
 
 
 
@@ -685,32 +736,6 @@ class CIn2 extends Lit_Element {
 
 
 
-    sc() {   
-		render(this.template(this.a, this.s, this.m), this.shadow);   
-
-		const inputel = this.shadow.querySelector("input") as HTMLInputElement|null;
-		if (!inputel) { return; }
-
-		const thiscomponent = this;
-
-		// Create local functions that reference the component
-		const handle_input = (e: Event) => thiscomponent.inputchanged(e);
-		const handle_focus = (e: Event) => thiscomponent.focused(e);
-		const handle_blur = (e: Event) => thiscomponent.blurred(e);
-		const handle_keyup = (e: KeyboardEvent) => thiscomponent.keyupped(e);
-
-		// Remove existing event listeners
-		inputel.removeEventListener("input", handle_input);
-		inputel.removeEventListener("focus", handle_focus);
-		inputel.removeEventListener("blur", handle_blur);
-		inputel.removeEventListener("keyup", handle_keyup);
-
-		// Add event listeners
-		inputel.addEventListener("input", handle_input); 
-		inputel.addEventListener("focus", handle_focus); 
-		inputel.addEventListener("blur", handle_blur); 
-		inputel.addEventListener("keyup", handle_keyup); 
-	}
 
 
 

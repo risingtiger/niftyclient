@@ -70,13 +70,6 @@
 	  },
 	  {
 		"type": "component",
-		"name": "form",
-		"is_instance": false,
-		"dependencies": [],
-		"auth": []
-	  },
-	  {
-		"type": "component",
 		"name": "dselect",
 		"is_instance": false,
 		"dependencies": [],
@@ -90,6 +83,13 @@
 		  { "type": "component", "name": "dselect" },
 		  { "type": "component", "name": "animeffect" }
 		],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "in2",
+		"is_instance": false,
+		"dependencies": [],
 		"auth": []
 	  },
 	  {

@@ -1,0 +1,145 @@
+:host {
+    color: orange;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    box-sizing: border-box;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    text-indent: 0;
+
+    padding-left: 11px;
+    height: 52px;
+    border-bottom-width: 0.5px;
+    border-bottom-style: solid;
+    border-bottom-color: var(--bordercolor);
+    padding-right: 8px;
+}
+
+
+:host > label {
+    overflow: hidden;
+    text-wrap: nowrap;
+    margin-right: 6px;
+    font-family: var(--fontfamily);
+    font-weight: 700;
+    color: rgb(190 56 151);
+    padding: 17px 0 0 0px;
+}
+:host > label::after {
+    content: ":";
+}
+
+:host > section {
+    position: relative;
+    flex: 1;
+	padding-right: 20px;
+
+
+	& > i.icon {
+		display:block;
+		position:absolute;
+		right: 0px;
+		font-family: icons !important;
+		font-style: normal;
+		font-weight: normal !important;
+		font-variant: normal;
+		text-transform: none;
+		-webkit-font-smoothing: antialiased;
+	}
+	& > i.icon::before {
+		font-size: 18px;
+		color: var(--actioncolor);
+		padding: 20px 0px 0 13px;
+		cursor: pointer;
+	}
+
+}
+
+c-animeffect {
+	position: absolute;
+	opacity: 1;
+	top: 9px;
+	right: 4px;
+	width: 18px;
+	height: 18px;
+}
+c-animeffect.active {
+	opacity: 1;
+}
+
+
+c-dselect + c-animeffect {
+	top: 8px;
+	right: 5px;
+}
+
+
+.switch + c-animeffect {
+	top: 7px;
+	right: 3px;
+}
+
+:host input {
+	font-size: var(--textsize);
+	height: 35px;
+	box-sizing: border-box;
+	outline: none;
+	border: none;
+	border-radius: 4px;
+	border: 1px solid #dcdcdc;
+	padding: 7px 5px 8px 8px;
+	color: #6d6d6d;
+	display: block;
+	margin-top: 0;
+	width: 100%;
+	height: 39px;
+}
+
+:host c-dselect {
+	display: block;
+	width: 100%;
+}
+
+:host span.switch {
+    position: relative;
+    display: inline-block;
+    border-width: 1px;
+    border-color: rgb(0 0 0 / 16%);
+    border-style: solid;
+    border-radius: 52px;
+    background-color: #fff;
+    width: 30px;
+    height: 18px;
+    user-select: none;
+    transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+    transition-property: background-color, border-color;
+
+    margin-top: 6px;
+    margin-right: 2px;
+
+    & > .inner {
+        position: relative;
+        display: block;
+        width: 14px;
+        height: 14px;
+        margin-top: 2px;
+        border-radius: 50%;
+        background-color: #d9dadc;
+        user-select: none;
+        transform: translateX(2px);
+        transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
+        transition-property: background-color, transform;
+    }
+}
+:host span.switch.istrue {
+    border-color: rgba(255, 255, 255, 0);
+    background-color: #36cf90;
+
+    & > .inner {
+        background-color: white;
+        transform: translateX(14px);
+    }
+}
+

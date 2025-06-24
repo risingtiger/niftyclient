@@ -73,7 +73,7 @@ class CBtn extends HTMLElement {
 
 
 
-    click_resolved()         {   this.to_stop_anime();            }
+    done()         {   this.to_stop_anime();            }
 
 
 
@@ -81,7 +81,7 @@ class CBtn extends HTMLElement {
     is_clicked() {
         if (this.s.mode == ModeT.INERT) {
             if (this.m.show_anime_on_click) this.to_start_anime()
-			this.dispatchEvent(new CustomEvent("btnclick", {detail: {resolved: this.click_resolved.bind(this)}}))
+			this.dispatchEvent(new CustomEvent("btnclick", {detail: {resolved: this.done.bind(this)}}))
         }
     }
 

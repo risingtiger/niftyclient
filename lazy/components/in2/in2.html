@@ -1,0 +1,7 @@
+
+<label part="label" @click="${(e)=>this.label_clicked(e)}" style="width: ${_m.labelwidth}px;">${_m.label}</label>
+<section>
+	<i class="icon" @click="${(e)=>this.actionicon_clicked(e)}"></i>
+	${_s.issaving ? html`<c-animeffect active></c-animeffect>` : ''}
+	${this.rendercontrol()}
+</section>
