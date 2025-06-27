@@ -1,67 +1,43 @@
-
-
 :host {
-	position: fixed; /* Fixed position relative to the viewport */
-	top: 0;      /* Position top 50% of viewport height *above* the viewport top */
+	position: fixed;
+	top: 0;
 	left: 0;
-	width: 100vw;    /* Full viewport width */
-	height: 100vh;   /* Twice the viewport height */
-	overflow-y: scroll; /* Allow vertical scrolling within the overlay */
-	scroll-snap-type: y mandatory; /* Enable vertical scroll snapping */
-	/* .overlay-content is positioned absolutely relative to this */
+	width: 100vw;
+	height: 100vh;
+	overflow-y: scroll;
+	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
-	scroll-behavior:  smooth; /* Smooth scrolling behavior */
+	scroll-behavior: smooth;
 	z-index: 10000;
-
 }
+
 :host::-webkit-scrollbar {
-	display: none; /* For Chrome, Safari, and Opera */
+	display: none;
 }
 
 .spacer {
 	height: 100vh;
-	scroll-snap-align: start; /* Snap to the start of this element */
-	/* This element is intentionally blank and transparent, acting as a scroll buffer */
+	scroll-snap-align: start;
 }
-
 
 .wrapper {
-	position: relative; /* Changed from absolute */
-	height: 100vh;      /* Explicit height */
+	position: relative;
+	height: 100vh;
 	overflow-y: hidden;
-	scroll-snap-align: start; /* Snap to the start of this element */
+	scroll-snap-align: start;
 	padding: 45px 0 0 0;
-	box-sizing: border-box; /* Include padding in height calculation */
+	box-sizing: border-box;
 	display: block;
-
-
-
-	/*
-    position: absolute;
-    border-radius: 8px 8px 0px 0px;
-    border: 0px solid rgb(40 171 214 / 47%);
-    box-shadow: 0 0 12px -4px rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    box-sizing: border-box;
-    background: white;
-    box-sizing: border-box;
-    z-index: 2;
-*/
 }
 
-
 .content {
-	position: relative; /* Changed from absolute */
+	position: relative;
 	background-color: white;
 	padding: 30px;
-	box-sizing: border-box; /* Include padding in height calculation */
-	height: calc(100vh - 45px); /* Full height minus the top padding */
-	 /* Vertically center content */
-	 /* Horizontally center content if it's not full width */
+	box-sizing: border-box;
+	height: calc(100vh - 45px);
 	border-radius: 8px 8px 0px 8px;
-	
-	 /* Example minimum width */
-	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%); /* A subtle shadow for depth */
+	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
 }
 
 .content > header {
@@ -82,7 +58,6 @@
 		a {
 			-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 		}
-
     }
 
     & .middle {
@@ -115,94 +90,4 @@
     display: block;
     overflow-y: auto;
 }
-
-
-
-
-
-
-/* :host { */
-/*     position: absolute; */
-/*     width: 100%; */
-/*     height: 100%; */
-/*     top: 0; */
-/*     left: 0; */
-/*     z-index: 1000; */
-/* } */
-
-/*
-.scrollcontainer {
-    position: absolute;
-    width: 100%;
-    top: 0;
-    left: 0;
-    overflow-y: hidden;
-    height: 200%;
-    z-index: 2;
-    scroll-snap-type: y mandatory;
-}
-.scrollcontainer.scrollmode {
-	overflow-y: scroll;
-
-	> .wrapper {
-		top: 50% !important;
-		z-index: 2;
-	}
-
-	.emptyspace {top: 0%;background: #7600ff4d;}
-
-	.snapel {
-		scroll-snap-align: start;
-	}
-}
-*/
-
-
-/*
-.emptyspace {
-	position: absolute;
-	width: 100%;
-	height: 100%;
-	top: 0;
-	left: 0;
-	z-index: 1;
-}
-
-
-.wrapper {
-    position: absolute;
-    border-radius: 8px 8px 0px 0px;
-    border: 0px solid rgb(40 171 214 / 47%);
-    box-shadow: 0 0 12px -4px rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    box-sizing: border-box;
-    background: white;
-    box-sizing: border-box;
-    z-index: 2;
-}
-.wrapper.mobile_centric {
-    box-shadow: none;
-    height: 100%;
-}
-*/
-
-
-/*
-.backgroundcover {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    z-index: 1;
-    opacity: 0;
-    /*will-change: opacity; /* Prevents flicker in Safari 
-    /*background-color: #00000036;
-    /* background-color: #00000036; 
-    /* background-color: rgba(255, 255, 255, 0.9); 
-}
-*/
-
-
-
 
