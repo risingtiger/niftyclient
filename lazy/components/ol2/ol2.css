@@ -1,3 +1,4 @@
+
 :host {
 	position: fixed;
 	top: 0;
@@ -7,8 +8,7 @@
 	overflow-y: scroll;
 	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
-	scroll-behavior: smooth;
-	z-index: 10000;
+	z-index: 1000;
 }
 
 :host::-webkit-scrollbar {
@@ -90,4 +90,7 @@
     display: block;
     overflow-y: auto;
 }
+
+
+
 
