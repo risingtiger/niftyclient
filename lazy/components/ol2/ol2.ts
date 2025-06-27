@@ -169,6 +169,9 @@ class COl2 extends HTMLElement {
 		const scrollTop = (e.target as HTMLElement).scrollTop;
 		const perc = (scrollTop / (this.scrollHeight)) * 100;
 
+		// Create gray color value from white (0%) to black (100%) based on scroll percentage
+		const gray_value = Math.round(255 - (perc / 100) * 255);
+		const gray_color = `rgb(${gray_value}, ${gray_value}, ${gray_value})`;
 
 		if (this.scrollTop <= 1) this.closed();
 	}
