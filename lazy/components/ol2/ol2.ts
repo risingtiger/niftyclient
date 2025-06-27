@@ -41,6 +41,8 @@ class COl2 extends HTMLElement {
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
+	wrap_el!: HTMLElement
+	content_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -70,9 +72,10 @@ class COl2 extends HTMLElement {
 
 		this.sc()
 
-		const wrapel = this.shadow.querySelector(".wrapper") as HTMLElement
-		const contentel = this.shadow.querySelector(".content") as HTMLElement
-		contentel.classList.add("transition-in");
+		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
+		this.content_el = this.shadow.querySelector(".content") as HTMLElement
+
+		this.content_el.classList.add("transition-in");
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -88,15 +91,15 @@ class COl2 extends HTMLElement {
 			this.sc()
 
 			this.addEventListener("click", (_e: MouseEvent) => {   this.close();   }, false);
-			this.shadow.querySelector(".content")!.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
+			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 			this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
-			this.shadow.querySelector(".content").addEventListener("transitionend", this.transition_finished.bind(this))
+			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
-				contentel.classList.remove("transition-in");
-				wrapel.classList.add("active")
+				this.content_el.classList.remove("transition-in");
+				this.wrap_el.classList.add("active")
 				this.track_opening_animation();
 				this.sc()
 			}, 100);
@@ -109,14 +112,11 @@ class COl2 extends HTMLElement {
 
 
 	track_opening_animation() {
-		const contentel = this.shadow.querySelector(".content") as HTMLElement;
-		if (!contentel) { return; }
-
 		const animate = () => {
 			// The 'opened' attribute is set when the transition ends, which stops the loop.
 			if (this.hasAttribute("opened")) { return; }
 
-			const transform_style = window.getComputedStyle(contentel).transform;
+			const transform_style = window.getComputedStyle(this.content_el).transform;
 			if (transform_style && transform_style !== 'none') {
 				const matrix = new DOMMatrix(transform_style);
 				const transform_y = matrix.m42;
@@ -152,9 +152,7 @@ class COl2 extends HTMLElement {
 		if (e.propertyName !== "opacity") return;
 
 
-		const contentel = this.shadow.querySelector(".content") as HTMLElement
-
-		if (contentel.classList.contains("transition-out")) {
+		if (this.content_el.classList.contains("transition-out")) {
 			this.closed()
 		}
 		else {
@@ -178,8 +176,8 @@ class COl2 extends HTMLElement {
 
 
 	close() {
-		this.shadow.querySelector(".content")!.classList.add("transition-out");
-		this.shadow.querySelector(".wrapper")!.classList.remove("active");
+		this.content_el.classList.add("transition-out");
+		this.wrap_el.classList.remove("active");
 	}
 
 
