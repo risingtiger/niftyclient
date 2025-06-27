@@ -97,11 +97,36 @@ class COl2 extends HTMLElement {
 				this.scrollTop = this.scrollHeight / 2
 				contentel.classList.remove("transition-in");
 				wrapel.classList.add("active")
+				this.track_opening_animation();
 				this.sc()
 			}, 100);
 
 		}
 
+	}
+
+
+
+
+	track_opening_animation() {
+		const contentel = this.shadow.querySelector(".content") as HTMLElement;
+		if (!contentel) { return; }
+
+		const animate = () => {
+			// The 'opened' attribute is set when the transition ends, which stops the loop.
+			if (this.hasAttribute("opened")) { return; }
+
+			const transform_style = window.getComputedStyle(contentel).transform;
+			if (transform_style && transform_style !== 'none') {
+				const matrix = new DOMMatrix(transform_style);
+				const transform_y = matrix.m42;
+				// You can now use the transform_y value for other things.
+			}
+
+			requestAnimationFrame(animate);
+		};
+
+		requestAnimationFrame(animate);
 	}
 
 
