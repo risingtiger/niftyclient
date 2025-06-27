@@ -12,8 +12,8 @@ declare var html: any;
 
 
 enum ShapeE { BOTTOM_THREE_QUARTERS, FLOATING }
-enum ForLargerScreensSizeE { S, M, L, NA }
-enum ScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
+enum SizeE { S, M, L, NA }
+enum BrowserScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
 
 type AttributesT = {
 	close: str,
@@ -23,12 +23,12 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
-	screen_size_category: ScreenSizeCategoryE,
+	screen_size_category: BrowserScreenSizeCategoryE,
 }
 
 type ModelT = {
 	shape: ShapeE,
-	for_larger_screens_size: ForLargerScreensSizeE
+	size: SizeE
 }
 
 
@@ -40,8 +40,8 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: ScreenSizeCategoryE.SMALL }
-	m: ModelT = { shape: ShapeE.BOTTOM_THREE_QUARTERS, for_larger_screens_size: ForLargerScreensSizeE.M }
+	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: BrowserScreenSizeCategoryE.SMALL }
+	m: ModelT = { shape: ShapeE.BOTTOM_THREE_QUARTERS, size: SizeE.M }
 
 	shadow: ShadowRoot
 
@@ -64,9 +64,9 @@ class COl2 extends HTMLElement {
 
 		this.s.screen_size_category = determine_screen_size_category()
 
-		const { shape, for_larger_screens_size } = determine_shape_and_size(shapeA, this.s.screen_size_category)
-		this.m.shape                             = shape
-		this.m.for_larger_screens_size           = for_larger_screens_size
+		const { shape, size } = determine_shape_and_size(shapeA, this.s.screen_size_category)
+		this.m.shape          = shape
+		this.m.size           = size
 
 		const child = this.firstElementChild as HTMLElement
 
@@ -367,16 +367,16 @@ customElements.define('c-ol2', COl2);
 
 
 
-function determine_shape_and_size(shapeA: str, screen_size_category: ScreenSizeCategoryE): { shape: ShapeE, for_larger_screens_size: ForLargerScreensSizeE } {
+function determine_shape_and_size(shapeA: str, screen_size_category: BrowserScreenSizeCategoryE): { shape: ShapeE, size: SizeE } {
 
-	if (screen_size_category === ScreenSizeCategoryE.SMALL) {
-		return { shape: ShapeE.BOTTOM_THREE_QUARTERS, for_larger_screens_size: ForLargerScreensSizeE.NA }
+	if (screen_size_category === BrowserScreenSizeCategoryE.SMALL) {
+		return { shape: ShapeE.BOTTOM_THREE_QUARTERS, size: SizeE.NA }
 	}
 
 	// For MEDIUM and LARGE screens, the shape is always FLOATING.
 	// The size is determined from the attribute, defaulting to M.
 	const shape = ShapeE.FLOATING
-	let for_larger_screens_size: ForLargerScreensSizeE
+	let size: SizeE
 
 	let attribute_string = shapeA || "float:m"
 	let size_string = "m"
@@ -388,26 +388,26 @@ function determine_shape_and_size(shapeA: str, screen_size_category: ScreenSizeC
 	}
 
 	switch (size_string) {
-		case "s": for_larger_screens_size = ForLargerScreensSizeE.S; break;
-		case "m": for_larger_screens_size = ForLargerScreensSizeE.M; break;
-		case "l": for_larger_screens_size = ForLargerScreensSizeE.L; break;
-		default: for_larger_screens_size = ForLargerScreensSizeE.M; break;
+		case "s": size = SizeE.S; break;
+		case "m": size = SizeE.M; break;
+		case "l": size = SizeE.L; break;
+		default: size = SizeE.M; break;
 	}
 
-	return { shape, for_larger_screens_size }
+	return { shape, size }
 }
 
 
 
 
-function determine_screen_size_category(): ScreenSizeCategoryE {
+function determine_screen_size_category(): BrowserScreenSizeCategoryE {
 	const screen_width = window.innerWidth
 	if (screen_width < 768) {
-		return ScreenSizeCategoryE.SMALL
+		return BrowserScreenSizeCategoryE.SMALL
 	} else if (screen_width >= 768 && screen_width < 1024) {
-		return ScreenSizeCategoryE.MEDIUM
+		return BrowserScreenSizeCategoryE.MEDIUM
 	} else {
-		return ScreenSizeCategoryE.LARGE
+		return BrowserScreenSizeCategoryE.LARGE
 	}
 }
 
