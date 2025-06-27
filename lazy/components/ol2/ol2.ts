@@ -99,7 +99,7 @@ class COl2 extends HTMLElement {
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
 				this.content_el.classList.remove("transition-in");
-				this.animate_background(performance.now(), 400, false, 0.5);
+				this.animate_background(performance.now(), 400, false, 0.2);
 				this.sc()
 			}, 100);
 
@@ -156,7 +156,7 @@ class COl2 extends HTMLElement {
 	close() {
 		this.content_el.classList.add("transition-out");
 		this.wrap_el.classList.remove("active");
-		this.animate_background(performance.now(), 200, true, 0.5);
+		this.animate_background(performance.now(), 200, true, 0.2);
 	}
 
 
