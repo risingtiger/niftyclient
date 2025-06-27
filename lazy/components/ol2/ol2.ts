@@ -170,6 +170,7 @@ class COl2 extends HTMLElement {
 
 
 	scrolled(e: Event) {
+
 		const scrollTop = (e.target as HTMLElement).scrollTop;
 		const perc = (scrollTop / (this.scrollHeight)) * 100;
 
@@ -184,6 +185,7 @@ class COl2 extends HTMLElement {
 
 
 	animate_background(start_time: number, duration: number) {
+
 		const now = performance.now();
 		const elapsed = now - start_time;
 		const progress = Math.min(elapsed / duration, 1);
