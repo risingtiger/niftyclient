@@ -13,7 +13,7 @@ declare var html: any;
 
 enum ShapeE { BottomThreeQuarters }
 enum ForLargerScreensSizeE { S, M, L }
-enum ScreenSizeCategoryE { MOBILE, TABLET, DESKTOP }
+enum ScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
 
 type AttributesT = {
 	close: str,
@@ -40,7 +40,7 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: ScreenSizeCategoryE.MOBILE }
+	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: ScreenSizeCategoryE.SMALL }
 	m: ModelT = { shape: ShapeE.BottomThreeQuarters, for_larger_screens_size: ForLargerScreensSizeE.M }
 
 	shadow: ShadowRoot
@@ -402,11 +402,11 @@ function determine_shape_and_size(shapeA: str): { shape: ShapeE, for_larger_scre
 function determine_screen_size_category(): ScreenSizeCategoryE {
 	const screen_width = window.innerWidth
 	if (screen_width < 768) {
-		return ScreenSizeCategoryE.MOBILE
+		return ScreenSizeCategoryE.SMALL
 	} else if (screen_width >= 768 && screen_width < 1024) {
-		return ScreenSizeCategoryE.TABLET
+		return ScreenSizeCategoryE.MEDIUM
 	} else {
-		return ScreenSizeCategoryE.DESKTOP
+		return ScreenSizeCategoryE.LARGE
 	}
 }
 
