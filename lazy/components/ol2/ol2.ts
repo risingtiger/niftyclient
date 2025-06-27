@@ -11,7 +11,7 @@ declare var html: any;
 
 
 
-enum ShapeE { BottomThreeQuarters }
+enum ShapeE { BOTTOM_THREE_QUARTERS, FLOATING }
 enum ForLargerScreensSizeE { S, M, L }
 enum ScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
 
@@ -41,7 +41,7 @@ class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
 	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: ScreenSizeCategoryE.SMALL }
-	m: ModelT = { shape: ShapeE.BottomThreeQuarters, for_larger_screens_size: ForLargerScreensSizeE.M }
+	m: ModelT = { shape: ShapeE.BOTTOM_THREE_QUARTERS, for_larger_screens_size: ForLargerScreensSizeE.M }
 
 	shadow: ShadowRoot
 
@@ -382,8 +382,9 @@ function determine_shape_and_size(shapeA: str): { shape: ShapeE, for_larger_scre
 	let for_larger_screens_size: ForLargerScreensSizeE
 
 	switch (shapestr) {
-		case "bottom_three_quarters": shape = ShapeE.BottomThreeQuarters; break;
-		default : shape = ShapeE.BottomThreeQuarters; break;
+		case "bottom_three_quarters": shape = ShapeE.BOTTOM_THREE_QUARTERS; break;
+		case "floating":              shape = ShapeE.FLOATING; break;
+		default :                     shape = ShapeE.BOTTOM_THREE_QUARTERS; break;
 	}
 
 	switch (for_larger_screens_sizestr) {
