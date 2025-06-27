@@ -197,7 +197,8 @@ class COl2 extends HTMLElement {
 		const gray_value = Math.round(alpha * 255);
 		const hex_color = `#${gray_value.toString(16).padStart(2, '0').repeat(3)}`;
 
-		this.wrap_el.style.backgroundColor = hex_color;
+		this.wrap_el.style.opacity = alpha.toString();
+		document.body.style.backgroundColor = hex_color;
 
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_background(start_time, duration, is_out, maxalpha));
