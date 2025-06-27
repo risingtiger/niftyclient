@@ -361,6 +361,22 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 
 
 
+const RemoveActiveView = () => {
+	const viewsel = document.getElementById("views")!
+	const activeview = viewsel.lastElementChild as HTMLElement & CMechViewT
+	const viewname = activeview.tagName.toLowerCase().split("-")[1];
+
+	if (!activeview) return;
+
+	_loadeddata.delete(viewname)
+	_searchparams.delete(viewname)
+	_pathparams.delete(viewname)
+
+	activeview.remove();
+}
+
+
+
 /*
 const GetViewParams = (component:HTMLElement) => { 
 
@@ -560,7 +576,7 @@ function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, comp
 
 
 
-export { Init, AddView, SearchParamsChanged, DataChanged }
+export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };

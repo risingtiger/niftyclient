@@ -1,0 +1,208 @@
+
+
+:host {
+	position: fixed; /* Fixed position relative to the viewport */
+	top: 0;      /* Position top 50% of viewport height *above* the viewport top */
+	left: 0;
+	width: 100vw;    /* Full viewport width */
+	height: 100vh;   /* Twice the viewport height */
+	overflow-y: scroll; /* Allow vertical scrolling within the overlay */
+	scroll-snap-type: y mandatory; /* Enable vertical scroll snapping */
+	/* .overlay-content is positioned absolutely relative to this */
+	scrollbar-width: none;
+	scroll-behavior:  smooth; /* Smooth scrolling behavior */
+	z-index: 10000;
+
+}
+:host::-webkit-scrollbar {
+	display: none; /* For Chrome, Safari, and Opera */
+}
+
+.spacer {
+	height: 100vh;
+	scroll-snap-align: start; /* Snap to the start of this element */
+	/* This element is intentionally blank and transparent, acting as a scroll buffer */
+}
+
+
+.wrapper {
+	position: relative; /* Changed from absolute */
+	height: 100vh;      /* Explicit height */
+	overflow-y: hidden;
+	scroll-snap-align: start; /* Snap to the start of this element */
+	padding: 45px 0 0 0;
+	box-sizing: border-box; /* Include padding in height calculation */
+	display: block;
+
+
+
+	/*
+    position: absolute;
+    border-radius: 8px 8px 0px 0px;
+    border: 0px solid rgb(40 171 214 / 47%);
+    box-shadow: 0 0 12px -4px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    box-sizing: border-box;
+    background: white;
+    box-sizing: border-box;
+    z-index: 2;
+*/
+}
+
+
+.content {
+	position: relative; /* Changed from absolute */
+	background-color: white;
+	padding: 30px;
+	box-sizing: border-box; /* Include padding in height calculation */
+	height: calc(100vh - 45px); /* Full height minus the top padding */
+	 /* Vertically center content */
+	 /* Horizontally center content if it's not full width */
+	border-radius: 8px 8px 0px 8px;
+	
+	 /* Example minimum width */
+	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%); /* A subtle shadow for depth */
+}
+
+.content > header {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+
+    & .left {
+        display: block;
+        width: 20%;
+        font-family: var(--fontfamily);
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--actioncolor);
+        cursor: pointer;
+
+		a {
+			-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+		}
+
+    }
+
+    & .middle {
+        display: block;
+        width: 60%;
+
+        & h1 {
+			font-family: var(--fontfamily);
+			-webkit-font-smoothing: antialiased;
+			color: var(--textcolor);	
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            padding: 0;
+            margin: 0;
+        }
+    }
+
+    & .right {
+        display: block;
+        width: 20%;
+        font-size: 16px;
+        font-weight: 400;
+        text-align: right;
+        color: var(--actioncolor);
+    }
+}
+
+.content > slot {
+    display: block;
+    overflow-y: auto;
+}
+
+
+
+
+
+
+/* :host { */
+/*     position: absolute; */
+/*     width: 100%; */
+/*     height: 100%; */
+/*     top: 0; */
+/*     left: 0; */
+/*     z-index: 1000; */
+/* } */
+
+/*
+.scrollcontainer {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+    overflow-y: hidden;
+    height: 200%;
+    z-index: 2;
+    scroll-snap-type: y mandatory;
+}
+.scrollcontainer.scrollmode {
+	overflow-y: scroll;
+
+	> .wrapper {
+		top: 50% !important;
+		z-index: 2;
+	}
+
+	.emptyspace {top: 0%;background: #7600ff4d;}
+
+	.snapel {
+		scroll-snap-align: start;
+	}
+}
+*/
+
+
+/*
+.emptyspace {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	z-index: 1;
+}
+
+
+.wrapper {
+    position: absolute;
+    border-radius: 8px 8px 0px 0px;
+    border: 0px solid rgb(40 171 214 / 47%);
+    box-shadow: 0 0 12px -4px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    box-sizing: border-box;
+    background: white;
+    box-sizing: border-box;
+    z-index: 2;
+}
+.wrapper.mobile_centric {
+    box-shadow: none;
+    height: 100%;
+}
+*/
+
+
+/*
+.backgroundcover {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    opacity: 0;
+    /*will-change: opacity; /* Prevents flicker in Safari 
+    /*background-color: #00000036;
+    /* background-color: #00000036; 
+    /* background-color: rgba(255, 255, 255, 0.9); 
+}
+*/
+
+
+
+

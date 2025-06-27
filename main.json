@@ -42,6 +42,13 @@
 	  },
 	  {
 		"type": "component",
+		"name": "ol2",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
 		"name": "ol",
 		"is_instance": false,
 		"dependencies": [],

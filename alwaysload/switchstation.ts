@@ -3,7 +3,7 @@
 import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
-import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged } from "./cmech.js"
+import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged, RemoveActiveView as CMechRemoveActiveView } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
@@ -26,9 +26,15 @@ const Init = (lazyloads:LazyLoadT[])=> {
 
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])
 
-	const pathname        = window.location.pathname.slice(3)
+	setuproute(window.location.pathname.slice(3)); // remove /v/ prefix
+	history.replaceState({}, '', window.location.pathname);
 
-	setuproute(pathname);
+	window.addEventListener("popstate", async (_e:PopStateEvent) => {
+		CMechRemoveActiveView()
+		if (document.getElementById("views")!.children.length === 0) {
+			setuproute('/v/home');
+		}
+	})
 
 	return lazyload_view_urlpatterns
 
@@ -70,9 +76,6 @@ const Init = (lazyloads:LazyLoadT[])=> {
 	})
 
 
-	window.addEventListener("popstate", async (e) => {
-		if (e.state) routeChanged(e.state.path, 'back')
-	})
 	*/
 }
 
@@ -82,8 +85,8 @@ const Init = (lazyloads:LazyLoadT[])=> {
 
 
 async function NavigateTo(newPath: string) {
-	//window.location.href = "/v/" + newPath;
-	history.pushState({ }, '', newPath);
+	const p = "/v/" + newPath;
+	history.pushState({path:p}, '', p);
 	setuproute(newPath)
 }
 
@@ -91,26 +94,15 @@ async function NavigateTo(newPath: string) {
 
 
 async function NavigateBack(opts:{ default:str}) {
-	if (history.state && history.state.index > 0) {
-		// There is history to go back to
-		window.location.href = document.referrer || ("/v/" + opts.default);
+
+	if (document.getElementById("views")!.children.length === 1) {
+		const defaultpath = opts.default || "home";
+		CMechRemoveActiveView()
+		history.replaceState({path: '/v/'+defaultpath}, '', '/v/'+defaultpath);
+		await setuproute(defaultpath);
+		return;
 	}
-	else {
-		// No history, go to default
-		window.location.href = "/v/" + opts.default;
-	}
-
-
-	/*
-    const r = await routeChanged(newPath, 'forward');
-	if (r === null) { 
-		return; 
-	}
-
-	newPath = "/v/" + newPath
-
-    history.pushState({ index: history.state.index+1, path: newPath }, '', newPath);
-	*/
+	history.back()
 }
 
 

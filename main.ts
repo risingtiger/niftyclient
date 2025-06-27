@@ -64,6 +64,7 @@ const LAZYLOAD_DATA_FUNCS = {
 window.addEventListener("load", async (_e) => {
 
 	// for testing purposes, 
+	/*
 	if (window.location.href.includes("localhost")) {
 		const test_div = document.createElement("div");
 		test_div.id = "local_testing_purposes";
@@ -86,6 +87,7 @@ window.addEventListener("load", async (_e) => {
 		test_div.appendChild(test_button_wipe);
 		document.body.appendChild(test_div);
 	}
+	*/
 
 	const performance_timer = performance.now();
 
