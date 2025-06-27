@@ -62,14 +62,7 @@ class COl2 extends HTMLElement {
 		this.s.show_header   = this.getAttribute("showheader") === "false" ? false : true
 		const shapeA         = this.getAttribute("shape") || ""
 
-		const screen_width = window.innerWidth
-		if (screen_width < 768) {
-			this.s.screen_size_category = ScreenSizeCategoryE.MOBILE
-		} else if (screen_width >= 768 && screen_width < 1024) {
-			this.s.screen_size_category = ScreenSizeCategoryE.TABLET
-		} else {
-			this.s.screen_size_category = ScreenSizeCategoryE.DESKTOP
-		}
+		this.s.screen_size_category = determine_screen_size_category()
 
 		const { shape, for_larger_screens_size } = determine_shape_and_size(shapeA)
 		this.m.shape                             = shape
@@ -401,6 +394,20 @@ function determine_shape_and_size(shapeA: str): { shape: ShapeE, for_larger_scre
 	}
 
 	return { shape, for_larger_screens_size }
+}
+
+
+
+
+function determine_screen_size_category(): ScreenSizeCategoryE {
+	const screen_width = window.innerWidth
+	if (screen_width < 768) {
+		return ScreenSizeCategoryE.MOBILE
+	} else if (screen_width >= 768 && screen_width < 1024) {
+		return ScreenSizeCategoryE.TABLET
+	} else {
+		return ScreenSizeCategoryE.DESKTOP
+	}
 }
 
 
