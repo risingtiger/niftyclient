@@ -13,6 +13,7 @@ declare var html: any;
 
 enum ShapeE { BottomThreeQuarters }
 enum ForLargerScreensSizeE { S, M, L }
+enum ScreenSizeCategoryE { MOBILE, TABLET, DESKTOP }
 
 type AttributesT = {
 	close: str,
@@ -22,6 +23,7 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
+	screen_size_category: ScreenSizeCategoryE,
 }
 
 type ModelT = {
@@ -38,7 +40,7 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true }
+	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: ScreenSizeCategoryE.MOBILE }
 	m: ModelT = { shape: ShapeE.BottomThreeQuarters, for_larger_screens_size: ForLargerScreensSizeE.M }
 
 	shadow: ShadowRoot
@@ -59,6 +61,15 @@ class COl2 extends HTMLElement {
 		this.s.show_closebtn = this.getAttribute("closebtn")   === "false" ? false : true
 		this.s.show_header   = this.getAttribute("showheader") === "false" ? false : true
 		const shapeA         = this.getAttribute("shape") || ""
+
+		const screen_width = window.innerWidth
+		if (screen_width < 768) {
+			this.s.screen_size_category = ScreenSizeCategoryE.MOBILE
+		} else if (screen_width >= 768 && screen_width < 1024) {
+			this.s.screen_size_category = ScreenSizeCategoryE.TABLET
+		} else {
+			this.s.screen_size_category = ScreenSizeCategoryE.DESKTOP
+		}
 
 		const { shape, for_larger_screens_size } = determine_shape_and_size(shapeA)
 		this.m.shape                             = shape
