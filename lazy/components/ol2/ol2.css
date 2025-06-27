@@ -9,6 +9,19 @@
 	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
 	z-index: 1000;
+	transition: opacity 300ms ease-out, transform 300ms ease-out;
+	opacity: 1;
+	transform: translateY(0);
+}
+
+:host(.anim-in.small) {
+	opacity: 0;
+	transform: translateY(200px);
+}
+
+:host(.anim-in.large) {
+	opacity: 0;
+	transform: translateY(100px);
 }
 
 :host::-webkit-scrollbar {

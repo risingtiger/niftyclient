@@ -63,6 +63,13 @@ class COl2 extends HTMLElement {
 
 		const screen_size_category = determine_screen_size_category()
 
+		this.classList.add("anim-in")
+		if (screen_size_category === BrowserScreenSizeCategoryE.SMALL) {
+			this.classList.add("small")
+		} else {
+			this.classList.add("large")
+		}
+
 		const { shape, size } = determine_shape_and_size(shapeA, screen_size_category)
 		this.m.shape          = shape
 		this.m.size           = size
@@ -95,6 +102,9 @@ class COl2 extends HTMLElement {
 
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
+				setTimeout(() => {
+					this.classList.remove("anim-in", "small", "large")
+				}, 100);
 			}, 200);
 			//this.setAttribute("opening", "true")
 			//animate_in(this.backgroundAnimation, this.viewAnimation, this.viewheaderAnimation, this.wrapperAnimation)
