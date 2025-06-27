@@ -23,7 +23,6 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
-	screen_size_category: BrowserScreenSizeCategoryE,
 }
 
 type ModelT = {
@@ -40,7 +39,7 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true, screen_size_category: BrowserScreenSizeCategoryE.SMALL }
+	s: StateT = { title: "", show_closebtn: true, show_header: true }
 	m: ModelT = { shape: ShapeE.BOTTOM_THREE_QUARTERS, size: SizeE.M }
 
 	shadow: ShadowRoot
@@ -62,9 +61,9 @@ class COl2 extends HTMLElement {
 		this.s.show_header   = this.getAttribute("showheader") === "false" ? false : true
 		const shapeA         = this.getAttribute("shape") || ""
 
-		this.s.screen_size_category = determine_screen_size_category()
+		const screen_size_category = determine_screen_size_category()
 
-		const { shape, size } = determine_shape_and_size(shapeA, this.s.screen_size_category)
+		const { shape, size } = determine_shape_and_size(shapeA, screen_size_category)
 		this.m.shape          = shape
 		this.m.size           = size
 
