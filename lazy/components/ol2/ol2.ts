@@ -43,6 +43,7 @@ class COl2 extends HTMLElement {
 	shadow: ShadowRoot
 	wrap_el!: HTMLElement
 	content_el!: HTMLElement
+	background_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -74,6 +75,7 @@ class COl2 extends HTMLElement {
 
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
+		this.background_el = this.shadow.querySelector(".background") as HTMLElement
 
 		this.content_el.classList.add("transition-in");
 
@@ -191,13 +193,15 @@ class COl2 extends HTMLElement {
 		const elapsed = now - start_time;
 		const progress = Math.min(elapsed / duration, 1);
 
-		const alpha = is_out ? (1 - progress) * maxalpha : progress * maxalpha;
+		const opacity = is_out ? (1 - progress) : progress;
+		this.background_el.style.opacity = opacity.toString();
+
+		const alpha = opacity * maxalpha;
 		
 		// Convert alpha to grayscale hex value (0 = black, 1 = white)
 		const gray_value = Math.round(alpha * 255);
 		const hex_color = `#${gray_value.toString(16).padStart(2, '0').repeat(3)}`;
 
-		this.wrap_el.style.opacity = alpha.toString();
 		document.body.style.backgroundColor = hex_color;
 
 		if (progress < 1) {
