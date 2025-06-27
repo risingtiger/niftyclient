@@ -70,6 +70,7 @@ class COl2 extends HTMLElement {
 
 		this.sc()
 
+		const wrapel = this.shadow.querySelector(".wrapper") as HTMLElement
 		const contentel = this.shadow.querySelector(".content") as HTMLElement
 		contentel.classList.add("transition-in");
 
@@ -95,6 +96,7 @@ class COl2 extends HTMLElement {
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
 				contentel.classList.remove("transition-in");
+				wrapel.classList.add("active")
 				this.sc()
 			}, 100);
 
@@ -152,6 +154,7 @@ class COl2 extends HTMLElement {
 
 	close() {
 		this.shadow.querySelector(".content")!.classList.add("transition-out");
+		this.shadow.querySelector(".wrapper")!.classList.remove("active");
 	}
 
 
@@ -169,9 +172,10 @@ class COl2 extends HTMLElement {
 		const scrollTop = (e.target as HTMLElement).scrollTop;
 		const perc = (scrollTop / (this.scrollHeight)) * 100;
 
-		// Create gray color value from white (0%) to black (100%) based on scroll percentage
 		const gray_value = Math.round(255 - (perc / 100) * 255);
 		const gray_color = `rgb(${gray_value}, ${gray_value}, ${gray_value})`;
+
+		document.body.style.backgroundColor = gray_color;
 
 		if (this.scrollTop <= 1) this.closed();
 	}
