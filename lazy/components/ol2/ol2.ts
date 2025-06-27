@@ -192,8 +192,12 @@ class COl2 extends HTMLElement {
 		const progress = Math.min(elapsed / duration, 1);
 
 		const alpha = is_out ? (1 - progress) * maxalpha : progress * maxalpha;
+		
+		// Convert alpha to grayscale hex value (0 = black, 1 = white)
+		const gray_value = Math.round(alpha * 255);
+		const hex_color = `#${gray_value.toString(16).padStart(2, '0').repeat(3)}`;
 
-		this.wrap_el.style.backgroundColor = `rgba(0,0,0,${alpha})`;
+		this.wrap_el.style.backgroundColor = hex_color;
 
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_background(start_time, duration, is_out, maxalpha));
