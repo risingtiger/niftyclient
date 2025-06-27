@@ -156,7 +156,7 @@ class COl2 extends HTMLElement {
 	close() {
 		this.content_el.classList.add("transition-out");
 		this.wrap_el.classList.remove("active");
-		this.animate_background(performance.now(), 400, true);
+		this.animate_background(performance.now(), 200, true);
 	}
 
 
