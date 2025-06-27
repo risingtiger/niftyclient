@@ -99,6 +99,7 @@ class COl2 extends HTMLElement {
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
 				this.content_el.classList.remove("transition-in");
+				this.animate_background(performance.now(), 400);
 				this.sc()
 			}, 100);
 
@@ -178,6 +179,25 @@ class COl2 extends HTMLElement {
 		document.body.style.backgroundColor = gray_color;
 
 		if (this.scrollTop <= 1) this.closed();
+	}
+
+
+
+	animate_background(start_time: number, duration: number) {
+		const now = performance.now();
+		const elapsed = now - start_time;
+		const progress = Math.min(elapsed / duration, 1);
+
+		// ease-in-out
+		const eased_progress = -(Math.cos(Math.PI * progress) - 1) / 2;
+
+		const alpha = eased_progress * 0.5;
+
+		this.wrap_el.style.backgroundColor = `rgba(0,0,0,${alpha})`;
+
+		if (progress < 1) {
+			requestAnimationFrame(() => this.animate_background(start_time, duration));
+		}
 	}
 
 
