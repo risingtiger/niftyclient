@@ -190,10 +190,7 @@ class COl2 extends HTMLElement {
 		const elapsed = now - start_time;
 		const progress = Math.min(elapsed / duration, 1);
 
-		// ease-in-out
-		const eased_progress = -(Math.cos(Math.PI * progress) - 1) / 2;
-
-		const alpha = eased_progress * 0.5;
+		const alpha = progress * 0.5;
 
 		this.wrap_el.style.backgroundColor = `rgba(0,0,0,${alpha})`;
 
