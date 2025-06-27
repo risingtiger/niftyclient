@@ -12,7 +12,7 @@ declare var html: any;
 
 
 enum ShapeE { BOTTOM_THREE_QUARTERS, FLOATING }
-enum ForLargerScreensSizeE { S, M, L }
+enum ForLargerScreensSizeE { S, M, L, NA }
 enum ScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
 
 type AttributesT = {
@@ -64,7 +64,7 @@ class COl2 extends HTMLElement {
 
 		this.s.screen_size_category = determine_screen_size_category()
 
-		const { shape, for_larger_screens_size } = determine_shape_and_size(shapeA)
+		const { shape, for_larger_screens_size } = determine_shape_and_size(shapeA, this.s.screen_size_category)
 		this.m.shape                             = shape
 		this.m.for_larger_screens_size           = for_larger_screens_size
 
@@ -367,27 +367,27 @@ customElements.define('c-ol2', COl2);
 
 
 
-function determine_shape_and_size(shapeA: str): { shape: ShapeE, for_larger_screens_size: ForLargerScreensSizeE } {
+function determine_shape_and_size(shapeA: str, screen_size_category: ScreenSizeCategoryE): { shape: ShapeE, for_larger_screens_size: ForLargerScreensSizeE } {
 
-	let shapestr = shapeA || "bottom_three_quarters"
-	let for_larger_screens_sizestr = "m"
-
-	if (shapestr.includes(":")) {
-		const parts = shapestr.split(":")
-		shapestr = parts[0].trim()
-		for_larger_screens_sizestr = parts[1].trim()
+	if (screen_size_category === ScreenSizeCategoryE.SMALL) {
+		return { shape: ShapeE.BOTTOM_THREE_QUARTERS, for_larger_screens_size: ForLargerScreensSizeE.NA }
 	}
 
-	let shape: ShapeE
+	// For MEDIUM and LARGE screens, the shape is always FLOATING.
+	// The size is determined from the attribute, defaulting to M.
+	const shape = ShapeE.FLOATING
 	let for_larger_screens_size: ForLargerScreensSizeE
 
-	switch (shapestr) {
-		case "bottom_three_quarters": shape = ShapeE.BOTTOM_THREE_QUARTERS; break;
-		case "floating":              shape = ShapeE.FLOATING; break;
-		default :                     shape = ShapeE.BOTTOM_THREE_QUARTERS; break;
+	let attribute_string = shapeA || "float:m"
+	let size_string = "m"
+
+	if (attribute_string.includes(":")) {
+		const parts = attribute_string.split(":")
+		// The shape part (e.g. "b3/4" or "float") is ignored.
+		size_string = parts[1].trim()
 	}
 
-	switch (for_larger_screens_sizestr) {
+	switch (size_string) {
 		case "s": for_larger_screens_size = ForLargerScreensSizeE.S; break;
 		case "m": for_larger_screens_size = ForLargerScreensSizeE.M; break;
 		case "l": for_larger_screens_size = ForLargerScreensSizeE.L; break;
