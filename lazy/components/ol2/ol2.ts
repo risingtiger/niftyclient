@@ -102,7 +102,9 @@ class COl2 extends HTMLElement {
 
 				//this.wrap_el.scrollIntoView({ behavior: 'smooth' })
 				setTimeout(()=> { 
+					// find the sibling element to this element that is class of wrapper AI!
 					this.content_el.classList.remove("transition-in");
+					this.
 					this.animate_aux(performance.now(), 400, false);
 					this.sc()
 				}, 100);
@@ -169,14 +171,6 @@ class COl2 extends HTMLElement {
 
 	scrolled(e: Event) {
 
-		const scrollTop = (e.target as HTMLElement).scrollTop;
-		const perc = (scrollTop / (this.scrollHeight)) * 100;
-
-		const gray_value = Math.round(255 - (perc / 100) * 255);
-		const gray_color = `rgb(${gray_value}, ${gray_value}, ${gray_value})`;
-
-		document.body.style.backgroundColor = gray_color;
-
 		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
 	}
 
@@ -188,22 +182,18 @@ class COl2 extends HTMLElement {
 		const elapsed = now - start_time;
 		const progress = Math.min(elapsed / duration, 1);
 
-		const opacity = is_out ? (1 - progress) : progress;
+		const factor = is_out ? (1 - progress) : progress;
 
-		const viewheader = document.querySelector("header.viewheader")
-		const viewcontentel = document.querySelector("div.content")
+		const viewwrapperel = document.querySelector("div.wrapper")
 
-		const background_max = .2
-		const alpha = opacity * background_max;
+		const background_max = .6
+		const a = factor * background_max;
 		
+		this.background_el.style.opacity = `${a}`;
 
-		const flipped_alpha = 1 - alpha; 
-		const gray_value = Math.round(flipped_alpha * 255);
-		let hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3).toUpperCase();
-
-		console.log(hex_of_gray_value);
-		document.body.style.backgroundColor = `#${hex_of_gray_value}`;
-		this.background_el.style.opacity = `${alpha}`;
+		const theme_color = 255 - Math.round( 255 * a )
+		document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", `rgb(${theme_color},${theme_color},${theme_color})`);
+		document.body.style.backgroundColor = `rgb(${theme_color},${theme_color},${theme_color})`;
 
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
