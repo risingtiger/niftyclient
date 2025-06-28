@@ -104,7 +104,6 @@ class COl2 extends HTMLElement {
 					const wrapper_sibling = ( document.querySelector(".view") as any).shadow.querySelector(".wrapper") as HTMLElement;
 					//wrapper_sibling.classList.add("anime_lower")
 					//this.animate_aux(performance.now(), 400, false);
-					this.sc()
 				}, 40);
 			}, 40);
 

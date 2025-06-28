@@ -66,7 +66,7 @@
 	opacity: 1;
 	transform: translate3d(0, 0vh, 0);
 
-	transition-property: transform, opacity, display;
+	transition-property: transform, opacity;
 	transition-duration:  260ms;
 	transition-timing-function:  cubic-bezier(0.04, 0.59, 0.4, 0.97);
 
