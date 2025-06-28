@@ -8,7 +8,6 @@
 	overflow-y: scroll;
 	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
-	scroll-behavior: smooth;
 	z-index: 1000;
 }
 
@@ -18,43 +17,69 @@
 
 
 .spacer {
-	height: 100vh;
+	height: 20vh;
 	scroll-snap-align: start;
+	background-color:  blue;
 }
+.forkicks {
+	height: 20vh;
+	scroll-snap-align: start;
+	background-color:  purple;
+}
+
+.spacer.active {
+	display: block;
+}
+
 
 .wrapper {
 	position: relative;
-	height: 100vh;
+	height: 20vh;
 	overflow-y: hidden;
 	scroll-snap-align: start;
-	padding: 32px 0 0 0;
-	box-sizing: border-box;
+	background-color:  green;
+
+
+
+	overflow-y: hidden;
 }
 
+.background {
+	position: absolute;
+	opacity: 0;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background-color: rgb(0, 0, 0);
+	z-index: 1000;
+}
 .content {
-	position: relative;
+	position: absolute;
+	top: 17px;
+	left: 0;
 	background-color: white;
 	padding: 30px;
 	box-sizing: border-box;
-	border-radius: 24px 24px 0px 0px;
+	border-radius: 16px 16px 0 0;
 	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
-
+	z-index: 1001;
 	display:block;
 	opacity:1;
 	transform: translate3d(0, 0px, 0);
-
 	transition-property:  opacity, display, transform;
-	transition-duration:  400ms;
-	transition-timing-function:  cubic-bezier(0, 0.46, 0, 1);
+	transition-duration:  900ms;
+	transition-timing-function:  cubic-bezier(0, 1, 0, 1);
+	
 
 	@starting-style {
-		opacity: 0;
-		transform: translate3d(0, 40px, 0);
+		opacity: 1;
+		transform: translate3d(0, 100vh, 0);
 	}
 }
 .content.shape-fill {
 	width: 100vw;
-	height: calc(100vh - 32px);
+	height: calc(100vh - 17px);
 	margin: 0 auto;
 }
 .content.shape-float {
@@ -63,9 +88,9 @@
 	margin: 0 auto;
 }
 .content.shape-fill.transition-in {
-	opacity: 0;
+	opacity: 1;
 	display: none;
-	transform: translate3d(0, 130px, 0);
+	transform: translate3d(0, 100vh, 0);
 }
 
 .content.shape-float.transition-in {
@@ -75,15 +100,15 @@
 }
 .content.shape-fill.transition-out {
 	opacity: 0;
-	transform: translate3d(0, 130px, 0);
-	transition-duration:  400ms;
+	transform: translate3d(0, 40px, 0);
+	transition-duration:  350ms;
 	transition-timing-function:  cubic-bezier(0.46, 0.06, 1, 0.88);
 }
 
 .content.shape-float.transition-out {
 	opacity: 0;
 	transform: translate3d(0, 40px, 0);
-	transition-duration:  200ms;
+	transition-duration:  350ms;
 	transition-timing-function:  cubic-bezier(0.35, 0.15, 0.85, 0.64);
 }
 
