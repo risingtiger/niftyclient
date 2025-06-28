@@ -158,8 +158,8 @@ class COl2 extends HTMLElement {
 
 	animate_in() {
 		const keyframes = [
-			{ transform: 'translate3d(0, 50vh, 0)', opacity: 0, offset: 0,    easing: 'cubic-bezier(0, 0, 0.2, 1)' },
-			{ transform: 'translate3d(0, 1vh, 0)',   opacity: 1, offset: 0.75, easing: 'linear' },
+			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0, offset: 0,    easing: 'cubic-bezier(0.000, 0.620, 0.050, 1.000)' },
+			{ transform: 'translate3d(0, 25vh, 0)',   opacity: 1, offset: 0.75, easing: 'cubic-bezier(0.000, 0.620, 0.050, 1.000)' },
 			{ transform: 'translate3d(0, 0, 0)',     opacity: 1, offset: 1 }
 		];
 		const options = {
