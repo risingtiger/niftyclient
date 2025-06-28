@@ -158,12 +158,13 @@ class COl2 extends HTMLElement {
 
 	animate_in() {
 		const keyframes = [
-			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0, offset: 0,    easing: 'cubic-bezier(0.000, 0.620, 0.050, 1.000)' },
-			{ transform: 'translate3d(0, 25vh, 0)',   opacity: 1, offset: 0.75, easing: 'cubic-bezier(0.000, 0.620, 0.050, 1.000)' },
-			{ transform: 'translate3d(0, 0, 0)',     opacity: 1, offset: 1 }
+			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0,    offset: 0 },
+			{ transform: 'translate3d(0, 1vh, 0)',   opacity: 1,    offset: 0.75 },
+			{ transform: 'translate3d(0, 0, 0)',     opacity: 1,    offset: 1 }
 		];
 		const options = {
 			duration: 560,
+			easing: 'cubic-bezier(0.23, 1, 0.32, 1)', // easeOutQuint
 			fill: 'forwards' as FillMode
 		};
 		const animation = this.content_el.animate(keyframes, options);
