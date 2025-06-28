@@ -199,8 +199,7 @@ class COl2 extends HTMLElement {
 
 		const flipped_alpha = 1 - alpha; 
 		const gray_value = Math.round(flipped_alpha * 255);
-		let hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3);
-		// convert hex_of_gray_value to uppercase AI!
+		let hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3).toUpperCase();
 
 		console.log(hex_of_gray_value);
 		document.body.style.backgroundColor = `#${hex_of_gray_value}`;
