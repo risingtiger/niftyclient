@@ -43,7 +43,6 @@ class COl2 extends HTMLElement {
 	shadow: ShadowRoot
 	wrap_el!: HTMLElement
 	content_el!: HTMLElement
-	background_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -75,9 +74,8 @@ class COl2 extends HTMLElement {
 
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
-		this.background_el = this.shadow.querySelector(".background") as HTMLElement
 
-		this.content_el.classList.add("transition-in");
+		// this.content_el.classList.add("transition-in");
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -99,12 +97,13 @@ class COl2 extends HTMLElement {
 			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
-				this.scrollTop = this.wrap_el.offsetTop
+				// make the scrollIntoView smooth AI!
+				this.wrap_el.scrollIntoView()
 				setTimeout(()=> { 
 					this.content_el.classList.remove("transition-in");
 					this.animate_background(performance.now(), 400, false, 0.2);
 					this.sc()
-				}, 1000);
+				}, 100);
 			}, 100);
 
 		}
@@ -196,7 +195,6 @@ class COl2 extends HTMLElement {
 		const progress = Math.min(elapsed / duration, 1);
 
 		const opacity = is_out ? (1 - progress) : progress;
-		this.background_el.style.opacity = opacity.toString();
 
 		const alpha = opacity * maxalpha;
 		
