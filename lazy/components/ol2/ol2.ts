@@ -197,16 +197,14 @@ class COl2 extends HTMLElement {
 		const alpha = opacity * background_max;
 		
 
-		// Convert alpha to grayscale hex value (0 = black, 1 = white)
-		const flipped_alpha = 1 - alpha; // Invert the alpha value for grayscale
+		const flipped_alpha = 1 - alpha; 
 		const gray_value = Math.round(flipped_alpha * 255);
-		const hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3);
+		let hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3);
+		// convert hex_of_gray_value to uppercase AI!
 
-		console.log(hex_of_gray_value)
+		console.log(hex_of_gray_value);
 		document.body.style.backgroundColor = `#${hex_of_gray_value}`;
 		this.background_el.style.opacity = `${alpha}`;
-
-		viewheader
 
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
