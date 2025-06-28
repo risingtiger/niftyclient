@@ -99,7 +99,7 @@ class COl2 extends HTMLElement {
 			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
-				this.scrollTop = this.scrollHeight / 2
+				this.scrollTop = this.wrap_el.offsetTop
 				setTimeout(()=> { 
 					this.content_el.classList.remove("transition-in");
 					this.animate_background(performance.now(), 400, false, 0.2);
