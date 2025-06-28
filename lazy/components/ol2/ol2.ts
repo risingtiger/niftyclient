@@ -181,6 +181,7 @@ class COl2 extends HTMLElement {
 		};
 		
 		this.animate_aux(performance.now(), 400, false);
+
 	}
 
 
