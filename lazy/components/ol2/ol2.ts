@@ -43,6 +43,7 @@ class COl2 extends HTMLElement {
 	shadow: ShadowRoot
 	wrap_el!: HTMLElement
 	content_el!: HTMLElement
+	background_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -74,8 +75,9 @@ class COl2 extends HTMLElement {
 
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
+		this.background_el = this.shadow.querySelector(".background") as HTMLElement;
 
-		// this.content_el.classList.add("transition-in");
+		this.content_el.classList.add("transition-in");
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -97,10 +99,11 @@ class COl2 extends HTMLElement {
 			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
-				this.wrap_el.scrollIntoView({ behavior: 'smooth' })
+
+				//this.wrap_el.scrollIntoView({ behavior: 'smooth' })
 				setTimeout(()=> { 
 					this.content_el.classList.remove("transition-in");
-					this.animate_background(performance.now(), 400, false, 0.2);
+					this.animate_aux(performance.now(), 400, false);
 					this.sc()
 				}, 100);
 			}, 100);
@@ -136,20 +139,12 @@ class COl2 extends HTMLElement {
 			this.closed()
 		}
 		else {
+			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
+			spacerel.style.display = "block";
+			this.wrap_el.scrollIntoView()
+
 			this.setAttribute("opened", "true")
 		}
-		/*
-		if (this.wrapperAnimation!.playbackRate === -1) {
-			this.removeAttribute("closing")
-			this.removeAttribute("opened")
-			this.setAttribute("closed", "true")
-			this.dispatchEvent(new Event('close'))
-		} else {
-			this.removeAttribute("opening")
-			this.removeAttribute("closed")
-			this.setAttribute("opened", "true")
-		}
-		*/
 	}
 
 
@@ -158,7 +153,7 @@ class COl2 extends HTMLElement {
 	close() {
 		this.content_el.classList.add("transition-out");
 		this.wrap_el.classList.remove("active");
-		this.animate_background(performance.now(), 200, true, 0.2);
+		this.animate_aux(performance.now(), 200, true);
 	}
 
 
@@ -182,12 +177,12 @@ class COl2 extends HTMLElement {
 
 		document.body.style.backgroundColor = gray_color;
 
-		if (this.scrollTop <= 1) this.closed();
+		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
 	}
 
 
 
-	animate_background(start_time: number, duration: number, is_out: bool = false, maxalpha: number = 0.5) {
+	animate_aux(start_time: number, duration: number, is_out: bool = false) {
 
 		const now = performance.now();
 		const elapsed = now - start_time;
@@ -195,17 +190,26 @@ class COl2 extends HTMLElement {
 
 		const opacity = is_out ? (1 - progress) : progress;
 
-		const alpha = opacity * maxalpha;
+		const viewheader = document.querySelector("header.viewheader")
+		const viewcontentel = document.querySelector("div.content")
+
+		const background_max = .2
+		const alpha = opacity * background_max;
 		
 
 		// Convert alpha to grayscale hex value (0 = black, 1 = white)
-		const gray_value = Math.round(alpha * 255);
-		const hex_color = `#${gray_value.toString(16).padStart(2, '0').repeat(3)}`;
+		const flipped_alpha = 1 - alpha; // Invert the alpha value for grayscale
+		const gray_value = Math.round(flipped_alpha * 255);
+		const hex_of_gray_value = // convert gray_value into a hex 6 character hex color string AI!
 
-		document.body.style.backgroundColor = hex_color;
+		console.log(hex_of_gray_value)
+		document.body.style.backgroundColor = `#${hex_of_gray_value}`;
+		this.background_el.style.opacity = `${alpha}`;
+
+		viewheader
 
 		if (progress < 1) {
-			requestAnimationFrame(() => this.animate_background(start_time, duration, is_out, maxalpha));
+			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
 		}
 	}
 
