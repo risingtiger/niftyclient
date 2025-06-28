@@ -125,21 +125,7 @@ class COl2 extends HTMLElement {
 
 
 	close() {
-		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
-
-		const animation = this.content_el.animate([
-			{ opacity: 1 },
-			{ transform: 'translate3d(0, 40px, 0)', opacity: 0 }
-		], {
-			duration: 350,
-			easing: easing,
-			fill: 'forwards'
-		});
-
-		animation.onfinish = () => this.closed()
-
-		this.wrap_el.classList.remove("active");
-		this.animate_aux(performance.now(), 200, true);
+		this.animate_out()
 	}
 
 
@@ -155,6 +141,24 @@ class COl2 extends HTMLElement {
 
 	scrolled(_e: Event) {
 		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
+	}
+
+	animate_out() {
+		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
+
+		const animation = this.content_el.animate([
+			{ opacity: 1 },
+			{ transform: 'translate3d(0, 40px, 0)', opacity: 0 }
+		], {
+			duration: 350,
+			easing: easing,
+			fill: 'forwards'
+		});
+
+		animation.onfinish = () => this.closed()
+
+		this.wrap_el.classList.remove("active");
+		this.animate_aux(performance.now(), 200, true);
 	}
 
 	animate_in() {
