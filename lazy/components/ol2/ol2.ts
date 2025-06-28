@@ -199,14 +199,14 @@ class COl2 extends HTMLElement {
 
 		// Apply transform based on eased progress
 		const translate_y = is_out ? 
-			eased_progress * 100 : // Move down when closing
-			(1 - eased_progress) * 100; // Move up from bottom when opening
+			eased_progress * window.innerHeight : // Move down when closing
+			(1 - eased_progress) * window.innerHeight; // Move up from bottom when opening
 
 		const opacity = is_out ? 
 			1 - eased_progress : // Fade out when closing
 			eased_progress; // Fade in when opening
 
-		this.content_el.style.transform = `translate3d(0, ${translate_y}vh, 0)`;
+		this.content_el.style.transform = `translate3d(0, ${translate_y}px, 0)`;
 		this.content_el.style.opacity = `${opacity}`;
 
 		// Continue animation if not complete
