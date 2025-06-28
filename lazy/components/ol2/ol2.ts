@@ -213,6 +213,9 @@ class COl2 extends HTMLElement {
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_content(start_time, duration, is_out));
 		}
+
+		const x = performance.now()
+		console.log(translate_y)
 	}
 
 
