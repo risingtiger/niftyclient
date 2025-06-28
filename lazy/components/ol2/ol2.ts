@@ -160,7 +160,6 @@ class COl2 extends HTMLElement {
 
 	animate_in() {
 		const keyframes = [
-			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 },
 			{ transform: 'translate3d(0, 0, 0)', opacity: 1 }
 		];
 		const options = {
