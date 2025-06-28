@@ -100,14 +100,16 @@ class COl2 extends HTMLElement {
 
 			setTimeout(() => {
 
-				//this.wrap_el.scrollIntoView({ behavior: 'smooth' })
+				//this.wrap_el.scrollIntoView({ behavior: 'auto' })
 				setTimeout(()=> { 
-					const wrapper_sibling = this.parentElement?.querySelector('.wrapper') as HTMLElement;
+					const wrapper_sibling = document.querySelector(".view")?.shadow.querySelector(".wrapper") as HTMLElement;
+					wrapper_sibling.classList.add("anime_lower")
 					this.content_el.classList.remove("transition-in");
 					this.animate_aux(performance.now(), 400, false);
+					this.animate_content(performance.now(), 800, false);
 					this.sc()
 				}, 100);
-			}, 100);
+			}, 200);
 
 		}
 
@@ -140,11 +142,11 @@ class COl2 extends HTMLElement {
 			this.closed()
 		}
 		else {
-			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
-			spacerel.style.display = "block";
-			this.wrap_el.scrollIntoView()
-
-			this.setAttribute("opened", "true")
+			// const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
+			// spacerel.style.display = "block";
+			// this.wrap_el.scrollIntoView()
+			//
+			// this.setAttribute("opened", "true")
 		}
 	}
 
@@ -175,6 +177,14 @@ class COl2 extends HTMLElement {
 
 
 
+
+	animate_content(start_time: number, duration: number, is_out: bool = false) {
+
+	}
+
+
+
+
 	animate_aux(start_time: number, duration: number, is_out: bool = false) {
 
 		const now = performance.now();
@@ -185,10 +195,11 @@ class COl2 extends HTMLElement {
 
 		const viewwrapperel = document.querySelector("div.wrapper")
 
-		const background_max = .6
+		const background_max = .8
 		const a = factor * background_max;
 		
-		this.background_el.style.opacity = `${a}`;
+		// this.background_el.style.opacity = `${a}`;
+		this.background_el.style.opacity = '0';
 
 		const theme_color = 255 - Math.round( 255 * a )
 		document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", `rgb(${theme_color},${theme_color},${theme_color})`);
