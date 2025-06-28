@@ -66,6 +66,7 @@ class COl2 extends HTMLElement {
 		const child = this.firstElementChild as HTMLElement
 		const screen_size_category = determine_screen_size_category()
 
+
 		const { shape, floatsize } = determine_shape_and_size(shapeA, floatsizeA, screen_size_category)
 		this.m.shape          = shape
 		this.m.floatsize           = floatsize
@@ -89,15 +90,13 @@ class COl2 extends HTMLElement {
 
 		function continue_to_open() {
 
-			this.addEventListener("click", (_e: MouseEvent) => {   this.close();   }, false);
+			this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
 			setTimeout(() => {
-				setTimeout(()=> { 
-					this.animate_in()
-				}, 40);
+				this.animate_in()
 			}, 40);
 
 		}
