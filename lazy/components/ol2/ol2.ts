@@ -100,9 +100,11 @@ class COl2 extends HTMLElement {
 
 			setTimeout(() => {
 				this.scrollTop = this.scrollHeight / 2
-				this.content_el.classList.remove("transition-in");
-				this.animate_background(performance.now(), 400, false, 0.2);
-				this.sc()
+				setTimeout(()=> { 
+					this.content_el.classList.remove("transition-in");
+					this.animate_background(performance.now(), 400, false, 0.2);
+					this.sc()
+				}, 1000);
 			}, 100);
 
 		}
@@ -198,6 +200,7 @@ class COl2 extends HTMLElement {
 
 		const alpha = opacity * maxalpha;
 		
+
 		// Convert alpha to grayscale hex value (0 = black, 1 = white)
 		const gray_value = Math.round(alpha * 255);
 		const hex_color = `#${gray_value.toString(16).padStart(2, '0').repeat(3)}`;
