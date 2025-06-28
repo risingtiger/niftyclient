@@ -21,7 +21,6 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
-	transition_in_class: str
 }
 
 type ModelT = {
@@ -38,7 +37,7 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true, transition_in_class: "" };
+	s: StateT = { title: "", show_closebtn: true, show_header: true };
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
@@ -96,16 +95,10 @@ class COl2 extends HTMLElement {
 			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
-			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
 				setTimeout(()=> { 
-					//this.s.transition_in_class = "transition-in";
-
-					const wrapper_sibling = ( document.querySelector(".view") as any).shadow.querySelector(".wrapper") as HTMLElement;
-					//wrapper_sibling.classList.add("anime_lower")
-					//this.animate_aux(performance.now(), 400, false);
-					this.sc()
+					this.animate_in()
 				}, 40);
 			}, 40);
 
@@ -131,28 +124,20 @@ class COl2 extends HTMLElement {
 
 
 
-	transition_finished(e: TransitionEvent) {
-
-		if (e.propertyName !== "opacity") return;
-
-
-		if (this.content_el.classList.contains("transition-out")) {
-			this.closed()
-		}
-		else {
-			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
-			spacerel.style.display = "block";
-			this.wrap_el.scrollIntoView()
-
-			this.setAttribute("opened", "true")
-		}
-	}
-
-
-
-
 	close() {
-		this.content_el.classList.add("transition-out");
+		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
+
+		const animation = this.content_el.animate([
+			{ opacity: 1 },
+			{ transform: 'translate3d(0, 40px, 0)', opacity: 0 }
+		], {
+			duration: 350,
+			easing: easing,
+			fill: 'forwards'
+		});
+
+		animation.onfinish = () => this.closed()
+
 		this.wrap_el.classList.remove("active");
 		this.animate_aux(performance.now(), 200, true);
 	}
@@ -172,7 +157,27 @@ class COl2 extends HTMLElement {
 		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
 	}
 
+	animate_in() {
+		const keyframes = [
+			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 },
+			{ transform: 'translate3d(0, 0, 0)', opacity: 1 }
+		];
+		const options = {
+			duration: 260,
+			easing: 'cubic-bezier(0.04, 0.59, 0.4, 0.97)',
+			fill: 'forwards' as FillMode
+		};
+		const animation = this.content_el.animate(keyframes, options);
 
+		animation.onfinish = () => {
+			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
+			spacerel.style.display = "block";
+			this.wrap_el.scrollIntoView();
+			this.setAttribute("opened", "true");
+		};
+		
+		this.animate_aux(performance.now(), 400, false);
+	}
 
 
 	animate_aux(start_time: number, duration: number, is_out: bool = false) {
