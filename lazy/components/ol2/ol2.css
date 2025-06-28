@@ -38,7 +38,7 @@
 
 .content {
 	position: absolute;
-	display: none;
+	display: block;
 	top: 17px;
 	left: 0;
 	background-color: white;
@@ -49,6 +49,9 @@
 	z-index: 1001;
 	opacity:0;
 
+	transition-property: transform, opacity;
+	transition-duration:  260ms;
+	transition-timing-function:  cubic-bezier(0.04, 0.59, 0.4, 0.97);
 }
 .content.shape-fill {
 	width: 100vw;
@@ -62,19 +65,8 @@
 	transform: translate3d(0, 100vh, 0);
 }
 .content.transition-in {
-	display: block;
 	opacity: 1;
 	transform: translate3d(0, 0vh, 0);
-
-	transition-property: transform, opacity;
-	transition-duration:  260ms;
-	transition-timing-function:  cubic-bezier(0.04, 0.59, 0.4, 0.97);
-
-	@starting-style {
-		display: block;
-		opacity: 0;
-		transform: translate3d(0, 100vh, 0);
-	}
 }
 
 .content.shape-fill.transition-out {

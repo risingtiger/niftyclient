@@ -21,6 +21,7 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
+	transition_in_class: str
 }
 
 type ModelT = {
@@ -37,7 +38,7 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true };
+	s: StateT = { title: "", show_closebtn: true, show_header: true, transition_in_class: "" };
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
@@ -99,11 +100,12 @@ class COl2 extends HTMLElement {
 
 			setTimeout(() => {
 				setTimeout(()=> { 
-					this.content_el.classList.add("transition-in");
+					//this.s.transition_in_class = "transition-in";
 
 					const wrapper_sibling = ( document.querySelector(".view") as any).shadow.querySelector(".wrapper") as HTMLElement;
 					//wrapper_sibling.classList.add("anime_lower")
 					//this.animate_aux(performance.now(), 400, false);
+					this.sc()
 				}, 40);
 			}, 40);
 
