@@ -95,10 +95,7 @@ class COl2 extends HTMLElement {
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
-			setTimeout(() => {
-				this.animate_in()
-			}, 40);
-
+			this.animate_in()
 		}
 
 	}
@@ -144,11 +141,12 @@ class COl2 extends HTMLElement {
 		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
 
 		const animation = this.content_el.animate([
-			{ opacity: 1 },
-			{ transform: 'translate3d(0, 40px, 0)', opacity: 0 }
+			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 },
+			{ transform: 'translate3d(0, 0vh, 0)', opacity: 1 }
 		], {
-			duration: 350,
+			duration: 1350,
 			easing: easing,
+			iterations: 1,
 			fill: 'forwards'
 		});
 
@@ -160,23 +158,26 @@ class COl2 extends HTMLElement {
 
 	animate_in() {
 		const keyframes = [
+			{ transform: 'translate3d(0, 50vh, 0)', opacity: 0 },
 			{ transform: 'translate3d(0, 0, 0)', opacity: 1 }
 		];
 		const options = {
-			duration: 260,
-			easing: 'cubic-bezier(0.04, 0.59, 0.4, 0.97)',
+			duration: 560,
+			easing: 'cubic-bezier(0, 0, 0.2, 1)',
 			fill: 'forwards' as FillMode
 		};
 		const animation = this.content_el.animate(keyframes, options);
 
 		animation.onfinish = () => {
+			/*
 			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
 			spacerel.style.display = "block";
 			this.wrap_el.scrollIntoView();
 			this.setAttribute("opened", "true");
+			*/
 		};
 		
-		this.animate_aux(performance.now(), 400, false);
+		//this.animate_aux(performance.now(), 400, false);
 
 	}
 
