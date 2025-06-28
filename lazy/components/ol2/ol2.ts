@@ -180,6 +180,39 @@ class COl2 extends HTMLElement {
 
 	animate_content(start_time: number, duration: number, is_out: bool = false) {
 
+		const now = performance.now();
+		const elapsed = now - start_time;
+		const progress = Math.min(elapsed / duration, 1);
+
+		// Extreme easing function that starts fast and comes to a very gradual stop
+		// Using a custom cubic bezier-like curve for butter-smooth ending
+		let eased_progress: number;
+		if (is_out) {
+			// For out animation, reverse the easing
+			eased_progress = 1 - progress;
+			eased_progress = 1 - (eased_progress * eased_progress * eased_progress * eased_progress * eased_progress);
+		} else {
+			// For in animation, extreme ease-out
+			// This creates a very fast start that gradually slows to almost nothing
+			eased_progress = 1 - Math.pow(1 - progress, 5);
+		}
+
+		// Apply transform based on eased progress
+		const translate_y = is_out ? 
+			eased_progress * 100 : // Move down when closing
+			(1 - eased_progress) * 100; // Move up from bottom when opening
+
+		const opacity = is_out ? 
+			1 - eased_progress : // Fade out when closing
+			eased_progress; // Fade in when opening
+
+		this.content_el.style.transform = `translate3d(0, ${translate_y}vh, 0)`;
+		this.content_el.style.opacity = `${opacity}`;
+
+		// Continue animation if not complete
+		if (progress < 1) {
+			requestAnimationFrame(() => this.animate_content(start_time, duration, is_out));
+		}
 	}
 
 
