@@ -200,7 +200,7 @@ class COl2 extends HTMLElement {
 		// Convert alpha to grayscale hex value (0 = black, 1 = white)
 		const flipped_alpha = 1 - alpha; // Invert the alpha value for grayscale
 		const gray_value = Math.round(flipped_alpha * 255);
-		const hex_of_gray_value = // convert gray_value into a hex 6 character hex color string AI!
+		const hex_of_gray_value = gray_value.toString(16).padStart(2, '0').repeat(3);
 
 		console.log(hex_of_gray_value)
 		document.body.style.backgroundColor = `#${hex_of_gray_value}`;
