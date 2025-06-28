@@ -8,6 +8,7 @@
 	overflow-y: scroll;
 	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
+	scroll-behavior:  smooth;
 	z-index: 1000;
 }
 
@@ -17,18 +18,9 @@
 
 
 .spacer {
-	height: 20vh;
+	display: none;
+	height: 101vh;
 	scroll-snap-align: start;
-	background-color:  blue;
-}
-.forkicks {
-	height: 20vh;
-	scroll-snap-align: start;
-	background-color:  purple;
-}
-
-.forkicks:nth-child(even) {
-	background-color: red;
 }
 
 .spacer.active {
@@ -38,70 +30,53 @@
 
 .wrapper {
 	position: relative;
-	height: 20vh;
+	height: 101vh;
 	overflow-y: hidden;
 	scroll-snap-align: start;
-	background-color:  green;
-
-
-
 	overflow-y: hidden;
 }
 
-.background {
-	position: absolute;
-	opacity: 0;
-	top: 0;
-	left: 0;
-	width: 100vw;
-	height: 100vh;
-	background-color: rgb(0, 0, 0);
-	z-index: 1000;
-}
 .content {
 	position: absolute;
+	display: none;
 	top: 17px;
 	left: 0;
 	background-color: white;
 	padding: 30px;
 	box-sizing: border-box;
-	border-radius: 16px 16px 0 0;
+	border-radius: 12px 12px 0 0;
 	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
 	z-index: 1001;
-	display:block;
-	opacity:1;
-	transform: translate3d(0, 0px, 0);
-	transition-property:  opacity, display, transform;
-	transition-duration:  900ms;
-	transition-timing-function:  cubic-bezier(0, 1, 0, 1);
-	
+	opacity:0;
 
-	@starting-style {
-		opacity: 1;
-		transform: translate3d(0, 100vh, 0);
-	}
 }
 .content.shape-fill {
 	width: 100vw;
 	height: calc(100vh - 17px);
-	margin: 0 auto;
+	transform: translate3d(0, 100vh, 0);
 }
 .content.shape-float {
 	height: calc(100vh - 72vh);
 	width: calc(100vw - 64px);
 	margin: 0 auto;
-}
-.content.shape-fill.transition-in {
-	opacity: 1;
-	display: none;
 	transform: translate3d(0, 100vh, 0);
 }
+.content.transition-in {
+	display: block;
+	opacity: 1;
+	transform: translate3d(0, 0vh, 0);
 
-.content.shape-float.transition-in {
-	opacity: 0;
-	display: none;
-	transform: translate3d(0, 40px, 0);
+	transition-property: transform, opacity, display;
+	transition-duration:  260ms;
+	transition-timing-function:  cubic-bezier(0.04, 0.59, 0.4, 0.97);
+
+	@starting-style {
+		display: block;
+		opacity: 0;
+		transform: translate3d(0, 100vh, 0);
+	}
 }
+
 .content.shape-fill.transition-out {
 	opacity: 0;
 	transform: translate3d(0, 40px, 0);

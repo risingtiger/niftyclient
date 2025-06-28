@@ -77,7 +77,6 @@ class COl2 extends HTMLElement {
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
 		this.background_el = this.shadow.querySelector(".background") as HTMLElement;
 
-		this.content_el.classList.add("transition-in");
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -94,22 +93,20 @@ class COl2 extends HTMLElement {
 
 			this.addEventListener("click", (_e: MouseEvent) => {   this.close();   }, false);
 			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
-			this.addEventListener("scroll", this.scrolled.bind(this))
+			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 			this.content_el.addEventListener("transitionend", this.transition_finished.bind(this))
 
 			setTimeout(() => {
-
-				//this.wrap_el.scrollIntoView({ behavior: 'auto' })
 				setTimeout(()=> { 
-					const wrapper_sibling = document.querySelector(".view")?.shadow.querySelector(".wrapper") as HTMLElement;
-					wrapper_sibling.classList.add("anime_lower")
-					this.content_el.classList.remove("transition-in");
-					this.animate_aux(performance.now(), 400, false);
-					this.animate_content(performance.now(), 800, false);
+					this.content_el.classList.add("transition-in");
+
+					const wrapper_sibling = ( document.querySelector(".view") as any).shadow.querySelector(".wrapper") as HTMLElement;
+					//wrapper_sibling.classList.add("anime_lower")
+					//this.animate_aux(performance.now(), 400, false);
 					this.sc()
-				}, 100);
-			}, 200);
+				}, 40);
+			}, 40);
 
 		}
 
@@ -142,11 +139,11 @@ class COl2 extends HTMLElement {
 			this.closed()
 		}
 		else {
-			// const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
-			// spacerel.style.display = "block";
-			// this.wrap_el.scrollIntoView()
-			//
-			// this.setAttribute("opened", "true")
+			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
+			spacerel.style.display = "block";
+			this.wrap_el.scrollIntoView()
+
+			this.setAttribute("opened", "true")
 		}
 	}
 
@@ -170,52 +167,8 @@ class COl2 extends HTMLElement {
 
 
 
-	scrolled(e: Event) {
-
+	scrolled(_e: Event) {
 		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
-	}
-
-
-
-
-	animate_content(start_time: number, duration: number, is_out: bool = false) {
-
-		const now = performance.now();
-		const elapsed = now - start_time;
-		const progress = Math.min(elapsed / duration, 1);
-
-		// Extreme easing function that starts fast and comes to a very gradual stop
-		// Using a custom cubic bezier-like curve for butter-smooth ending
-		let eased_progress: number;
-		if (is_out) {
-			// For out animation, reverse the easing
-			eased_progress = 1 - progress;
-			eased_progress = 1 - (eased_progress * eased_progress * eased_progress * eased_progress * eased_progress);
-		} else {
-			// For in animation, extreme ease-out
-			// This creates a very fast start that gradually slows to almost nothing
-			eased_progress = 1 - Math.pow(1 - progress, 5);
-		}
-
-		// Apply transform based on eased progress
-		const translate_y = is_out ? 
-			eased_progress * window.innerHeight : // Move down when closing
-			(1 - eased_progress) * window.innerHeight; // Move up from bottom when opening
-
-		const opacity = is_out ? 
-			1 - eased_progress : // Fade out when closing
-			eased_progress; // Fade in when opening
-
-		this.content_el.style.transform = `translate3d(0, ${translate_y}px, 0)`;
-		this.content_el.style.opacity = `${opacity}`;
-
-		// Continue animation if not complete
-		if (progress < 1) {
-			requestAnimationFrame(() => this.animate_content(start_time, duration, is_out));
-		}
-
-		const x = performance.now()
-		console.log(translate_y)
 	}
 
 
@@ -229,17 +182,13 @@ class COl2 extends HTMLElement {
 
 		const factor = is_out ? (1 - progress) : progress;
 
-		const viewwrapperel = document.querySelector("div.wrapper")
-
 		const background_max = .8
 		const a = factor * background_max;
 		
-		// this.background_el.style.opacity = `${a}`;
-		this.background_el.style.opacity = '0';
-
 		const theme_color = 255 - Math.round( 255 * a )
-		document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", `rgb(${theme_color},${theme_color},${theme_color})`);
-		document.body.style.backgroundColor = `rgb(${theme_color},${theme_color},${theme_color})`;
+		const theme_color_str = `rgb(${theme_color},${theme_color},${theme_color})`;
+		document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", theme_color_str);
+		document.body.style.backgroundColor = theme_color_str;
 
 		if (progress < 1) {
 			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
@@ -260,7 +209,6 @@ customElements.define('c-ol2', COl2);
 
 
 function determine_shape_and_size(_shapeA: str, floatsizeA:str, screen_size_category: BrowserScreenSizeCategoryE): { shape: ShapeE, floatsize: FloatShapeSizeE } {
-
 	if (screen_size_category === BrowserScreenSizeCategoryE.SMALL) {
 		return { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.NA }
 	}
@@ -286,7 +234,6 @@ function determine_shape_and_size(_shapeA: str, floatsizeA:str, screen_size_cate
 
 
 function determine_screen_size_category(): BrowserScreenSizeCategoryE {
-
 	const screen_width = window.innerWidth
 	if (screen_width < 768) {
 		return BrowserScreenSizeCategoryE.SMALL
