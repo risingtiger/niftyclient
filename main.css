@@ -40,12 +40,36 @@ a:hover {
 div.content {
     position: relative;
     display: block;
-    width: 100%;
-    height: calc(100% - 34px);
+    width: 100vw;
+	box-sizing:  border-box;
+	padding-top: 20px;
     overflow-x: hidden;
+	background-color: white;
+	/*
     overflow-y: scroll;
+*/
     z-index: 9;
-    background: white;
+}
+
+div.wrapper {
+    position: relative;
+    display: block;
+    width: 100vw;
+	box-sizing:  border-box;
+	padding-top: 20px;
+    overflow-x: hidden;
+	background-color: white;
+	/*
+    overflow-y: scroll;
+*/
+    z-index: 9;
+}
+div.wrapper.anime_lower {
+	transform: translate3d(0, 5px, 0) scale(0.96);
+	opacity: 0.5;
+	transition-property: transform, opacity;
+	transition-duration: 0.3s;
+	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
 }
 
 a:hover {
@@ -55,15 +79,16 @@ a:hover {
 
 header.viewheader {
     display: flex;
-    position: relative;
-    width: 100%;
+    position: fixed;
+    width: 100vw;
     height: 134px;
     z-index: 10;
     padding: 8px 0px 0 0;
     height: 34px;
     box-sizing: border-box;
-    background: white;
     justify-content: flex-start;
+    overflow-x: hidden;
+	background-color:  white;
 
     & .left {
         display: block;
@@ -135,6 +160,9 @@ header.viewheader {
 			background: var(--background-highlight);
 		}
     }
+}
+header.viewheader.ol_animate {
+
 }
 
 ul.items {
