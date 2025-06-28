@@ -89,8 +89,6 @@ class COl2 extends HTMLElement {
 
 		function continue_to_open() {
 
-			this.sc()
-
 			this.addEventListener("click", (_e: MouseEvent) => {   this.close();   }, false);
 			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 			//this.addEventListener("scroll", this.scrolled.bind(this))
