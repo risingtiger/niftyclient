@@ -102,9 +102,8 @@ class COl2 extends HTMLElement {
 
 				//this.wrap_el.scrollIntoView({ behavior: 'smooth' })
 				setTimeout(()=> { 
-					// find the sibling element to this element that is class of wrapper AI!
+					const wrapper_sibling = this.parentElement?.querySelector('.wrapper') as HTMLElement;
 					this.content_el.classList.remove("transition-in");
-					this.
 					this.animate_aux(performance.now(), 400, false);
 					this.sc()
 				}, 100);
