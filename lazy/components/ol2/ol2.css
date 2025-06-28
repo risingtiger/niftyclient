@@ -27,6 +27,10 @@
 	background-color:  purple;
 }
 
+.forkicks:nth-child(even) {
+	background-color: red;
+}
+
 .spacer.active {
 	display: block;
 }
