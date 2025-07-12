@@ -412,8 +412,8 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str) => {
 
-	// refreshspecs is an array. change the next line to test to make sure all refreshes are event "datasync" type. Use modern JS syntax AI!
-	if (refreshspecs.event !== "datasync") {   return;   } // currently only support data sync refreshes
+	// currently only support data sync refreshes
+	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
 
 
 	const sse_listeners = []
