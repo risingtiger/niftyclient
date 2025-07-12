@@ -1,7 +1,7 @@
 
 
 import { num, str } from "../defs_server_symlink.js"
-import { $NT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
+import { $NT, LazyLoadRefreshT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
 import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
@@ -30,6 +30,7 @@ const AddView = (
 	pathparams: GenericRowT, 
 	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
+	refreshspecs:LazyLoadRefreshT[]|null = null,
 ) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
@@ -45,7 +46,7 @@ const AddView = (
 
 
 		promises.push( localdbsync_promise )
-		promises.push( _lazyload_data_funcs[componentname+"_other"](pathparams, new URLSearchParams, searchparams_raw) )
+		promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, new URLSearchParams, searchparams_raw) )
 
 		promises.push( new Promise<Map<str,GenericRowT[]>>(async (res, rej)=> {
 			let r:any = {}; let _:any = {}
@@ -69,7 +70,10 @@ const AddView = (
 
 		_loadeddata.set(componentname, loadeddata)
 	}
-	
+
+	if (refreshspecs && refreshspecs.length > 0) { 
+		handle_refresh_listeners(refreshspecs, componentname);
+	}
 	
 	_searchparams.set(componentname, searchparams_genericrowt)
 	_pathparams.set(componentname, pathparams)
@@ -266,7 +270,7 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	const promises:Promise<any>[] = []
 	let   promises_r:any[] = []
 
-	promises.push( _lazyload_data_funcs[componentname+"_other"](pathparams, oldsearchparams, newsearchparams) )
+	promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, oldsearchparams, newsearchparams) )
 	promises.push( _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, oldsearchparams, newsearchparams) )
 
 	try   { promises_r = await Promise.all(promises); }
@@ -377,37 +381,6 @@ const RemoveActiveView = () => {
 
 
 
-/*
-const GetViewParams = (component:HTMLElement) => { 
-
-	let viewname = ""
-	let tagname  = component.tagName.toLowerCase()
-
-	if (tagname.startsWith("v-")) {
-		viewname = tagname.split("-")[1]
-	
-	} else if (tagname.startsWith("vp-")) {
-
-		const rootnode                    = component.getRootNode()
-		const host                        = ( rootnode as any ).host as HTMLElement
-		const ancestor_view_tagname       = host.tagName.toLowerCase()
-		const ancestor_view_tagname_split = ancestor_view_tagname.split("-")
-		const ancestor_viewname           = ancestor_view_tagname_split[1]
-
-		viewname = ancestor_viewname
-
-	} else { 
-		throw new Error("Not a component sent to GetPathParams")
-	}
-
-	const path   = _pathparams.get(viewname)!
-	const search = _searchparams.get(viewname)!
-
-	return { path, search }
-}
-*/
-
-
 
 const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:GenericRowT[], list_of_deletes:GenericRowT[]) => { 
 
@@ -437,141 +410,55 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 
 
-/*
-const HandleFirestoreDataUpdated = async (updateddata:FirestoreFetchResultT) => {
+const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str) => {
 
-	if (updateddata === null) return // updateddata is always an array of objects, never null. This line here is to shut up typescript linting
-
-	const keys = [...updateddata.keys()]
-
-	console.log("DONE WEIRD . CHROME CRAPS LIKE A SF 'RESIDENT' ON THE STREET OF MY IMMACULATE CODE.")
-
-	const updateddata_path_dets = keys.map(p=> { const pd = pathdets(p); return pd; })
-
-	console.log("ALL FUCKED. updateddata CAN include something like 'machines/somejackedid' while user is viewing 'machines/unjackedid' and 'somejacked' will just jack right into 'unjacked'. ALL fucked and jacked")
-
-	for(const [viewname, viewloadeddata] of _viewloadeddata) {
-		if (!viewloadeddata || viewloadeddata.size === 0)    continue
-
-		let is_view_affected_flag = false
-		let viewloadspecs_affected_paths:FirestoreLoadSpecT = new Map()
-
-		viewloadeddata.forEach((viewloadeddata_list, loadeddata_path)=> {
-			const lnd = pathdets(loadeddata_path)
-
-			updateddata_path_dets.forEach(und=> {
-				
-				if (lnd.collection === und.collection && lnd.subcollection === und.subcollection) {
-					is_view_affected_flag = true
-					viewloadspecs_affected_paths.set(loadeddata_path, _viewloadspecs.get(viewname)!.get(loadeddata_path)!)
+	// refreshspecs is an array. change the next line to test to make sure all refreshes are event "datasync" type. Use modern JS syntax AI!
+	if (refreshspecs.event !== "datasync") {   return;   } // currently only support data sync refreshes
 
 
-					// all FirestoreFetchResultT objects are arrays of objects -- so always dealing with arrays even if just array of one object
-
-					const updateddata_list    = updateddata.get(und.path) as any[]
-
-					const index_map = new Map();
-					viewloadeddata_list.forEach((row:any, i:num) => index_map.set(row.id, i))
-
-					for(let i = 0; i < updateddata_list.length; i++) {
-						const rowindex = index_map.get(updateddata_list[i].id)
-						if (rowindex === undefined) 
-							viewloadeddata_list.push(updateddata_list[i])
-						else
-							viewloadeddata_list[rowindex] = updateddata_list[i]
-					}
-
-				}
-			})
-		})
+	const sse_listeners = []
 
 
-		if (is_view_affected_flag && viewloadspecs_affected_paths.size > 0) {
+	const searchparams_genericrowt:GenericRowT = {};
+	for (const [key, value] of searchparams_raw.entries()) { 
+		searchparams_genericrowt[key] = decodeURIComponent(value); 
+	}
 
-			const viewel = document.querySelector(`v-${viewname}`) as HTMLElement & CMechT
+	{
+		const promises:Promise<any>[] = []
+		let   promises_r:any[] = []
+		
+		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
 
-			set_component_m_data(true, viewel, "", viewloadspecs_affected_paths, viewloadeddata)
 
-			if (viewel.mdlchngd) await viewel.mdlchngd( [...viewloadspecs_affected_paths.keys()] )
-			if (viewel.kd) viewel.kd()
-			viewel.sc();
+		promises.push( localdbsync_promise )
+		promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, new URLSearchParams, searchparams_raw) )
 
-			for(const subel of ( viewel.subelshldr as ( HTMLElement & CMechT )[] )) {
-				set_component_m_data(false, subel, subel.tagName.toLowerCase(), viewloadspecs_affected_paths, viewloadeddata)
-				if (subel.mdlchngd) await subel.mdlchngd( [...viewloadspecs_affected_paths.keys()] )
-				if (subel.kd) subel.kd()
-				subel.sc()
+		promises.push( new Promise<Map<str,GenericRowT[]>>(async (res, rej)=> {
+			let r:any = {}; let _:any = {}
+
+			try   { 
+				_ = await localdbsync_promise; 
+				r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
 			}
-		}
+			catch { rej(); return; }
+			
+			res(r);
+		}));
+
+		try   { promises_r = await Promise.all(promises); }
+		catch { rej(); return; }
 
 
+		const loadeddata = new Map<str, GenericRowT[]>();
+		for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
+		for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
 
-	}
-
-
-	function pathdets(p:str) {
-		const sp = p.split('/')
-		const collection = sp[0]
-		const subcollection = sp[2] || null
-		const doc = sp[1] || null
-		const subdoc = sp[3] || null
-		const isdoc = doc || subdoc ? true : false
-		return { path:p, collection, subcollection, doc, subdoc, isdoc }
+		_loadeddata.set(componentname, loadeddata)
 	}
 }
-*/
 
 
-
-
-
-
-
-
-/*
-const handle_view_initial_data_load = (viewname:str, loadother:()=>{}|null) => new Promise<null|num>(async (res, _rej)=> {
-
-	const loadspecs = _viewloadspecs.get(viewname)!
-
-	const promises:any[] = []
-
-	promises.push(loadspecs.size ? FirestoreDataGrab(loadspecs) : 0) 
-	promises.push(loadother ? loadother() : 0)
-
-	const r = await Promise.all(promises)
-
-	if (r[0] === null || r[1] === null) { res(null); return; }
-
-	if (r[0] !== 0) {
-		FirestoreAddToListens(loadspecs)
-		_viewloadeddata.set(viewname, r[0])
-	}
-
-	res(1)
-})
-*/
-
-
-
-
-/*
-function set_component_m_data(is_view:bool, component:HTMLElement & CMechT, componenttagname:str, loadspecs:FirestoreLoadSpecT, loaddata:FirestoreFetchResultT) {
-
-	if (!loaddata || !loaddata.size || !loadspecs.size) return
-
-	const filtered_loadspecs:FirestoreLoadSpecT = new Map()
-
-	loadspecs.forEach((ls, path)=> {
-		if (is_view && ( !ls.els || ls.els.includes('this') ))           filtered_loadspecs.set(path,ls)
-		if (!is_view && ( ls.els && ls.els.includes(componenttagname) )) filtered_loadspecs.set(path,ls) 
-	}); 
-
-	filtered_loadspecs.forEach((ls, path)=> {
-		const d              = loaddata.get(path)!
-		component.m[ls.name] = Array.isArray(component.m[ls.name]) ? d : d[0]
-	});
-}
-*/
 
 
 
