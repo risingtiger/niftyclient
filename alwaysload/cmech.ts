@@ -419,6 +419,20 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 	const sse_listeners:Set<string> = new Set();
 
 	for (const spec of refreshspecs) {
+		for (const what_item of spec.what) {
+			// Check if it's a document reference (contains '/')
+			if (what_item.includes('/')) {
+				// Document reference: listen for collection and patch events
+				sse_listeners.add('firestore_collection');
+				sse_listeners.add('firestore_doc_patch');
+			} else {
+				// Collection reference: listen for all events
+				sse_listeners.add('firestore_doc_add');
+				sse_listeners.add('firestore_doc_delete');
+				sse_listeners.add('firestore_doc_patch');
+				sse_listeners.add('firestore_collection');
+			}
+		}
 	}
 
 
