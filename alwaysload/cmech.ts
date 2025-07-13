@@ -415,12 +415,10 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 	// currently only support data sync refreshes
 	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
 
-
-	const sse_listeners:Set<string> = new Set();
-
+	// Expand path parameters in refreshspecs
 	for (const spec of refreshspecs) {
+		const expanded_what: str[] = [];
 		for (const what_item of spec.what) {
-			
 			// Expand path parameters (e.g., 'machines/:id' -> 'machines/1234')
 			let expanded_path = what_item;
 			if (what_item.includes(':')) {
@@ -434,11 +432,18 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 				});
 				expanded_path = expanded_segments.join('/');
 			}
-			
+			expanded_what.push(expanded_path);
+		}
+		spec.what = expanded_what; // Replace with expanded paths
+	}
+
+	const sse_listeners:Set<string> = new Set();
+
+	for (const spec of refreshspecs) {
+		for (const expanded_path of spec.what) {
 			if (expanded_path.includes('/')) { // Check if it's a document reference (contains '/')
 				sse_listeners.add('firestore_collection');
 				sse_listeners.add('firestore_doc_patch');
-
 			} else {
 				// Collection reference: listen for all events
 				sse_listeners.add('firestore_doc_add');
@@ -447,6 +452,40 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 				sse_listeners.add('firestore_collection');
 			}
 		}
+	}
+
+	// Create SSE event handler
+	const handle_sse_event = (event_data: {path:str}) => {
+		const funcs_to_call: Set<string> = new Set();
+		
+		// Loop through refreshspecs (now with expanded paths)
+		for (const spec of refreshspecs) {
+			for (const expanded_path of spec.what) {
+				if (event_data.path === expanded_path) {
+					funcs_to_call.add(spec.func);
+					break; // Found match, no need to check other paths in this spec
+				}
+			}
+		}
+		
+		// Call each function only once
+		for (const func_name of funcs_to_call) {
+			if (_lazyload_data_funcs[componentname + "_" + func_name]) {
+				_lazyload_data_funcs[componentname + "_" + func_name]();
+			}
+		}
+	};
+
+	// Register SSE listeners
+	const sse_events_array = Array.from(sse_listeners);
+	if (sse_events_array.length > 0) {
+		$N.SSEvents.Add_Listener(
+			document.body, 
+			componentname + "_refresh", 
+			sse_events_array,
+			100,
+			handle_sse_event
+		);
 	}
 
 
