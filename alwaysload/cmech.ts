@@ -72,7 +72,7 @@ const AddView = (
 	}
 
 	if (refreshspecs && refreshspecs.length > 0) { 
-		handle_refresh_listeners(refreshspecs, componentname, pathparams);
+		handle_refresh_listeners(refreshspecs, componentname, pathparams, _lazyload_data_funcs);
 	}
 	
 	_searchparams.set(componentname, searchparams_genericrowt)
@@ -410,7 +410,7 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 
 
-const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str, pathparams:GenericRowT) => {
+const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str, pathparams:GenericRowT, lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) => {
 
 	// currently only support data sync refreshes
 	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
@@ -467,8 +467,8 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 		}
 		
 		for (const func_name of funcs_to_call) {
-			if (_lazyload_data_funcs[componentname + "_" + func_name]) {
-				_lazyload_data_funcs[componentname + "_" + func_name]();
+			if (lazyload_data_funcs[componentname + "_" + func_name]) {
+				lazyload_data_funcs[componentname + "_" + func_name]();
 			}
 		}
 	};
