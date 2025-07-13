@@ -454,21 +454,18 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 		}
 	}
 
-	// Create SSE event handler
-	const handle_sse_event = (event_data: {path:str}) => {
+	const sse_event = (event_data: {path:str}) => {
 		const funcs_to_call: Set<string> = new Set();
 		
-		// Loop through refreshspecs (now with expanded paths)
 		for (const spec of refreshspecs) {
 			for (const expanded_path of spec.what) {
 				if (event_data.path === expanded_path) {
 					funcs_to_call.add(spec.func);
-					break; // Found match, no need to check other paths in this spec
+					break; 
 				}
 			}
 		}
 		
-		// Call each function only once
 		for (const func_name of funcs_to_call) {
 			if (_lazyload_data_funcs[componentname + "_" + func_name]) {
 				_lazyload_data_funcs[componentname + "_" + func_name]();
@@ -476,58 +473,14 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 		}
 	};
 
-	// Register SSE listeners
 	const sse_events_array = Array.from(sse_listeners);
-	if (sse_events_array.length > 0) {
-		$N.SSEvents.Add_Listener(
-			document.body, 
-			componentname + "_refresh", 
-			sse_events_array,
-			100,
-			handle_sse_event
-		);
-	}
-
-
-	/*
-	const searchparams_genericrowt:GenericRowT = {};
-	for (const [key, value] of searchparams_raw.entries()) { 
-		searchparams_genericrowt[key] = decodeURIComponent(value); 
-	}
-
-	{
-		const promises:Promise<any>[] = []
-		let   promises_r:any[] = []
-		
-		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
-
-
-		promises.push( localdbsync_promise )
-		promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, new URLSearchParams, searchparams_raw) )
-
-		promises.push( new Promise<Map<str,GenericRowT[]>>(async (res, rej)=> {
-			let r:any = {}; let _:any = {}
-
-			try   { 
-				_ = await localdbsync_promise; 
-				r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
-			}
-			catch { rej(); return; }
-			
-			res(r);
-		}));
-
-		try   { promises_r = await Promise.all(promises); }
-		catch { rej(); return; }
-
-
-		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
-		for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
-
-		_loadeddata.set(componentname, loadeddata)
-	}
-	*/
+	$N.SSEvents.Add_Listener(
+		document.body.querySelector("v-" + componentname) as HTMLElement,
+		"v_" + componentname + "_refresh", 
+		sse_events_array,
+		null,
+		sse_event
+	);
 }
 
 
