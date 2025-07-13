@@ -416,9 +416,13 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
 
 
-	const sse_listeners = []
+	const sse_listeners:Set<string> = new Set();
+
+	for (const spec of refreshspecs) {
+	}
 
 
+	/*
 	const searchparams_genericrowt:GenericRowT = {};
 	for (const [key, value] of searchparams_raw.entries()) { 
 		searchparams_genericrowt[key] = decodeURIComponent(value); 
@@ -456,6 +460,7 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 
 		_loadeddata.set(componentname, loadeddata)
 	}
+	*/
 }
 
 
