@@ -72,7 +72,7 @@ const AddView = (
 	}
 
 	if (refreshspecs && refreshspecs.length > 0) { 
-		handle_refresh_listeners(refreshspecs, componentname);
+		handle_refresh_listeners(refreshspecs, componentname, pathparams);
 	}
 	
 	_searchparams.set(componentname, searchparams_genericrowt)
@@ -410,7 +410,7 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 
 
-const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str) => {
+const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str, pathparams:GenericRowT) => {
 
 	// currently only support data sync refreshes
 	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
@@ -421,7 +421,21 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 	for (const spec of refreshspecs) {
 		for (const what_item of spec.what) {
 			
-			if (what_item.includes('/')) { // Check if it's a document reference (contains '/')
+			// Expand path parameters (e.g., 'machines/:id' -> 'machines/1234')
+			let expanded_path = what_item;
+			if (what_item.includes(':')) {
+				const segments = what_item.split('/');
+				const expanded_segments = segments.map(segment => {
+					if (segment.startsWith(':')) {
+						const param_name = segment.slice(1); // Remove the ':'
+						return pathparams[param_name] || segment; // Use actual value or keep original if not found
+					}
+					return segment;
+				});
+				expanded_path = expanded_segments.join('/');
+			}
+			
+			if (expanded_path.includes('/')) { // Check if it's a document reference (contains '/')
 				sse_listeners.add('firestore_collection');
 				sse_listeners.add('firestore_doc_patch');
 
