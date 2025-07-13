@@ -420,11 +420,11 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 
 	for (const spec of refreshspecs) {
 		for (const what_item of spec.what) {
-			// Check if it's a document reference (contains '/')
-			if (what_item.includes('/')) {
-				// Document reference: listen for collection and patch events
+			
+			if (what_item.includes('/')) { // Check if it's a document reference (contains '/')
 				sse_listeners.add('firestore_collection');
 				sse_listeners.add('firestore_doc_patch');
+
 			} else {
 				// Collection reference: listen for all events
 				sse_listeners.add('firestore_doc_add');
