@@ -141,48 +141,46 @@ class COl2 extends HTMLElement {
 		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
 
 		const animation = this.content_el.animate([
-			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 },
-			{ transform: 'translate3d(0, 0vh, 0)', opacity: 1 }
+			{ transform: 'translate3d(0, 0vh, 0)', opacity: 1 },
+			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 }
 		], {
-			duration: 1350,
+			duration: 350,
 			easing: easing,
-			iterations: 1,
 			fill: 'forwards'
 		});
 
 		animation.onfinish = () => this.closed()
 
 		this.wrap_el.classList.remove("active");
-		this.animate_aux(performance.now(), 200, true);
+		//this.animate_aux(performance.now(), 200, true);
 	}
 
 	animate_in() {
 		const keyframes = [
+
 			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0,    offset: 0 },
-			{ transform: 'translate3d(0, 1vh, 0)',   opacity: 1,    offset: 0.75 },
+			{ transform: 'translate3d(0, 8vh, 0)',   opacity: 1,    offset: 0.65 },
 			{ transform: 'translate3d(0, 0, 0)',     opacity: 1,    offset: 1 }
 		];
 		const options = {
 			duration: 560,
-			easing: 'cubic-bezier(0.23, 1, 0.32, 1)', // easeOutQuint
+			easing: 'cubic-bezier(0, 0.850, 0.250, 1)', 
 			fill: 'forwards' as FillMode
 		};
 		const animation = this.content_el.animate(keyframes, options);
 
 		animation.onfinish = () => {
-			/*
 			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
 			spacerel.style.display = "block";
 			this.wrap_el.scrollIntoView();
 			this.setAttribute("opened", "true");
-			*/
 		};
 		
 		//this.animate_aux(performance.now(), 400, false);
-
 	}
 
 
+	/*
 	animate_aux(start_time: number, duration: number, is_out: bool = false) {
 
 		const now = performance.now();
@@ -203,6 +201,7 @@ class COl2 extends HTMLElement {
 			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
 		}
 	}
+	*/
 
 
 

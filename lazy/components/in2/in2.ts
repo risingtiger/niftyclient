@@ -19,12 +19,14 @@ type AttributesT = {
 type StateT = {
     issaving: bool,
     val: str,
+	saved_val: str,
 	newval: str,
 	options: str,
     err_msg: str,
 	min: str,
 	max: str,
 	updatemoment: number,
+	saveability: bool
 }
 
 type ModelT = {
@@ -58,7 +60,7 @@ const ATTRIBUTES:AttributesT = { val: "" }
 class CIn2 extends Lit_Element {
 
 	a:AttributesT = { ...ATTRIBUTES };
-    s:StateT = { val: "", newval: "", issaving: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0 }
+    s:StateT = { val: "", saved_val:"", newval: "", issaving: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0, saveability: true }
     m:ModelT = { name: "", type: TypeT.TOGGLE, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
 	controlel:HTMLElement = document.body
     
@@ -83,15 +85,18 @@ class CIn2 extends Lit_Element {
 
         const attr_typestr = this.getAttribute("type") || "text"
 
-        this.s.val   = this.getAttribute("val") || ""
         this.m.label = this.getAttribute("label") || ""
         this.m.labelwidth = parseInt(this.getAttribute("labelwidth") || "125")
         this.m.name = this.getAttribute("name") || ""
+		this.m.placeholder = this.getAttribute("placeholder") || ""
+        this.s.val   = this.getAttribute("val") || ""
 		this.s.options = this.getAttribute("options") || ""
 		this.s.min = this.getAttribute("min") || ""
 		this.s.max = this.getAttribute("max") || ""
+		this.s.saveability = this.hasAttribute("nosave") ? false : true
 
 		this.a.val = this.s.val
+		this.s.saved_val = this.s.val
 
 
         if (attr_typestr === "toggle") {
@@ -155,12 +160,14 @@ class CIn2 extends Lit_Element {
 		if (diff > 1000) {
 			this.setAttribute("val", newval || this.s.newval);
 			this.s.issaving = false;
+			this.saved_val = this.s.newval;
 			this.sc()
 
 		} else {
 			setTimeout(() => { 
 				this.setAttribute("val", newval || this.s.newval);
 				this.s.issaving = false;
+				this.s.saved_val = this.s.newval;
 				this.sc()
 
 			}, 1000);
@@ -191,6 +198,7 @@ class CIn2 extends Lit_Element {
 
 
     inputchanged() {
+		this.setAttribute("val", (this.controlel as HTMLInputElement).value || "");
 		this.dispatchEvent(new CustomEvent("input", {detail: { 
 			name:this.m.name, 
 			newval:this.s.newval, 
@@ -212,7 +220,7 @@ class CIn2 extends Lit_Element {
     blurred() {
 		const val = ( this.controlel as HTMLInputElement ).value || "";
 
-		if (val !== this.s.val) {
+		if (this.s.saveability && val !== this.s.val && !this.s.issaving) {
 			confirm("Do you want to save changes?") ? this.runupdate() : console.log('nope');
 		}
 	}
@@ -223,8 +231,10 @@ class CIn2 extends Lit_Element {
     keyupped(e:KeyboardEvent) {
 		if (e.key === "Enter") {
 			e.preventDefault();
-			this.runupdate()
-			this.sc()
+			if (this.s.saveability) {
+				this.runupdate()
+				this.sc()
+			}
 		}
 	}
 
@@ -322,7 +332,7 @@ class CIn2 extends Lit_Element {
 			this.s.newval   = dselectel.getAttribute("val")!
 		}
 
-		if (this.s.newval === this.s.val) {      
+		if (this.s.newval === this.s.saved_val) {      
 			this.s.newval = ""
 			return
 		}

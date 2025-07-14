@@ -8,7 +8,6 @@
 	overflow-y: scroll;
 	scroll-snap-type: y mandatory;
 	scrollbar-width: none;
-	scroll-behavior:  smooth;
 	z-index: 1000;
 }
 
@@ -31,16 +30,15 @@
 .wrapper {
 	position: relative;
 	height: 101vh;
-	overflow-y: hidden;
 	scroll-snap-align: start;
 	overflow-y: hidden;
+	padding-top: 38px;
+	box-sizing: border-box;
 }
 
 .content {
-	position: absolute;
+	position: relative;
 	display: block;
-	top: 17px;
-	left: 0;
 	background-color: white;
 	padding: 30px;
 	box-sizing: border-box;
@@ -48,17 +46,17 @@
 	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
 	z-index: 1001;
 	opacity:0;
+	overflow-y:scroll;
 }
+
 .content.shape-fill {
 	width: 100vw;
 	height: calc(100vh - 17px);
-	transform: translate3d(0, 100vh, 0);
 }
 .content.shape-float {
-	height: calc(100vh - 72vh);
+	height: calc(100vh - 6vh);
 	width: calc(100vw - 64px);
 	margin: 0 auto;
-	transform: translate3d(0, 100vh, 0);
 }
 
 

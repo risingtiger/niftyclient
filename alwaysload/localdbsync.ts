@@ -90,7 +90,8 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	}
 
 
-	setup_local_db_interval_periodic()
+	// TODO: I have this disabled cause its disrupting of the UX. Would like to put it back in for Xenition but not for PWT
+	//setup_local_db_interval_periodic()
 
 
 	$N.EngagementListen.Add_Listener(document.body, 'firestore', 'visible', 100, async ()=> {
@@ -98,17 +99,17 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", [1], 100, (event:{path:string,data:object})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", ["datasync_doc_add"], 100, (event:{path:string,data:object})=> {
 		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", [2], 100, (event:{path:string,data:object, ispartial?:bool})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", ["datasync_doc_patch"], 100, (event:{path:string,data:object, ispartial?:bool})=> {
 		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", [3], 100, async (event:{path:string,ts:number})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", ["datasync_doc_delete"], 100, async (event:{path:string,ts:number})=> {
 
 		const pathspec = parse_into_pathspec(event.path)
 
@@ -125,7 +126,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		try   { wholedata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
 		catch { return; }
 
-		wholedata.ts = event.ts
+		wholedata.ts        = event.ts
 		wholedata.isdeleted = true
 
 		try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
@@ -140,7 +141,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", [4], 100, async (event:{paths:str[]})=> {
+	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", ["datasync_collection"], 100, async (event:{paths:str[]})=> {
 
 		// event.paths is only going to be collections, never a singe document. Single doc goes through FIRESTORE_DOC (3)
 
@@ -344,7 +345,10 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 				if (newdata[key].__path) {
 					firestore_ready_data[key] = newdata[key];
 				}
-				else {
+				else if (Array.isArray(newdata[key])) {
+					firestore_ready_data[key] = newdata[key];
+
+				} else {
 					for (const subkey in newdata[key]) {
 						firestore_ready_data[`${key}.${subkey}`] = newdata[key][subkey]
 					}
@@ -519,7 +523,7 @@ const RunSyncPending__not_doing_pending_operations_yet = async () => new Promise
 
 
 
-const RunWipeLocal = async () => {
+const run_wipe_local = async () => {
 
 	try {
 		// Close any existing database connections
@@ -602,7 +606,7 @@ const setup_local_db_interval_periodic = () => {
 		// Run the tasks at their respective intervals
 		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); /*RunSyncPending();*/ }
 		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS)		{ localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunCheckLatest(); }
-		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS)			{ localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunWipeLocal(); }
+		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS)			{ localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); run_wipe_local(); }
 	}
 	
 	// Check immediately on init (which is every page load)
@@ -817,7 +821,7 @@ const update_record_with_new_data = (record: GenericRowT, newdata: any): void =>
 
 
 const record_failed = () => {
-	RunWipeLocal()
+	run_wipe_local()
 }
 
 
@@ -864,7 +868,7 @@ async function redirect_from_error(errmsg:str) {
 
 
 
-export { Init, RunCheckLatest, RunWipeLocal, EnsureObjectStoresActive } 
+export { Init, RunCheckLatest, run_wipe_local as RunWipeLocal, EnsureObjectStoresActive } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
 

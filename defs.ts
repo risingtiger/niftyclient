@@ -5,14 +5,19 @@ import { bool, num, str } from './defs_server_symlink.js'
 
 export type GenericRowT = { [key:string]: any }
 
+export type LazyLoadRefreshT = {
+	event:"datasync"|"placeholder", what:str[], func:str 
+}
 export type LazyLoadT = {
     type: "view" | "component" | "thirdparty" | "lib",
     urlmatch?: string,
+	urlsubmatches?: string[],
     name: string,
     is_instance: bool,
     dependencies: { type: string, name: string, is_instance?: bool|null }[],
     auth: string[],
 	localdb_preload?: str[]
+	refresh?: LazyLoadRefreshT[],
 }
 
 
@@ -59,8 +64,8 @@ export type CMechViewT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	subelshldr:HTMLElement[]
-	opts: {kdonvisibled:boolean, kdonlateloaded:boolean}
+	subelshldr?:HTMLElement[]
+	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
 	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
@@ -69,7 +74,7 @@ export type CMechViewT = {
 export type CMechViewPartT = {
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	hostview:CMechViewT,
+	hostview?:CMechViewT,
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
@@ -91,7 +96,7 @@ export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 export type $NT = {
 	SSEvents: {
-		Add_Listener: (el:HTMLElement, listener_name:string, eventname:number[], priority:number|null, callback_func:any) => void
+		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], priority:number|null, callback_func:any) => void
 		Remove_Listener: (el:HTMLElement, name:string)=>void
 		HandleMessage: (data:any)=>void
 	},
@@ -146,8 +151,8 @@ export type $NT = {
 
 	IDB: {
 		GetDB:   () => Promise<IDBDatabase>,
-		GetOne:  (objectstore_name:str, id:str) => Promise<GenericRowT>,
-		GetAll:  (objectstore_names:str[]) => Promise<Map<str,GenericRowT[]>>,
+		GetOne:  (objectstore_name:str, id:str, localdb_preload?:str[]) => Promise<GenericRowT>,
+		GetAll:  (objectstore_names:str[], localdb_preload?:str[]) => Promise<Map<str,GenericRowT[]>>,
 		ClearAll:(objectstore_name:str) => Promise<num>,
 		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
 		PutOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,

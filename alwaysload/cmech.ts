@@ -30,7 +30,7 @@ const AddView = (
 	pathparams: GenericRowT, 
 	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
-	refreshspecs:LazyLoadRefreshT[]|null = null,
+	_refreshspecs:LazyLoadRefreshT[]|null = null,
 ) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
@@ -39,42 +39,16 @@ const AddView = (
 	}
 
 	{
-		const promises:Promise<any>[] = []
-		let   promises_r:any[] = []
-		
-		const localdbsync_promise = localdb_preload ? LocalDBSyncEnsureObjectStoresActive(localdb_preload) : Promise.resolve(1)
-
-
-		promises.push( localdbsync_promise )
-		promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, new URLSearchParams, searchparams_raw) )
-
-		promises.push( new Promise<Map<str,GenericRowT[]>>(async (res, rej)=> {
-			let r:any = {}; let _:any = {}
-
-			try   { 
-				_ = await localdbsync_promise; 
-				r = await _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, new URLSearchParams, searchparams_raw)
-			}
-			catch { rej(); return; }
-			
-			res(r);
-		}));
-
-		try   { promises_r = await Promise.all(promises); }
+		let loadr:any;
+		try   { loadr = await _lazyload_data_funcs[componentname+"_init"](pathparams, new URLSearchParams, searchparams_raw, localdb_preload); }
 		catch { rej(); return; }
 
-
 		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
-		for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
+		for (const [datapath, generic_row_array] of loadr.entries())   loadeddata.set(datapath, generic_row_array)
 
 		_loadeddata.set(componentname, loadeddata)
 	}
 
-	if (refreshspecs && refreshspecs.length > 0) { 
-		handle_refresh_listeners(refreshspecs, componentname, pathparams, _lazyload_data_funcs);
-	}
-	
 	_searchparams.set(componentname, searchparams_genericrowt)
 	_pathparams.set(componentname, pathparams)
 
@@ -82,6 +56,9 @@ const AddView = (
 	parentEl.insertAdjacentHTML("beforeend", `<v-${componentname} class='view'></v-${componentname}>`);
 
 	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
+
+	//if (refreshspecs && refreshspecs.length > 0) {   handle_refresh_listeners(refreshspecs, el, componentname, _pathparams.get(componentname)!, _searchparams.get(componentname)!, _loadeddata.get(componentname)!, _lazyload_data_funcs);  }
+
 
 	el.addEventListener("hydrated", ()=> { 
 		res(1); 
@@ -213,8 +190,6 @@ const ViewPartConnectedCallback = async (component:HTMLElement & CMechViewPartT)
 
 
 const AttributeChangedCallback = (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => {
-
-	console.log("I THINK THIS IS FIXED. JUST DONT PASS DATA TO ATTRIBUTE FUNCTION DUMB ASS. .... need to somehow wrap in logic where if data is changed or searchparams that (for subels) it allows the attributes to be changed first, then wait for the load and kd calls to transpire before calling sc")
 
 	if (oldval === null) return
 
@@ -410,7 +385,16 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 
 
-const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname:str, pathparams:GenericRowT, lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) => {
+const handle_refresh_listeners = (
+	refreshspecs:LazyLoadRefreshT[],
+	viewel:HTMLElement & CMechViewT,
+	componentname:str,
+	thisview_pathparams:GenericRowT,
+	thisview_searchparams:GenericRowT,
+	thisview_loadeddata:Map<str, GenericRowT[]>,
+	all_lazyload_data_funcs:Array<()=>Promise<Map<str,
+	GenericRowT[]>>>
+) => {
 
 	// currently only support data sync refreshes
 	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
@@ -426,7 +410,7 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 				const expanded_segments = segments.map(segment => {
 					if (segment.startsWith(':')) {
 						const param_name = segment.slice(1); // Remove the ':'
-						return pathparams[param_name] || segment; // Use actual value or keep original if not found
+						return thisview_pathparams[param_name] || segment; // Use actual value or keep original if not found
 					}
 					return segment;
 				});
@@ -467,9 +451,16 @@ const handle_refresh_listeners = (refreshspecs:LazyLoadRefreshT[], componentname
 		}
 		
 		for (const func_name of funcs_to_call) {
-			if (lazyload_data_funcs[componentname + "_" + func_name]) {
-				lazyload_data_funcs[componentname + "_" + func_name]();
-			}
+			const l = all_lazyload_data_funcs[componentname + "_" + func_name]();
+			for (const [datapath, generic_row_array] of l.entries())   thisview_loadeddata.set(datapath, generic_row_array)
+		}
+
+		viewel.kd(thisview_loadeddata, 'datachanged', thisview_pathparams, thisview_searchparams)		
+		viewel.sc()
+
+		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+			subel.kd(thisview_loadeddata, 'datachanged', thisview_pathparams, thisview_searchparams)
+			subel.sc()
 		}
 	};
 

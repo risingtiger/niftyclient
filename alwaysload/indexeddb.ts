@@ -2,6 +2,7 @@
 
 import { GenericRowT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
+import { EnsureObjectStoresActive } from "./localdbsync.js"
 
 
 let _db:IDBDatabase|null  = null;
@@ -33,10 +34,12 @@ const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
 
 
-const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
+const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]) => new Promise<GenericRowT>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
+
+	if (localdb_preload) {   await EnsureObjectStoresActive(localdb_preload);   }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
 	const objectStore = transaction.objectStore(objectstore_name);
@@ -47,16 +50,17 @@ const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async 
 	
 	transaction.onerror    = () => rej();
 	transaction.oncomplete = () => res(result);
-
 })
 
 
 
 
-const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
+const GetAll = (objectstore_names:str[], localdb_preload?:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
+
+	if (localdb_preload) {   await EnsureObjectStoresActive(localdb_preload);   }
 
 	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
 

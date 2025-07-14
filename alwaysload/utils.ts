@@ -28,8 +28,6 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
     // Initialize lookup maps only for stores that are needed
     // We'll populate them on-demand when first encountered
 
-	//const t1 = performance.now();
-    
     for (const item of list) {
         // Check each property of the object
         for (const key in item) {
@@ -44,7 +42,8 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
             // Get or create the lookup map for this store
             let lookup_map = lookup_maps.get(storeName);
             if (!lookup_map) {
-                const storeData = object_stores.get(storeName)!
+				// we are assuming '1:' prefix is always present, since these are all object stores
+                const storeData = object_stores.get("1:"+storeName)!
                 
                 lookup_map = new Map();
 
@@ -57,10 +56,6 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
         }
     }
 
-	/*
-	const t2 = performance.now();
-	console.log("resolve_object_references took " + (t2 - t1) + " milliseconds. with length " + list.length);
-	*/
 	return list;
 }
 

@@ -51,7 +51,7 @@ function Init() {
         //broadcast_to_all_ports({action: 'SSE_CONNECTED'})
     })
     
-    _sse_event_source.addEventListener("a_1", (e) => { // doc add
+    _sse_event_source.addEventListener("datasync_doc_add", (e) => { // doc add
         handle_message({
             action: 'SSE_EVENT', 
             trigger: 1, 
@@ -59,7 +59,7 @@ function Init() {
         })
     })
     
-    _sse_event_source.addEventListener("a_2", (e) => { // doc patch
+    _sse_event_source.addEventListener("datasync_doc_patch", (e) => { // doc patch
         handle_message({
             action: 'SSE_EVENT', 
             trigger: 2, 
@@ -67,7 +67,7 @@ function Init() {
         })
     })
     
-    _sse_event_source.addEventListener("a_3", (e) => { // doc delete
+    _sse_event_source.addEventListener("datasync_doc_delete", (e) => { // doc delete
         handle_message({
             action: 'SSE_EVENT', 
             trigger: 3, 
@@ -75,7 +75,7 @@ function Init() {
         })
     })
     
-    _sse_event_source.addEventListener("a_4", (e) => { // collection add
+    _sse_event_source.addEventListener("datasync_collection", (e) => { // collection change
         handle_message({
             action: 'SSE_EVENT', 
             trigger: 4, 
@@ -171,4 +171,7 @@ export { Init, Close }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).SSEvents = {Add_Listener, Remove_Listener };
+
+
+
 

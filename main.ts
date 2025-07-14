@@ -12,7 +12,7 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit, RunCheckLatest as LocalDBSyncRunCheckLatest, RunWipeLocal as LocalDBSyncRunWipeLocal } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit, Close as SSEClose } from './alwaysload/sse.js';
@@ -63,33 +63,6 @@ const LAZYLOAD_DATA_FUNCS = {
 
 window.addEventListener("load", async (_e) => {
 
-	// for testing purposes, 
-	/*
-	if (window.location.href.includes("localhost")) {
-		const test_div = document.createElement("div");
-		test_div.id = "local_testing_purposes";
-		
-		const test_button = document.createElement("button");
-		test_button.textContent = "Check Latest";
-		
-		test_button.addEventListener("click", () => {
-			LocalDBSyncRunCheckLatest();
-		});
-		
-		const test_button_wipe = document.createElement("button");
-		test_button_wipe.textContent = "Wipe Local";
-		
-		test_button_wipe.addEventListener("click", () => {
-			LocalDBSyncRunWipeLocal();
-		});
-		
-		test_div.appendChild(test_button);
-		test_div.appendChild(test_button_wipe);
-		document.body.appendChild(test_div);
-	}
-	*/
-
-	const performance_timer = performance.now();
 
 	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE_LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
@@ -98,7 +71,7 @@ window.addEventListener("load", async (_e) => {
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		EngagementListenInit()
-		LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
+		//LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		CMechInit(lazyload_data_funcs)
 		LoggerInit();
 		
@@ -109,14 +82,10 @@ window.addEventListener("load", async (_e) => {
 
 	const lazyload_view_urlpatterns = SwitchStationInit(lazyloads);
 
-	const performance_timer_b = performance.now() - performance_timer;
-	console.log(`App loaded in ${performance_timer_b.toFixed(2)} ms`)
-
 	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
 	//init_shared_worker()
 	setTimeout(()=> SSEInit(), 1800)
 	//await new Promise<void>((res)=> setTimeout(()=>{ res() }, 500)); 
-
 })
 
 

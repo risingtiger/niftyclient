@@ -34,6 +34,11 @@ const Init = (lazyloads:LazyLoadT[])=> {
 		if (document.getElementById("views")!.children.length === 0) {
 			setuproute('/v/home');
 		}
+		else {
+			const viewel = document.querySelector("#views > :last-child") as HTMLElement;
+			viewel.style.display = "block";
+			viewel.dataset.active = "true"
+		}
 	})
 
 	return lazyload_view_urlpatterns
@@ -169,9 +174,16 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, _rej) => 
 		return;
 	}
 
-	( viewsel.children[viewsel.children.length-1] as HTMLElement ).style.display = "block";
-	( viewsel.children[viewsel.children.length-1] as HTMLElement ).dataset.active = "true"
+	const allviews = Array.from(viewsel.children) as HTMLElement[];
+	allviews.forEach((v) => {
+		v.style.display = "none";
+		v.dataset.active = "false";
+	});
 
+	allviews[allviews.length-1].style.display = "block";
+	allviews[allviews.length-1].dataset.active = "true"
+
+	// this event should fire after the animation is done and the view is visible and still
 	document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
 	res(1);
@@ -298,11 +310,11 @@ const routeload = (routeindex:num, _uri:str, urlmatches:str[]) => new Promise<st
 	const searchparams    = new URLSearchParams(window.location.search);
 
 	const localdb_preload = route.lazyload_view.localdb_preload
+	const refreshspecs    = route.lazyload_view.refresh || null;
 
 	const promises:Promise<any>[] = []
 
-	//promises.push( LazyLoadFilesRun([route.lazyload_view]) )
-	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload) )
+	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload, refreshspecs) )
 
 	try   { await Promise.all(promises) }
 	catch { res('failed'); return; }
