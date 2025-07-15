@@ -387,8 +387,11 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 		const newloadeddata = new Map<str, GenericRowT[]>();
 		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
 
-		// merge newloadeddata with existing loadeddata AI!
-		_loadeddata.set(componentname, newloadeddata)
+		// merge newloadeddata with existing loadeddata
+		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
+			loadeddata.set(datapath, generic_row_array)
+		}
+		_loadeddata.set(componentname, loadeddata)
 	}
 
 	viewel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)		
