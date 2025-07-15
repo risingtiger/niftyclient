@@ -44,19 +44,25 @@ const AddView = (
 		searchparams_genericrowt[key] = decodeURIComponent(value); 
 	}
 
+	_searchparams.set(componentname, searchparams_genericrowt)
+	_pathparams.set(componentname, pathparams)
+
 	{
 		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname+"_init"](pathparams, new URLSearchParams, searchparams_raw, localdb_preload); }
+		try   { loadr = await _all_lazyload_data_funcs[componentname+"_init"](pathparams, searchparams_raw, localdb_preload); }
 		catch { rej(); return; }
 
 		const loadeddata = new Map<str, GenericRowT[]>();
 		for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
 
 		_loadeddata.set(componentname, loadeddata)
+
+		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {
+			handle_refresh_listeners(loadr.refreshspecs, null as any, componentname, "_init");
+		}
 	}
 
-	_searchparams.set(componentname, searchparams_genericrowt)
-	_pathparams.set(componentname, pathparams)
+
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML("beforeend", `<v-${componentname} class='view'></v-${componentname}>`);
@@ -363,11 +369,24 @@ const RemoveActiveView = () => {
 
 
 
-const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT) => new Promise<void>(async (res, rej) => {
+const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suffix?:str) => new Promise<void>(async (res, rej) => {
 
-	const viewel     = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
+	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
+	const pathparams   = _pathparams.get(componentname)!
+	const searchparams = _searchparams.get(componentname)!
+
+	if (loadfunc_suffix) {
+		let loadr:LazyLoadFuncReturnT;
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](pathparams, searchparams); }
+		catch { rej(); return; }
+
+		const newloadeddata = new Map<str, GenericRowT[]>();
+		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
+
+		_loadeddata.set(componentname, newloadeddata)
+	}
+
 	const loadeddata = _loadeddata.get(componentname)!
-	const pathparams = _pathparams.get(componentname)!
 
 	const merged_pathparams = { ...pathparams, ...subparams }
 	_pathparams.set(componentname, merged_pathparams)
@@ -481,11 +500,7 @@ const handle_refresh_listeners = (
 	refreshspecs:LazyLoadFuncRefreshSpecT[],
 	viewel:HTMLElement & CMechViewT,
 	componentname:str,
-	thisview_pathparams:GenericRowT,
-	thisview_searchparams:GenericRowT,
-	thisview_loadeddata:Map<str, GenericRowT[]>,
-	all_lazyload_data_funcs:Array<()=>Promise<Map<str,GenericRowT[]>>>,
-	func_name:str,
+	func_name_suffix:str,
 ) => {
 
 	// currently only support data sync refreshes
@@ -493,92 +508,50 @@ const handle_refresh_listeners = (
 
 	// Currtnly path can only be a top level collection or a top level collection document, e.g. 'machines' or 'machines/1234'
 
+	const eventnames:Set<str> = new Set();
+	const paths:Set<str> = new Set();
 	for(const spec of refreshspecs) {
-		const eventnames:str[] = []
-		if (spec.path.includes("/")) {
-			$N.SSEvents.Add_Listener(viewel, "v_" + componentname + "_refresh", ["firestore_doc_patch"], spec.path, (event_data:any) => {
-			}
-		}
-	}
 
+		for (const path of spec.paths) {
 
+			paths.add(path);
 
+			// is a doc, e.g. 'machines/1234' so listen for its patch or all collection change
+			if (path.includes("/")) {
+				eventnames.add('firestore_doc_patch');
+				eventnames.add('firestore_collection');
 
-
-
-	// Expand path parameters in refreshspecs
-	for (const spec of refreshspecs) {
-		const expanded_what: str[] = [];
-		for (const what_item of spec.what) {
-			// Expand path parameters (e.g., 'machines/:id' -> 'machines/1234')
-			let expanded_path = what_item;
-			if (what_item.includes(':')) {
-				const segments = what_item.split('/');
-				const expanded_segments = segments.map(segment => {
-					if (segment.startsWith(':')) {
-						const param_name = segment.slice(1); // Remove the ':'
-						return thisview_pathparams[param_name] || segment; // Use actual value or keep original if not found
-					}
-					return segment;
-				});
-				expanded_path = expanded_segments.join('/');
-			}
-			expanded_what.push(expanded_path);
-		}
-		spec.what = expanded_what; // Replace with expanded paths
-	}
-
-	const sse_listeners:Set<string> = new Set();
-
-	for (const spec of refreshspecs) {
-		for (const expanded_path of spec.what) {
-			if (expanded_path.includes('/')) { // Check if it's a document reference (contains '/')
-				sse_listeners.add('firestore_collection');
-				sse_listeners.add('firestore_doc_patch');
+			// is a collection, e.g. 'machines' so listen for essentially all of it
 			} else {
-				// Collection reference: listen for all events
-				sse_listeners.add('firestore_doc_add');
-				sse_listeners.add('firestore_doc_delete');
-				sse_listeners.add('firestore_doc_patch');
-				sse_listeners.add('firestore_collection');
+				eventnames.add('firestore_doc_add');
+				eventnames.add('firestore_doc_delete');
+				eventnames.add('firestore_doc_patch');
+				eventnames.add('firestore_collection');
 			}
 		}
 	}
 
-	const sse_event = (event_data: {path:str}) => {
-		const funcs_to_call: Set<string> = new Set();
-		
-		for (const spec of refreshspecs) {
-			for (const expanded_path of spec.what) {
-				if (event_data.path === expanded_path) {
-					funcs_to_call.add(spec.func);
-					break; 
-				}
-			}
-		}
-		
-		for (const func_name of funcs_to_call) {
-			const l = all_lazyload_data_funcs[componentname + "_" + func_name]();
-			for (const [datapath, generic_row_array] of l.entries())   thisview_loadeddata.set(datapath, generic_row_array)
-		}
+	$N.SSEvents.Add_Listener(viewel, "v_" + componentname + "_" + func_name_suffix, Array.from(eventnames), Array.from(paths), null, async (_event_data:any) => {
+		const pathparams = _pathparams.get(componentname)!;
+		const searchparams = _searchparams.get(componentname)!;
 
-		viewel.kd(thisview_loadeddata, 'datachanged', thisview_pathparams, thisview_searchparams)		
+		let loadr:LazyLoadFuncReturnT;
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + func_name_suffix](pathparams, searchparams); }
+		catch { return; }
+
+		const loadeddata = new Map<str, GenericRowT[]>();
+		for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
+
+		_loadeddata.set(componentname, loadeddata)
+
+		viewel.kd(loadeddata, 'paramschanged', pathparams, searchparams)		
 		viewel.sc()
 
 		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-			subel.kd(thisview_loadeddata, 'datachanged', thisview_pathparams, thisview_searchparams)
+			subel.kd(loadeddata, 'paramschanged', pathparams, searchparams)
 			subel.sc()
 		}
-	};
-
-	const sse_events_array = Array.from(sse_listeners);
-	$N.SSEvents.Add_Listener(
-		document.body.querySelector("v-" + componentname) as HTMLElement,
-		"v_" + componentname + "_refresh", 
-		sse_events_array,
-		null,
-		sse_event
-	);
+	})
 }
 
 

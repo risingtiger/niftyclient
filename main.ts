@@ -1,5 +1,5 @@
 import { str, GenericRowT } from "./defs_server_symlink.js";
-import { $NT } from "./defs.js";
+import { $NT, LazyLoadFuncReturnT } from "./defs.js";
 
 
 declare var $N: $NT;
@@ -33,28 +33,21 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 
 const LAZYLOAD_DATA_FUNCS = {
 
-	appmsgs_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
+	appmsg_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+
+		const d = new Map<str,GenericRowT[]>()
+		res({ d, refreshspecs:[]})
 	}),
 
-	appmsgs_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
+	login_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+
+		const d = new Map<str,GenericRowT[]>()
+		res({ d, refreshspecs:[]})
 	}),
 
-	login_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
-	}),
-
-	login_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
-	}),
-
-	setup_push_allowance_indexeddb: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
-	}),
-
-	setup_push_allowance_other: (_pathparams:GenericRowT, _old_searchparams: URLSearchParams, _new_searchparams: URLSearchParams) => new Promise<Map<string, GenericRowT[]>>(async (res, _rej) => {
-		res(new Map<str,GenericRowT[]>())
+	setup_push_allowance_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+		const d = new Map<str,GenericRowT[]>()
+		res({ d, refreshspecs:[]})
 	}),
 }
 

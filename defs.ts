@@ -5,19 +5,22 @@ import { bool, num, str } from './defs_server_symlink.js'
 
 export type GenericRowT = { [key:string]: any }
 
-export type LazyLoadRefreshT = {
-	event:"datasync"|"placeholder", what:str[], func:str 
+
+export type LazyLoadFuncRefreshSpecT = {
+	type: "datasync" | "placeholder", paths: str[] 
+}
+export type LazyLoadFuncReturnT = {
+	d:Map<str, GenericRowT[]>, refreshspecs:LazyLoadFuncRefreshSpecT[]
 }
 export type LazyLoadT = {
     type: "view" | "component" | "thirdparty" | "lib",
     urlmatch?: string,
-	urlsubmatches?: string[],
+	subs?: { urlmatch: string, localdb_preload?: str[], loadfunc?: str }[],
     name: string,
     is_instance: bool,
     dependencies: { type: string, name: string, is_instance?: bool|null }[],
     auth: string[],
 	localdb_preload?: str[]
-	refresh?: LazyLoadRefreshT[],
 }
 
 
@@ -68,7 +71,7 @@ export type CMechViewT = {
 	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'paramschanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
@@ -78,7 +81,7 @@ export type CMechViewPartT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'paramschanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
@@ -96,7 +99,7 @@ export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 export type $NT = {
 	SSEvents: {
-		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], priority:number|null, callback_func:any) => void
+		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], paths:str[]|null, priority:number|null, callback_func:any) => void
 		Remove_Listener: (el:HTMLElement, name:string)=>void
 		HandleMessage: (data:any)=>void
 	},

@@ -34,7 +34,7 @@ const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
 
 
-const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]) => new Promise<GenericRowT>(async (res, rej) => {
+const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]|null) => new Promise<GenericRowT>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
@@ -55,7 +55,7 @@ const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]) => new Pro
 
 
 
-const GetAll = (objectstore_names:str[], localdb_preload?:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
+const GetAll = (objectstore_names:str[], localdb_preload?:str[]|null) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
