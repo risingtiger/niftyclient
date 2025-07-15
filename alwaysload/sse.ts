@@ -149,8 +149,15 @@ function handle_message(data: any) {
 function handle_firestore_docs_from_worker(data:any, eventname:string, event_paths:str[]|null) {   
 
 	const ls = _sse_listeners.filter(l=> { 
-		l.eventnames.includes(eventname);
-		// if paths are specified, check if any of the paths match AI!
+		if (!l.eventnames.includes(eventname)) return false;
+		
+		// if paths are specified, check if any of the paths match
+		if (event_paths && l.paths) {
+			return event_paths.some(event_path => l.paths!.includes(event_path));
+		}
+		
+		// if no paths specified on either side, include the listener
+		return true;
 	})
 
 
