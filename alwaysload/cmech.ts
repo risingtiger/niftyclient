@@ -363,15 +363,19 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT) => new Promis
 	const loadeddata = _loadeddata.get(componentname)!
 	const pathparams = _pathparams.get(componentname)!
 
-	// merge subparams into pathparams AI!
+	// Merge subparams into pathparams
+	const merged_pathparams = { ...pathparams, ...subparams }
+	_pathparams.set(componentname, merged_pathparams)
 
-	viewel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(componentname)!)		
+	viewel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)		
 	viewel.sc()
 
 	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)
+		subel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
 		subel.sc()
 	}
+
+	res()
 })
 
 
