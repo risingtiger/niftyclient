@@ -49,7 +49,7 @@ const AddView = (
 
 	{
 		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname+"_init"](pathparams, searchparams_raw, localdb_preload); }
+		try   { loadr = await _all_lazyload_data_funcs[componentname+"_main"](pathparams, searchparams_raw, localdb_preload); }
 		catch { rej(); return; }
 
 		const loadeddata = new Map<str, GenericRowT[]>();
@@ -374,22 +374,22 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
 	const pathparams   = _pathparams.get(componentname)!
 	const searchparams = _searchparams.get(componentname)!
+	const loadeddata   = _loadeddata.get(componentname)!
+
+	const merged_pathparams = { ...pathparams, ...subparams }
+	_pathparams.set(componentname, merged_pathparams)
 
 	if (loadfunc_suffix) {
 		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](pathparams, searchparams); }
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](merged_pathparams, searchparams); }
 		catch { rej(); return; }
 
 		const newloadeddata = new Map<str, GenericRowT[]>();
 		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
 
+		// merge newloadeddata with existing loadeddata AI!
 		_loadeddata.set(componentname, newloadeddata)
 	}
-
-	const loadeddata = _loadeddata.get(componentname)!
-
-	const merged_pathparams = { ...pathparams, ...subparams }
-	_pathparams.set(componentname, merged_pathparams)
 
 	viewel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)		
 	viewel.sc()
