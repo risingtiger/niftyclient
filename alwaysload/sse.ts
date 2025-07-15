@@ -5,7 +5,8 @@ import { str } from "../defs_server_symlink.js"
 type SSE_Listener = {
     name: str,
 	el: HTMLElement,
-    triggers:number[],
+    eventnames:string[],
+	paths:str[]|null,
 	priority:number,
     cb:(paths:str[])=>void
 }
@@ -54,7 +55,7 @@ function Init() {
     _sse_event_source.addEventListener("datasync_doc_add", (e) => { // doc add
         handle_message({
             action: 'SSE_EVENT', 
-            trigger: 1, 
+            eventname: 'datasync_doc_add', 
             data: e.data
         })
     })
@@ -62,7 +63,7 @@ function Init() {
     _sse_event_source.addEventListener("datasync_doc_patch", (e) => { // doc patch
         handle_message({
             action: 'SSE_EVENT', 
-            trigger: 2, 
+            eventname: 'datasync_doc_patch', 
             data: e.data
         })
     })
@@ -70,7 +71,7 @@ function Init() {
     _sse_event_source.addEventListener("datasync_doc_delete", (e) => { // doc delete
         handle_message({
             action: 'SSE_EVENT', 
-            trigger: 3, 
+            eventname: 'datasync_doc_delete', 
             data: e.data
         })
     })
@@ -78,7 +79,7 @@ function Init() {
     _sse_event_source.addEventListener("datasync_collection", (e) => { // collection change
         handle_message({
             action: 'SSE_EVENT', 
-            trigger: 4, 
+            eventname: 'datasync_collection', 
             data: e.data
         })
     })
@@ -87,7 +88,7 @@ function Init() {
 
 
 
-function Add_Listener(el:HTMLElement, name:str, triggers:number[], priority_:number|null, callback_:(obj:any)=>void) {
+function Add_Listener(el:HTMLElement, name:str, eventnames:string[], paths:str[]|null, priority_:number|null, callback_:(obj:any)=>void) {
 
 	for(let i = 0; i < _sse_listeners.length; i++) {
 		if (!_sse_listeners[i].el.parentElement) {
@@ -100,7 +101,8 @@ function Add_Listener(el:HTMLElement, name:str, triggers:number[], priority_:num
 	const newlistener = {
 		name: name,
 		el: el,
-		triggers,
+		eventnames,
+		paths,
 		priority,
 		cb: callback_
 	}
@@ -135,16 +137,24 @@ function Remove_Listener(el:HTMLElement, name:str) {
 
 
 function handle_message(data: any) {
-	const trigger = data.trigger
-	const event_data = JSON.parse(data.data)
-	handle_firestore_docs_from_worker(event_data, trigger)
+	const eventname   = data.eventname
+	const event_data  = JSON.parse(data.data)
+	const event_paths = event_data.paths ? event_data.paths : ( event_data.path ? [event_data.path] : null )
+	handle_firestore_docs_from_worker(event_data, eventname, event_paths)
 }
 
 
 
 
-function handle_firestore_docs_from_worker(data:any, trigger:number) {   
-	const ls = _sse_listeners.filter(l=> l.triggers.includes(trigger))
+function handle_firestore_docs_from_worker(data:any, eventname:string, event_paths:str[]|null) {   
+
+	const ls = _sse_listeners.filter(l=> { 
+		l.eventnames.includes(eventname);
+		// if paths are specified, check if any of the paths match AI!
+	})
+
+
+
 	if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
 	ls.forEach(l=> l.cb(data))
 }
