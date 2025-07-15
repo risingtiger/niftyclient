@@ -1,14 +1,21 @@
 
 
 import { num, str } from "../defs_server_symlink.js"
-import { $NT, LazyLoadRefreshT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
+import { $NT, LazyLoadFuncReturnT, LazyLoadFuncRefreshSpecT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
 import { EnsureObjectStoresActive as LocalDBSyncEnsureObjectStoresActive } from "./localdbsync.js"
 
 declare var $N: $NT;
 
+type RefreshListenerSpecT = {
+	type: "datasync" | "placeholder",
+	event: Set<str>,
+	paths: str[],
+	func: str, // the function to call to refresh the data
+}
+
 
 // these are loaded on Init and stay loaded indefinitely
-let _lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>> = []
+let _all_lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>> = []
 
 // these are set when a new view is added, and removed when that view is rmoved (or when load view failed) 
 let _loadeddata:Map<str, CMechLoadedDataT> = new Map() // map by view name of Map by path name with data
@@ -19,7 +26,7 @@ let _pathparams:Map<str, GenericRowT> = new Map() // map by view name
 
 
 const Init = (lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) => {
-	_lazyload_data_funcs = lazyload_data_funcs
+	_all_lazyload_data_funcs = lazyload_data_funcs
 }
 
 
@@ -30,7 +37,6 @@ const AddView = (
 	pathparams: GenericRowT, 
 	searchparams_raw:URLSearchParams, 
 	localdb_preload:str[]|null|undefined,
-	_refreshspecs:LazyLoadRefreshT[]|null = null,
 ) => new Promise<num|null>(async (res, rej)=> {
 
 	const searchparams_genericrowt:GenericRowT = {};
@@ -39,12 +45,12 @@ const AddView = (
 	}
 
 	{
-		let loadr:any;
-		try   { loadr = await _lazyload_data_funcs[componentname+"_init"](pathparams, new URLSearchParams, searchparams_raw, localdb_preload); }
+		let loadr:LazyLoadFuncReturnT;
+		try   { loadr = await _all_lazyload_data_funcs[componentname+"_init"](pathparams, new URLSearchParams, searchparams_raw, localdb_preload); }
 		catch { rej(); return; }
 
 		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of loadr.entries())   loadeddata.set(datapath, generic_row_array)
+		for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
 
 		_loadeddata.set(componentname, loadeddata)
 	}
@@ -245,8 +251,8 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	const promises:Promise<any>[] = []
 	let   promises_r:any[] = []
 
-	promises.push( _lazyload_data_funcs[componentname+"_a"](pathparams, oldsearchparams, newsearchparams) )
-	promises.push( _lazyload_data_funcs[componentname+"_indexeddb"](pathparams, oldsearchparams, newsearchparams) )
+	promises.push( _all_lazyload_data_funcs[componentname+"_a"](pathparams, oldsearchparams, newsearchparams) )
+	promises.push( _all_lazyload_data_funcs[componentname+"_indexeddb"](pathparams, oldsearchparams, newsearchparams) )
 
 	try   { promises_r = await Promise.all(promises); }
 	catch { rej(); return; }
@@ -363,15 +369,14 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT) => new Promis
 	const loadeddata = _loadeddata.get(componentname)!
 	const pathparams = _pathparams.get(componentname)!
 
-	// Merge subparams into pathparams
 	const merged_pathparams = { ...pathparams, ...subparams }
 	_pathparams.set(componentname, merged_pathparams)
 
-	viewel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)		
+	viewel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)		
 	viewel.sc()
 
 	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
+		subel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
@@ -473,18 +478,33 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 
 
 const handle_refresh_listeners = (
-	refreshspecs:LazyLoadRefreshT[],
+	refreshspecs:LazyLoadFuncRefreshSpecT[],
 	viewel:HTMLElement & CMechViewT,
 	componentname:str,
 	thisview_pathparams:GenericRowT,
 	thisview_searchparams:GenericRowT,
 	thisview_loadeddata:Map<str, GenericRowT[]>,
-	all_lazyload_data_funcs:Array<()=>Promise<Map<str,
-	GenericRowT[]>>>
+	all_lazyload_data_funcs:Array<()=>Promise<Map<str,GenericRowT[]>>>,
+	func_name:str,
 ) => {
 
 	// currently only support data sync refreshes
-	if (!refreshspecs.every(spec => spec.event === "datasync")) {   return;   }
+	if (!refreshspecs.every(spec => spec.type === "datasync")) {   return;   }
+
+	// Currtnly path can only be a top level collection or a top level collection document, e.g. 'machines' or 'machines/1234'
+
+	for(const spec of refreshspecs) {
+		const eventnames:str[] = []
+		if (spec.path.includes("/")) {
+			$N.SSEvents.Add_Listener(viewel, "v_" + componentname + "_refresh", ["firestore_doc_patch"], spec.path, (event_data:any) => {
+			}
+		}
+	}
+
+
+
+
+
 
 	// Expand path parameters in refreshspecs
 	for (const spec of refreshspecs) {
