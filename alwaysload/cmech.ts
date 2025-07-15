@@ -357,6 +357,89 @@ const RemoveActiveView = () => {
 
 
 
+const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT) => new Promise<void>(async (res, rej) => {
+
+	const viewel     = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
+	const loadeddata = _loadeddata.get(componentname)!
+	const pathparams = _pathparams.get(componentname)!
+
+	// merge subparams into pathparams AI!
+
+	viewel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(componentname)!)		
+	viewel.sc()
+
+	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+		subel.kd(loadeddata, 'datachanged', _pathparams.get(view_component_name)!, _searchparams.get(view_component_name)!)
+		subel.sc()
+	}
+})
+
+
+
+/*
+const LoadUrlSubMatch = (
+  componentname: str,
+  submatch_pattern: str,
+  submatch_matches: str[]
+) => new Promise<void>(async (res, rej) => {
+
+	const pathparams = GetPathParams([], submatch_matches);  // Extract params from submatch
+	const current_searchparams = _searchparams.get(componentname) || {};
+
+	// Get submatch-specific data function
+	const submatch_func_name = `${componentname}_submatches_${submatch_pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
+	const submatch_func = _lazyload_data_funcs[submatch_func_name];
+
+	if (!submatch_func) {
+	  rej(new Error(`No data function found for submatch: ${submatch_func_name}`));
+	  return;
+	}
+
+	try {
+	  // Load submatch data
+	  const submatch_data = await submatch_func(pathparams, current_searchparams);
+
+	  // Store submatch data
+	  if (!_submatch_data.has(componentname)) {
+		  _submatch_data.set(componentname, new Map());
+	  }
+	  _submatch_data.get(componentname)!.set(submatch_pattern, submatch_data);
+	  _active_submatches.set(componentname, submatch_pattern);
+
+	  // Get current view element
+	  const viewel = document.querySelector(`v-${componentname}`) as HTMLElement & CMechViewT;
+
+	  // Merge main view data with submatch data
+	  const main_data = _loadeddata.get(componentname) || new Map();
+	  const merged_data = new Map(main_data);
+
+	  // Add submatch data with prefixed keys to avoid conflicts
+	  for (const [key, value] of submatch_data.entries()) {
+		  merged_data.set(`submatch_${key}`, value);
+	  }
+
+	  // Update view with merged data
+	  viewel.kd(merged_data, 'submatch_loaded', _pathparams.get(componentname)!,
+	_searchparams.get(componentname)!);
+	  viewel.sc();
+
+	  // Update all subels
+	  for (const subel of (viewel.subelshldr as (HTMLElement & CMechViewPartT)[])) {
+		  subel.kd(merged_data, 'submatch_loaded', _pathparams.get(componentname)!,
+	_searchparams.get(componentname)!);
+		  subel.sc();
+	  }
+
+	  res();
+	} catch (error) {
+	  rej(error);
+	}
+});
+*/
+
+
+
+
 const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:GenericRowT[], list_of_deletes:GenericRowT[]) => { 
 
 	// Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
@@ -479,7 +562,7 @@ const handle_refresh_listeners = (
 
 
 
-export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView }
+export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, LoadUrlSubMatch }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
