@@ -263,11 +263,8 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	const cache         = await caches.open(_cache_name);
 	const should_refresh= new_headers.get('refreshcache') === 'true';
 
-	// Use URL only as cache key so header differences don't duplicate entries
-	const cache_key = new Request(new_request.url, {method:new_request.method});
-
 	if (!should_refresh) {
-		const cached = await cache.match(cache_key);
+		const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
 		if (cached) {           // serve cached copy immediately
 			res(cached.clone());
 			return;
@@ -294,7 +291,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	if (server_response.status === 200 && is_appapi) {
 		// always update cache – even when this came from refreshcache hit
-		cache.put(cache_key, server_response.clone())
+		cache.put(new_request, server_response.clone())
 	}
 
 	if (is_appapi && server_response.status === 401) { // unauthorized
