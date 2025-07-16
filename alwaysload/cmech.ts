@@ -539,16 +539,20 @@ const handle_refresh_listeners = (
 		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + func_name_suffix](pathparams, searchparams); }
 		catch { return; }
 
-		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
+		const newloadeddata = new Map<str, GenericRowT[]>();
+		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
 
-		_loadeddata.set(componentname, loadeddata)
+		const existing_loadeddata = _loadeddata.get(componentname)!
+		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
+			existing_loadeddata.set(datapath, generic_row_array)
+		}
+		_loadeddata.set(componentname, existing_loadeddata)
 
-		viewel.kd(loadeddata, 'datachanged', pathparams, searchparams)		
+		viewel.kd(existing_loadeddata, 'datachanged', pathparams, searchparams)		
 		viewel.sc()
 
 		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-			subel.kd(loadeddata, 'datachanged', pathparams, searchparams)
+			subel.kd(existing_loadeddata, 'datachanged', pathparams, searchparams)
 			subel.sc()
 		}
 	})
