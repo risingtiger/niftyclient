@@ -25,7 +25,7 @@ let _routes:Array<Route> = [];
 
 
 
-const Init = async (lazyloads:LazyLoadT[])=> {
+const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) => {
 
 	LazyLoadFilesInit(lazyloads);
 
@@ -34,7 +34,7 @@ const Init = async (lazyloads:LazyLoadT[])=> {
 	try   { await setuproute(window.location.pathname.slice(3)); } // remove /v/ prefix
 	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
-	history.replaceState({}, '', window.location.pathname);
+	history.replaceState({}, '', window.location.pathname + window.location.search);
 
 	window.addEventListener("popstate", async (_e:PopStateEvent) => {
 		CMechRemoveActiveView()
@@ -49,7 +49,7 @@ const Init = async (lazyloads:LazyLoadT[])=> {
 		}
 	})
 
-	return lazyload_view_urlpatterns
+	res(lazyload_view_urlpatterns)
 
 
 
@@ -90,7 +90,7 @@ const Init = async (lazyloads:LazyLoadT[])=> {
 
 
 	*/
-}
+})
 
 
 
@@ -99,11 +99,14 @@ const Init = async (lazyloads:LazyLoadT[])=> {
 
 async function NavigateTo(newPath: string) {
 
+	debugger
 	const p = "/v/" + newPath;
+	history.pushState({path:p}, '', p);
+
+	debugger
 	try   { await setuproute(newPath); }
 	catch { return; }
 
-	history.pushState({path:p}, '', p);
 }
 
 
@@ -389,9 +392,9 @@ const handle_route_fail = (route:Route, redirect:boolean = false) => {
 
 	if (redirect) {
 		const routename = route.lazyload_view.name;
-		$N.Unrecoverable("App Load Error", "Unable to Load App Page", "Restart App", "srf", `route:${routename}`, null) // switch_station_route_load_fail
+		$N.Unrecoverable("Unable to Load Page", "Arg.. Unable to load this page", "Back to Home", "srf", `route: ${routename}`, "/v/home") // switch_station_route_load_fail
 	} else {
-		$N.ToastShow("Unable to Load View", 4)
+		$N.ToastShow("Unable to Load Page", 4)
 	}
 
 }
