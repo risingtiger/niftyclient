@@ -557,7 +557,7 @@ const handle_refresh_listeners = (
 		}
 	})
 
-	// ---- NEW focus-refresh listener ---------------------------
+
 	$N.EngagementListen.Add_Listener(
 		viewel,
 		"v_" + componentname + "_" + func_name_suffix + "_focus",
@@ -569,35 +569,29 @@ const handle_refresh_listeners = (
 			const searchparams = _searchparams.get(componentname)!;
 
 			let loadr: LazyLoadFuncReturnT;
-			try {
-				/*  third param kept for localdb preload – we do not use it here
-					fourth param is our flag so downstream code knows this is a
-					cache-refresh request                                            */
-				loadr = await _all_lazyload_data_funcs[
-							componentname + "_" + func_name_suffix
-						](pathparams, searchparams, undefined, true /*refreshcache*/);
-			} catch { return; }
+			try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + func_name_suffix](pathparams, searchparams, undefined, true /*refreshcache*/); }
+			catch { return; }
 
 			/* merge – do NOT overwrite */
-			const loadeddata = _loadeddata.get(componentname)!;
+			const existing_loadeddata = _loadeddata.get(componentname)!;
 
 			for (const [datapath, newrows] of loadr.d.entries()) {
 
-				const exists = loadeddata.get(datapath) || [];
+				const exists = existing_loadeddata.get(datapath) || [];
 				/* reuse helper already declared below in file */
 				updateArrayIfPresent(
 					exists,
 					newrows.filter(r => !r.isdeleted),
 					newrows.filter(r =>  r.isdeleted)
 				);
-				loadeddata.set(datapath, exists);
+				existing_loadeddata.set(datapath, exists);
 			}
 
 			/* propagate to view + sub-els */
-			viewel.kd(loadeddata, 'datachanged', pathparams, searchparams);
+			viewel.kd(existing_loadeddata, 'datachanged', pathparams, searchparams);
 			viewel.sc();
 			for (const sub of (viewel.subelshldr as (HTMLElement & CMechViewPartT)[])) {
-				sub.kd(loadeddata, 'datachanged', pathparams, searchparams);
+				sub.kd(existing_loadeddata, 'datachanged', pathparams, searchparams);
 				sub.sc();
 			}
 		}
