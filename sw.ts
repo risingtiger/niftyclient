@@ -257,6 +257,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
 
+	const has_cacheit = r.headers.get('cacheit') === 'true';
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
 	/* ---------- LOCAL CACHE FOR DATA API ---------- */
