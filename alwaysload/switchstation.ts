@@ -125,6 +125,16 @@ async function NavigateBack(opts:{ default:str}) {
 	history.back()
 }
 
+async function NavigateToSub(newPath: string) {
+
+	const p = "/v/" + newPath;
+	history.pushState({path:p}, '', p);
+
+	try   { await setuproute_sub(newPath); }
+	catch { return; }
+
+}
+
 
 
 
@@ -201,36 +211,13 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, rej) => {
 		allviews[allviews.length-1].style.display = "block";
 		allviews[allviews.length-1].dataset.active = "true"
 
-		// this event should fire after the animation is done and the view is visible and still
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
 		res(1);
 
 	}
 	else { 
-		// no view route found, check urlsubmatches of current view
-		const viewsel          = document.getElementById("views")!
-		const viewel           = viewsel.lastElementChild!
-		const active_view_name = viewel.tagName.toLowerCase().split("-")[1];
-		const current_route    = _routes.find(r => r.lazyload_view.name === active_view_name)!;
-		let   flag             = false;
-
-		if (current_route.subpaths.length) {
-			for (const submatch of current_route.subpaths) {
-				const matches = path.match(submatch.path_regex);
-				if (matches) {
-					const subparams = matches.length > 1 ? GetPathParams(submatch.pathparams_propnames, matches.slice(1)) : {}; // if there are params in sub url match such as "machines/:machineid" then get the params otherwise empty object 
-					try   { await CMechLoadUrlSubMatch(current_route.lazyload_view.name, subparams, submatch.loadfunc); }
-					catch { handle_route_fail(current_route, true); rej(null); return; }
-					flag = true;
-					break;
-				}
-			}
-		}
-
-		if (!flag) { handle_route_fail(current_route, true); rej(null); return; }
-
-		res(1)
+		rej(null);
 	}
 
 })
