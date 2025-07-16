@@ -18,17 +18,25 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
     http_opts.headers   = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
     http_opts.body      = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-    // custom cache-refresh flag
-    if (refreshcache) {
-        http_opts.headers = http_opts.headers || {};
-        http_opts.headers['refreshcache'] = 'true';
-    }
-
 	if (!opts) { opts   = { retries: 0, background: true, animate: true }; }
 
 	opts.retries        = opts.retries || 0
 	opts.background     = opts.background || true
 	opts.animate        = opts.animate || true
+	opts.refreshcache   = opts.refreshcache || false
+	opts.cacheit        = opts.cacheit || false
+
+    // custom cache-refresh flag
+    if (opts.refreshcache) {
+        http_opts.headers = http_opts.headers || {};
+        http_opts.headers['refreshcache'] = 'true';
+    }
+
+    // custom cache flag
+    if (opts.cacheit) {
+        http_opts.headers = http_opts.headers || {};
+        http_opts.headers['cacheit'] = 'true';
+    }
 
     _activeRequestCount++;
 
