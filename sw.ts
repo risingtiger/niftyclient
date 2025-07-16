@@ -261,9 +261,8 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	/* ---------- LOCAL CACHE FOR DATA API ---------- */
 	const cache         = await caches.open(_cache_name);
-	const should_refresh= new_headers.get('refreshcache') === 'true';
 
-	if (!should_refresh) {
+	if (r.headers.get('refreshcache') !== 'true') {
 		const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
 		if (cached) {           // serve cached copy immediately
 			res(cached.clone());
