@@ -261,13 +261,16 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
 	/* ---------- LOCAL CACHE FOR DATA API ---------- */
-	const cache         = await caches.open(_cache_name);
+	let cache: Cache | undefined;
+	if (has_cacheit) {
+		cache = await caches.open(_cache_name);
 
-	if (r.headers.get('refreshcache') !== 'true') {
-		const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
-		if (cached) {           // serve cached copy immediately
-			res(cached.clone());
-			return;
+		if (r.headers.get('refreshcache') !== 'true') {
+			const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
+			if (cached) {           // serve cached copy immediately
+				res(cached.clone());
+				return;
+			}
 		}
 	}
 	/* ---------------------------------------------- */
@@ -289,9 +292,9 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	clearTimeout(abortsignal_timeoutid)
 
-	if (server_response.status === 200 && is_appapi) {
-		// always update cache – even when this came from refreshcache hit
-		cache.put(new_request, server_response.clone())
+	if (has_cacheit && server_response.status === 200) {
+		// update cache when requested
+		cache!.put(new_request, server_response.clone())
 	}
 
 	if (is_appapi && server_response.status === 401) { // unauthorized
