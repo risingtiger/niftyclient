@@ -576,15 +576,7 @@ const handle_refresh_listeners = (
 			const existing_loadeddata = _loadeddata.get(componentname)!;
 
 			for (const [datapath, newrows] of loadr.d.entries()) {
-
-				const exists = existing_loadeddata.get(datapath) || [];
-				/* reuse helper already declared below in file */
-				updateArrayIfPresent(
-					exists,
-					newrows.filter(r => !r.isdeleted),
-					newrows.filter(r =>  r.isdeleted)
-				);
-				existing_loadeddata.set(datapath, exists);
+				existing_loadeddata.set(datapath, newrows);
 			}
 
 			/* propagate to view + sub-els */
