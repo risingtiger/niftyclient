@@ -47,29 +47,21 @@ const AddView = (
 	_searchparams.set(componentname, searchparams_genericrowt)
 	_pathparams.set(componentname, pathparams)
 
-	{
-		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname+"_main"](pathparams, searchparams_raw, localdb_preload); }
-		catch { rej(); return; }
+	let loadr:LazyLoadFuncReturnT;
+	try   { loadr = await _all_lazyload_data_funcs[componentname+"_main"](pathparams, searchparams_raw, localdb_preload); }
+	catch { rej(); return; }
 
-		const loadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
+	const loadeddata = new Map<str, GenericRowT[]>();
+	for (const [datapath, generic_row_array] of loadr.d.entries())   loadeddata.set(datapath, generic_row_array)
 
-		_loadeddata.set(componentname, loadeddata)
-
-		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {
-			handle_refresh_listeners(loadr.refreshspecs, null as any, componentname, "_init");
-		}
-	}
-
-
+	_loadeddata.set(componentname, loadeddata)
 
 	const parentEl = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML("beforeend", `<v-${componentname} class='view'></v-${componentname}>`);
 
 	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
 
-	//if (refreshspecs && refreshspecs.length > 0) {   handle_refresh_listeners(refreshspecs, el, componentname, _pathparams.get(componentname)!, _searchparams.get(componentname)!, _loadeddata.get(componentname)!, _lazyload_data_funcs);  }
+	if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, el, componentname, "main");  }
 
 
 	el.addEventListener("hydrated", ()=> { 
@@ -252,13 +244,11 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 	const componentname     = activeviewel.tagName.toLowerCase().split("-")[1]
 	const pathparams        = _pathparams.get(componentname)!
-	const oldsearchparams   = _searchparams.get(componentname)!
 
 	const promises:Promise<any>[] = []
 	let   promises_r:any[] = []
 
-	promises.push( _all_lazyload_data_funcs[componentname+"_a"](pathparams, oldsearchparams, newsearchparams) )
-	promises.push( _all_lazyload_data_funcs[componentname+"_indexeddb"](pathparams, oldsearchparams, newsearchparams) )
+	promises.push( _all_lazyload_data_funcs[componentname+"_main"](pathparams, newsearchparams) )
 
 	try   { promises_r = await Promise.all(promises); }
 	catch { rej(); return; }
@@ -266,10 +256,11 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	_searchparams.set(componentname, newsearchparams)
 
 	const loadeddata = new Map<str, GenericRowT[]>();
-	for (const [datapath, generic_row_array] of promises_r[1].entries())   loadeddata.set(datapath, generic_row_array)
-	for (const [datapath, generic_row_array] of promises_r[2].entries())   loadeddata.set(datapath, generic_row_array)
+	for (const [datapath, generic_row_array] of promises_r[0].entries())   loadeddata.set(datapath, generic_row_array)
 
-	_loadeddata.set(componentname, loadeddata)
+	// will comnpletely replace the old loaded data for this view from main load function
+
+	_loadeddata.set(componentname, loadeddata) 
 
 	activeviewel.kd(loadeddata, 'searchchanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 	activeviewel.sc()
@@ -286,6 +277,8 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 
 const DataChanged = (updated:Map<str, GenericRowT[]>) => {
+
+	// right now, ONLY using type of 1 (localdb). 
 
 	// updated is a map, key being a string like: '1:machines'. 1: localdb, 2: remotedb, 3:remoteapi	
 	// if 1, it is always a collection like '1:machines' or '1:users'
@@ -374,7 +367,6 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
 	const pathparams   = _pathparams.get(componentname)!
 	const searchparams = _searchparams.get(componentname)!
-	const loadeddata   = _loadeddata.get(componentname)!
 
 	const merged_pathparams = { ...pathparams, ...subparams }
 	_pathparams.set(componentname, merged_pathparams)
@@ -387,20 +379,25 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 		const newloadeddata = new Map<str, GenericRowT[]>();
 		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
 
-		// merge newloadeddata with existing loadeddata
+		const existing_loadeddata   = _loadeddata.get(componentname)!
 		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
-			loadeddata.set(datapath, generic_row_array)
+			existing_loadeddata.set(datapath, generic_row_array)
 		}
-		_loadeddata.set(componentname, loadeddata)
+		_loadeddata.set(componentname, existing_loadeddata)
+
+		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, viewel, componentname, loadfunc_suffix);  }
 	}
 
-	viewel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)		
+	const loadeddata = _loadeddata.get(componentname)!
+
+	viewel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)		
 	viewel.sc()
 
 	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'paramschanged', merged_pathparams, _searchparams.get(componentname)!)
+		subel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)
 		subel.sc()
 	}
+
 
 	res()
 })
@@ -547,11 +544,11 @@ const handle_refresh_listeners = (
 
 		_loadeddata.set(componentname, loadeddata)
 
-		viewel.kd(loadeddata, 'paramschanged', pathparams, searchparams)		
+		viewel.kd(loadeddata, 'datachanged', pathparams, searchparams)		
 		viewel.sc()
 
 		for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-			subel.kd(loadeddata, 'paramschanged', pathparams, searchparams)
+			subel.kd(loadeddata, 'datachanged', pathparams, searchparams)
 			subel.sc()
 		}
 	})
