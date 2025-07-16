@@ -99,7 +99,6 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 async function NavigateTo(newPath: string) {
 
-	debugger
 	const p = "/v/" + newPath;
 	history.pushState({path:p}, '', p);
 
@@ -136,13 +135,9 @@ async function UpdateSearchParams(newsearchparams:GenericRowT) {
 		searchparams.set(key, value);
 	});
 
-	window.location.search = searchparams.toString();
-
-	//const searchparams_str = searchparams.toString();
-
-	//const newhistoryurl = window.location.pathname + '?' + searchparams_str;
-
-    //history.pushState({ index: history.state.index+1, path: newhistoryurl }, '', newhistoryurl);
+	const searchparams_str = searchparams.toString();
+	const newhistoryurl = window.location.pathname + '?' + searchparams_str;
+    history.pushState({ path: newhistoryurl }, '', newhistoryurl);
 
 	CMechSearchParamsChanged(newsearchparams)
 }
