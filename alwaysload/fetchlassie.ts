@@ -10,7 +10,7 @@ let _activeRequestCount = 0 // Track number of active requests
 
 
 
-function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null, refreshcache?: boolean) { return new Promise<FetchResultT>(async (fetch_callback)=> { 
+function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null) { return new Promise<FetchResultT>(async (fetch_callback)=> { 
 
     const http_opts     = http_optsP || { method: "GET", headers: {}, body: null }
 
