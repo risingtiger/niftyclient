@@ -259,6 +259,22 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
+	/* ---------- LOCAL CACHE FOR DATA API ---------- */
+	const cache         = await caches.open(_cache_name);
+	const should_refresh= new_headers.get('refreshcache') === 'true';
+
+	// Use URL only as cache key so header differences don't duplicate entries
+	const cache_key = new Request(new_request.url, {method:new_request.method});
+
+	if (!should_refresh) {
+		const cached = await cache.match(cache_key);
+		if (cached) {           // serve cached copy immediately
+			res(cached.clone());
+			return;
+		}
+	}
+	/* ---------------------------------------------- */
+
 	let server_response:any
 
 	try			 { server_response = await fetch(new_request) }
@@ -275,6 +291,11 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	_isoffline = false;
 
 	clearTimeout(abortsignal_timeoutid)
+
+	if (server_response.status === 200 && is_appapi) {
+		// always update cache – even when this came from refreshcache hit
+		cache.put(cache_key, server_response.clone())
+	}
 
 	if (is_appapi && server_response.status === 401) { // unauthorized
 		await error_out("sw4", "") 
