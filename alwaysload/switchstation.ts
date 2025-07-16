@@ -209,7 +209,7 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, rej) => {
 		});
 
 		allviews[allviews.length-1].style.display = "block";
-		allviews[allviews.length-1].dataset.active = "true"
+		allviews[allviews.length-1].dataset.active = "true";
 
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 
@@ -220,7 +220,7 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, rej) => {
 		rej(null);
 	}
 
-})
+});
 
 const setuproute_sub = (path: string) => new Promise<num|null>(async (res, rej) => {
 
