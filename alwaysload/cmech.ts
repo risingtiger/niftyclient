@@ -9,6 +9,7 @@ declare var $N: $NT;
 type Listening = {
     paths: str[],
 	componentname:str,
+	func_name_suffix: str,
     cb:()=>Promise<void>
 }
 
@@ -277,11 +278,8 @@ const ViewDisconnectedCallback = (component:HTMLElement) => {
 	_searchparams.delete(componentname) 
 	_pathparams.delete(componentname) 
 
-	// Remove listeners for this component
 	for (let i = _listening.length - 1; i >= 0; i--) {
-		if (_listening[i].componentname === componentname) {
-			_listening.splice(i, 1)
-		}
+		if (_listening[i].componentname === componentname) {   _listening.splice(i, 1);   }
 	}
 }
 
@@ -441,6 +439,7 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
 
 		const existing_loadeddata   = _loadeddata.get(componentname)!
+
 		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
 			existing_loadeddata.set(datapath, generic_row_array)
 		}
@@ -462,6 +461,13 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 	res()
 })
 
+
+
+
+const RemoveUrlSubMatch = (componentname:str, loadfunc_suffix?:str) => {
+
+	// remove the listener from _listening that matches the componentname and loadfunc_suffix AI!
+}
 
 
 
@@ -499,6 +505,11 @@ const handle_refresh_listeners = (
 	func_name_suffix:str,
 ) => {
 
+	// remove any existing listeners for this component and function name suffix
+	for (let i = _listening.length - 1; i >= 0; i--) {
+		if (_listening[i].componentname === componentname && _listening[i].func_name_suffix === func_name_suffix) {   _listening.splice(i, 1);   }
+	}
+
 	// currently only support data sync refreshes
 	if (!refreshspecs.every(spec => spec.type === "datasync")) {   return;   }
 
@@ -509,7 +520,8 @@ const handle_refresh_listeners = (
 		for (const path of spec.paths) {   paths.add(path);   }
 	}
 
-	const l = { componentname, paths: Array.from(paths), cb:()=> new Promise<void>(async (res, rej)=> {
+
+	const l = { componentname, func_name_suffix, paths: Array.from(paths), cb:()=> new Promise<void>(async (res, rej)=> {
 		const pathparams   = _pathparams.get(componentname)!;
 		const searchparams = _searchparams.get(componentname)!;
 
@@ -536,7 +548,7 @@ const handle_refresh_listeners = (
 
 
 
-export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, LoadUrlSubMatch }
+export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, LoadUrlSubMatch, RemoveUrlSubMatch }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
