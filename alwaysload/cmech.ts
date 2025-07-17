@@ -277,7 +277,12 @@ const ViewDisconnectedCallback = (component:HTMLElement) => {
 	_searchparams.delete(componentname) 
 	_pathparams.delete(componentname) 
 
-	// remove from _listening where componentname matches AI!
+	// Remove listeners for this component
+	for (let i = _listening.length - 1; i >= 0; i--) {
+		if (_listening[i].componentname === componentname) {
+			_listening.splice(i, 1)
+		}
+	}
 }
 
 
