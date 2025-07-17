@@ -47,8 +47,7 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 	window.addEventListener("popstate", async (e:PopStateEvent) => {
 		const state = e.state as HistoryStateT;
-		const laststate = _history_states[_history_states.length - 1];
-		// deep copy _history_states[_history_states.length - 1] so that we can modify it AI! 
+		const laststate = structuredClone(_history_states[_history_states.length - 1]);
 
 		if (state.type === "view") {
 			CMechRemoveActiveView()
