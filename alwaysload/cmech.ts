@@ -466,7 +466,11 @@ const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suff
 
 const RemoveUrlSubMatch = (componentname:str, loadfunc_suffix?:str) => {
 
-	// remove the listener from _listening that matches the componentname and loadfunc_suffix AI!
+	for (let i = _listening.length - 1; i >= 0; i--) {
+		if (_listening[i].componentname === componentname && _listening[i].func_name_suffix === loadfunc_suffix) {
+			_listening.splice(i, 1);
+		}
+	}
 }
 
 
