@@ -20,7 +20,13 @@ type Route = {
 	pathparams_propnames: Array<str>
 }
 
+type HistoryStateT = {
+	path: str,
+	type: "view" | "sub" | "search",
+}
+
 let _routes:Array<Route> = [];
+let _history_states:Array<HistoryStateT> = [];
 
 
 
@@ -34,18 +40,34 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 	try   { await setuproute(window.location.pathname.slice(3)); } // remove /v/ prefix
 	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
-	history.replaceState({}, '', window.location.pathname + window.location.search);
+	const p = window.location.pathname + window.location.search
+	const historystate = { type: "view", path:p } as HistoryStateT
+	_history_states.push(historystate);
+	history.replaceState(historystate, '', p);
 
-	window.addEventListener("popstate", async (_e:PopStateEvent) => {
-		CMechRemoveActiveView()
-		if (document.getElementById("views")!.children.length === 0) {
-			try   { await setuproute("home"); } 
+	window.addEventListener("popstate", async (e:PopStateEvent) => {
+		const state = e.state as HistoryStateT;
+		const laststate = _history_states[_history_states.length - 1];
+		// deep copy _history_states[_history_states.length - 1] so that we can modify it AI! 
+
+		if (state.type === "view") {
+			CMechRemoveActiveView()
+			if (document.getElementById("views")!.children.length === 0) {
+				try   { await setuproute("home"); } 
+				catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+			}
+			else {
+				const viewel = document.querySelector("#views > :last-child") as HTMLElement;
+				viewel.style.display = "block";
+				viewel.dataset.active = "true"
+			}
+		}
+		else if (state.type === "sub") {
+			try   { await setuproute_sub(state.path); }
 			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 		}
-		else {
-			const viewel = document.querySelector("#views > :last-child") as HTMLElement;
-			viewel.style.display = "block";
-			viewel.dataset.active = "true"
+		else if (state.type === "search") {
+			CMechSearchParamsChanged(new URLSearchParams(state.path.split('?')[1]))
 		}
 	})
 
@@ -97,12 +119,13 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 
 
-async function NavigateTo(newPath: string) {
+async function NavigateToView(newPath: string) {
 
 	const p = "/v/" + newPath;
-	history.pushState({path:p}, '', p);
+	const historystate = {path:p, type:"view"} as HistoryStateT;
+	history.pushState(historystate, '', p);
+	_history_states.push(historystate);
 
-	debugger
 	try   { await setuproute(newPath); }
 	catch { return; }
 
@@ -116,7 +139,8 @@ async function NavigateBack(opts:{ default:str}) {
 	if (document.getElementById("views")!.children.length === 1) {
 		const defaultpath = opts.default || "home";
 		CMechRemoveActiveView()
-		history.replaceState({path: '/v/'+defaultpath}, '', '/v/'+defaultpath);
+		const historystate = {path: '/v/'+defaultpath, type:"view"} as HistoryStateT
+		history.replaceState(historystate, '', '/v/'+defaultpath);
 		try   { await setuproute(defaultpath); }
 		catch { return; }
 
@@ -128,7 +152,8 @@ async function NavigateBack(opts:{ default:str}) {
 async function NavigateToSub(newPath: string) {
 
 	const p = "/v/" + newPath;
-	history.pushState({path:p}, '', p);
+	const historystate = {path:p, type: "sub"} as HistoryStateT
+	history.pushState(historystate, '', p);
 
 	try   { await setuproute_sub(newPath); }
 	catch { return; }
@@ -147,7 +172,8 @@ async function UpdateSearchParams(newsearchparams:GenericRowT) {
 
 	const searchparams_str = searchparams.toString();
 	const newhistoryurl = window.location.pathname + '?' + searchparams_str;
-    history.pushState({ path: newhistoryurl }, '', newhistoryurl);
+	const historystate = { path: newhistoryurl, type: "search" } as HistoryStateT
+    history.pushState(historystate, '', newhistoryurl);
 
 	CMechSearchParamsChanged(newsearchparams)
 }
@@ -221,6 +247,9 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, rej) => {
 	}
 
 });
+
+
+
 
 const setuproute_sub = (path: string) => new Promise<num|null>(async (res, rej) => {
 
@@ -413,7 +442,7 @@ const handle_route_fail = (route:Route, redirect:boolean = false) => {
 export { Init, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack, UpdateSearchParams };
+((window as any).$N as any).SwitchStation = { NavigateToView, NavigateToSub, NavigateBack, UpdateSearchParams };
 
 
 
