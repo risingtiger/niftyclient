@@ -373,6 +373,9 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	try   { promises_r = await Promise.all(promises); }
 	catch { rej(); return; }
 
+	// stash the search params in the dataset of viewel
+	activeviewel.dataset.searchparams = JSON.stringify(newsearchparams)
+
 	_searchparams.set(componentname, newsearchparams)
 
 	const loadeddata = new Map<str, GenericRowT[]>();
