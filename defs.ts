@@ -86,6 +86,8 @@ export type CMechViewPartT = {
 	a: {[key:string]:any},
 	s: {[key:string]:any},
 	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // refer to CMechViewT for loadstate values
+	pathparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
+	searchparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
