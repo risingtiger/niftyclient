@@ -370,7 +370,11 @@ function parsepath(pathfull:str) {
 	const pathparams      = GetPathParams(route.pathparams_propnames, pathparammatch_values);
 	const searchparams    = new URLSearchParams(window.location.search);
 
-	// convert searchparams to GenericRowT AI!
+	// Convert URLSearchParams to GenericRowT
+	const searchparams_obj: GenericRowT = {};
+	for (const [key, value] of searchparams.entries()) {
+		searchparams_obj[key] = value;
+	}
 
 
 
