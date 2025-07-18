@@ -175,9 +175,9 @@ async function NavigateTo(path: string) {
 	try   { await gotoview(parsedpath); }
 	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
-	// do a complete an deep copy of parsedpath AI!
-	const viewpartofparsedpath = parsedpath;
-	_history_states.push(historystate);
+	// Create a complete deep copy of parsedpath
+	const viewpartofparsedpath = structuredClone(parsedpath);
+	_history_states.push(viewpartofparsedpath);
 
 	if (parsedpath.sub) {
 		setTimeout(async ()=> {
