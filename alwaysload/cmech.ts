@@ -397,17 +397,17 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 	_loadeddata.set(componentname, loadeddata) 
 
-	if (activeviewel.searchparamschngd) {
-		activeviewel.searchparamschngd(loadeddata, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
-	}
-	activeviewel.sc()
-
 	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
 		if (subel.searchparamschngd) {
 			subel.searchparamschngd(loadeddata, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 		}
 		subel.sc()
 	}
+
+	if (activeviewel.searchparamschngd) {
+		activeviewel.searchparamschngd(loadeddata, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
+	}
+	activeviewel.sc()
 
 	res()
 })
