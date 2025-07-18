@@ -297,6 +297,67 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 
 
+const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_suffix?:str) => new Promise<void>(async (res, rej) => {
+
+	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
+	const pathparams   = _pathparams.get(componentname)!
+	const searchparams = _searchparams.get(componentname)!
+
+
+	// remove any already existing params listeners for this component and function name suffix
+	const i = _listening.findIndex(l=> l.func_name_suffix === viewel.dataset.params_hack_loadfunc_suffix_ref)
+	if (i !== -1) {   _listening.splice(i, 1);   }
+
+	// now delete any subparams that are referenced in the viewel dataset
+	const params_hack_ref = JSON.parse(viewel.dataset.params_hack_ref || "[]") as str[]
+	for (const name of params_hack_ref) {
+		if (pathparams[name] === undefined) continue; // if it doesn't exist, skip
+		delete pathparams[name]; // delete it from the subparams
+	}
+
+	// hack! we're just gonna stash the subparam names inside of viewel so we can delete them on later navigations
+	viewel.dataset.params_hack_ref = JSON.stringify(Object.keys(subparams))
+
+	// hack again!. we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
+	viewel.dataset.params_hack_loadfunc_suffix_ref = loadfunc_suffix
+
+	const merged_pathparams = { ...pathparams, ...subparams }
+	_pathparams.set(componentname, subparams)
+
+	if (loadfunc_suffix) {
+		let loadr:LazyLoadFuncReturnT;
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](merged_pathparams, searchparams); }
+		catch { rej(); return; }
+
+		const newloadeddata = new Map<str, GenericRowT[]>();
+		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
+
+		const existing_loadeddata   = _loadeddata.get(componentname)!
+
+		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
+			existing_loadeddata.set(datapath, generic_row_array)
+		}
+		_loadeddata.set(componentname, existing_loadeddata)
+
+		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, loadfunc_suffix);  }
+	}
+
+	const loadeddata = _loadeddata.get(componentname)!
+
+	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+		subel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)
+		subel.sc()
+	}
+
+	viewel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)		
+	viewel.sc()
+
+	res()
+})
+
+
+
+
 const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(async (res, rej)=> {
 
 	const activeviewel      = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
@@ -421,57 +482,7 @@ const RemoveActiveView = () => {
 
 
 
-const LoadUrlSubMatch = (componentname:str, subparams:GenericRowT, loadfunc_suffix?:str) => new Promise<void>(async (res, rej) => {
 
-	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
-	const pathparams   = _pathparams.get(componentname)!
-	const searchparams = _searchparams.get(componentname)!
-
-	const merged_pathparams = { ...pathparams, ...subparams }
-	_pathparams.set(componentname, merged_pathparams)
-
-	if (loadfunc_suffix) {
-		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](merged_pathparams, searchparams); }
-		catch { rej(); return; }
-
-		const newloadeddata = new Map<str, GenericRowT[]>();
-		for (const [datapath, generic_row_array] of loadr.d.entries())   newloadeddata.set(datapath, generic_row_array)
-
-		const existing_loadeddata   = _loadeddata.get(componentname)!
-
-		for (const [datapath, generic_row_array] of newloadeddata.entries()) {
-			existing_loadeddata.set(datapath, generic_row_array)
-		}
-		_loadeddata.set(componentname, existing_loadeddata)
-
-		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, loadfunc_suffix);  }
-	}
-
-	const loadeddata = _loadeddata.get(componentname)!
-
-	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)
-		subel.sc()
-	}
-
-	viewel.kd(loadeddata, 'subchanged', merged_pathparams, _searchparams.get(componentname)!)		
-	viewel.sc()
-
-	res()
-})
-
-
-
-
-const RemoveUrlSubMatch = (componentname:str, loadfunc_suffix?:str) => {
-
-	for (let i = _listening.length - 1; i >= 0; i--) {
-		if (_listening[i].componentname === componentname && _listening[i].func_name_suffix === loadfunc_suffix) {
-			_listening.splice(i, 1);
-		}
-	}
-}
 
 
 
@@ -552,7 +563,7 @@ const handle_refresh_listeners = (
 
 
 
-export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, LoadUrlSubMatch, RemoveUrlSubMatch }
+export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, PathParamsChanged }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
