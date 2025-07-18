@@ -305,7 +305,7 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 
 
 	// remove any already existing params listeners for this component and function name suffix
-	const i = _listening.findIndex(l=> l.func_name_suffix === viewel.dataset.params_hack_loadfunc_suffix_ref)
+	const i = _listening.findIndex(l=> l.func_name_suffix === viewel.dataset.pathparams_loadfunc_suffix)
 	if (i !== -1) {   _listening.splice(i, 1);   }
 
 	// now delete any subparams that are referenced in the viewel dataset
@@ -319,7 +319,7 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 	viewel.dataset.pathparams = JSON.stringify(Object.keys(subparams))
 
 	// hack again!. we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
-	viewel.dataset.params_hack_loadfunc_suffix_ref = loadfunc_suffix
+	viewel.dataset.pathparams_loadfunc_suffix = loadfunc_suffix
 
 	const merged_pathparams = { ...pathparams, ...subparams }
 	_pathparams.set(componentname, subparams)
