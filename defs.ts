@@ -33,6 +33,8 @@ export type FetchLassieOptsT = {
 	retries?: num,
 	background?: boolean,
 	animate?: boolean,
+	refreshcache?: boolean,
+	cacheit?: boolean
 }
 export type FetchResultT = {
 	status: number,
@@ -71,7 +73,7 @@ export type CMechViewT = {
 	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'paramschanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'subchanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
@@ -81,7 +83,7 @@ export type CMechViewPartT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'paramschanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // refer to CMechViewT for loadstate values
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
@@ -99,7 +101,7 @@ export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 export type $NT = {
 	SSEvents: {
-		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], paths:str[]|null, priority:number|null, callback_func:any) => void
+		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], priority:number|null, callback_func:any) => void
 		Remove_Listener: (el:HTMLElement, name:string)=>void
 		HandleMessage: (data:any)=>void
 	},
@@ -147,9 +149,10 @@ export type $NT = {
 	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
-		NavigateTo: (newPath: string) => void,
+		NavigateToView: (newPath: string) => void,
+		NavigateToSub: (newPath: string) => void,
 		NavigateBack: (opts:{default:str}) => void,
-		UpdateSearchParams: (newsearchparams:GenericRowT) => void
+		NavigateToSearch: (newsearchparams:GenericRowT) => void
 	}
 
 	IDB: {
