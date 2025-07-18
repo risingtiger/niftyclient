@@ -309,14 +309,14 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 	if (i !== -1) {   _listening.splice(i, 1);   }
 
 	// now delete any subparams that are referenced in the viewel dataset
-	const params_hack_ref = JSON.parse(viewel.dataset.params_hack_ref || "[]") as str[]
-	for (const name of params_hack_ref) {
+	const pathparams_ref = JSON.parse(viewel.dataset.pathparams || "[]") as str[]
+	for (const name of pathparams_ref) {
 		if (pathparams[name] === undefined) continue; // if it doesn't exist, skip
 		delete pathparams[name]; // delete it from the subparams
 	}
 
 	// hack! we're just gonna stash the subparam names inside of viewel so we can delete them on later navigations
-	viewel.dataset.params_hack_ref = JSON.stringify(Object.keys(subparams))
+	viewel.dataset.pathparams = JSON.stringify(Object.keys(subparams))
 
 	// hack again!. we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
 	viewel.dataset.params_hack_loadfunc_suffix_ref = loadfunc_suffix
