@@ -3,7 +3,7 @@
 import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
-import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged, RemoveActiveView as CMechRemoveActiveView, LoadUrlSubMatch as CMechLoadUrlSubMatch } from "./cmech.js"
+import { AddView as CMechAddView, SearchParamsChanged as CMechSearchParamsChanged, RemoveActiveView as CMechRemoveActiveView, PathParamsChanged as CMechPathParamsChanged } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
@@ -23,6 +23,7 @@ type Route = {
 type HistoryStateT = {
 	path: str,
 	type: "view" | "sub" | "search",
+	routeindex: num
 }
 
 let _routes:Array<Route> = [];
@@ -37,6 +38,11 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])
 
+	// sort _routes by route regex source. I want the most specific routes to be first AI!
+
+	const parsedpath = parsepath(window.location.pathname);
+
+	/*
 	try   { await setuproute(window.location.pathname.slice(3)); } // remove /v/ prefix
 	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
@@ -44,12 +50,15 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 	const historystate = { type: "view", path:p } as HistoryStateT
 	_history_states.push(historystate);
 	history.replaceState(historystate, '', p);
+	*/
 
 	window.addEventListener("popstate", async (e:PopStateEvent) => {
+
 		const state = e.state as HistoryStateT;
 		const laststate = structuredClone(_history_states[_history_states.length - 1]);
+		_history_states.pop(); // remove last state
 
-		if (state.type === "view") {
+		if (state.type === "view" && laststate.type === "view") {
 			CMechRemoveActiveView()
 			if (document.getElementById("views")!.children.length === 0) {
 				try   { await setuproute("home"); } 
@@ -61,12 +70,19 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 				viewel.dataset.active = "true"
 			}
 		}
+
 		else if (state.type === "sub") {
 			try   { await setuproute_sub(state.path); }
 			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 		}
+
 		else if (state.type === "search") {
 			CMechSearchParamsChanged(new URLSearchParams(state.path.split('?')[1]))
+		}
+
+		else if (state.type === "view" && laststate.type === "sub") {
+			try   { await setuproute_sub(state.path); }
+			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 		}
 	})
 
@@ -118,11 +134,14 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 
 
-async function NavigateToView(newPath: string) {
+async function NavigateTo(path: string) {
 
-	const p = "/v/" + newPath;
-	const historystate = {path:p, type:"view"} as HistoryStateT;
-	history.pushState(historystate, '', p);
+    const [urlmatches, routeindex] = get_view_route_uri(viewpath);
+	if (routeindex === -1) { console.log('route not found for', viewpath); return; }
+
+
+	const historystate:HistoryStateT = {path:viewpath, type:"view", routeindex};
+	history.pushState({}, '', '/v/'+viewpath);
 	_history_states.push(historystate);
 
 	try   { await setuproute(newPath); }
@@ -135,7 +154,9 @@ async function NavigateToView(newPath: string) {
 
 async function NavigateBack(opts:{ default:str}) {
 
-	if (document.getElementById("views")!.children.length === 1) {
+	const current_hstory_state = _history_states[_history_states.length - 1];
+
+	if (current_hstory_state.type === 'view' && document.getElementById("views")!.children.length === 1) {
 		const defaultpath = opts.default || "home";
 		CMechRemoveActiveView()
 		const historystate = {path: '/v/'+defaultpath, type:"view"} as HistoryStateT
@@ -148,13 +169,16 @@ async function NavigateBack(opts:{ default:str}) {
 	history.back()
 }
 
-async function NavigateToSub(newPath: string) {
+async function NavigateToSub(subpath: string) {
 
+	/*
 	const p = "/v/" + newPath;
 	const historystate = {path:p, type: "sub"} as HistoryStateT
 	history.pushState(historystate, '', p);
+	_history_states.push(historystate);
+	*/
 
-	try   { await setuproute_sub(newPath); }
+	try   { await setuproute_sub(subpath); }
 	catch { return; }
 
 }
@@ -162,7 +186,7 @@ async function NavigateToSub(newPath: string) {
 
 
 
-async function UpdateSearchParams(newsearchparams:GenericRowT) {
+async function NavigateToSearch(newsearchparams:GenericRowT) {
 
 	const searchparams = new URLSearchParams(window.location.search);
 	Object.entries(newsearchparams).forEach(([key, value]) => {
@@ -250,7 +274,7 @@ const setuproute = (path: string) => new Promise<num|null>(async (res, rej) => {
 
 
 
-const setuproute_sub = (path: string) => new Promise<num|null>(async (res, rej) => {
+const setuproute_sub = (subpath: string) => new Promise<num|null>(async (res, rej) => {
 
 		const viewsel          = document.getElementById("views")!
 		const viewel           = viewsel.lastElementChild!
@@ -263,7 +287,7 @@ const setuproute_sub = (path: string) => new Promise<num|null>(async (res, rej) 
 				const matches = path.match(submatch.path_regex);
 				if (matches) {
 					const subparams = matches.length > 1 ? GetPathParams(submatch.pathparams_propnames, matches.slice(1)) : {};
-					try   { await CMechLoadUrlSubMatch(current_route.lazyload_view.name, subparams, submatch.loadfunc); }
+					try   { await CMechPathParamsChanged(current_route.lazyload_view.name, subparams, submatch.loadfunc); }
 					catch { handle_route_fail(current_route, true); rej(null); return; }
 					flag = true;
 					break;
@@ -271,120 +295,14 @@ const setuproute_sub = (path: string) => new Promise<num|null>(async (res, rej) 
 			}
 		}
 
-		if (!flag) { handle_route_fail(current_route, true); rej(null); return; }
+		if (!flag) {  
+			try		{ await CMechPathParamsChanged(current_route.lazyload_view.name, {}); }
+			catch   { handle_route_fail(current_route, true); rej(null); return; }
+			flag = true;
+		}
 
 		res(1);
-});
-
-
-
-/*
-const old__routeChanged = (path: string, direction:'firstload'|'back'|'forward' = 'firstload') => new Promise<num|null>(async (res, _rej) => {
-
-	const viewsel            = document.getElementById("views") as HTMLElement;
-
-    const [urlmatches, routeindex] = get_route_uri(path);
-
-    if (direction === "firstload") {
-
-		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
-
-		if (loadresult === 'failed') {
-			handle_route_fail(_routes[routeindex], true)
-			res(null);
-			return;
-		}
-
-		( viewsel.children[0] as HTMLElement ).style.display = "block";
-		( viewsel.children[0] as HTMLElement ).dataset.active = "true"
-
-		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
-    }
-
-    else if (direction === "forward") {
-
-		const loadresult = await routeload(routeindex, path, urlmatches, "beforeend");
-
-		if (loadresult === 'failed') {
-			handle_route_fail(_routes[routeindex])
-			res(null);
-			return;
-		}
-
-        const activeview = viewsel.children[viewsel.children.length - 1] as HTMLElement;
-        activeview.classList.add("next_startstate");
-        activeview.style.display = "block";
-        activeview.offsetHeight; // force reflow
-        activeview.classList.remove("next_startstate");
-
-        const previousview = activeview.previousElementSibling as HTMLElement;
-        if (previousview) {
-            previousview.classList.add("previous_endstate");
-        }
-
-        activeview.addEventListener("transitionend", function activeTransitionEnd() {
-            if (previousview) {
-                previousview.style.display = "none";
-                previousview.dataset.active = "false";
-            }
-            activeview.dataset.active = "true";
-            activeview.removeEventListener("transitionend", activeTransitionEnd);
-
-			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
-        });
-    }
-
-    else if (direction === "back") {
-
-        const activeview = viewsel.children[viewsel.children.length - 1] as HTMLElement;
-        let previousview = activeview?.previousElementSibling as HTMLElement;
-        
-        activeview.dataset.active = "false";
-
-
-        if (isSwipeBackGesture) {
-            activeview.remove();
-			previousview.classList.remove("previous_endstate");
-			await new Promise((res, _rej) => setTimeout(res, 100));
-			previousview.style.display = "block";
-            previousview.dataset.active = "true";
-            document.querySelector("#views")!.dispatchEvent(new Event("view_load_done"));
-            res(1);
-            return;
-        }
-
-        if (!previousview) {
-			const loadresult = await routeload(routeindex, path, urlmatches, "afterbegin");
-
-            if (loadresult === "failed") {
-				handle_route_fail(_routes[routeindex])
-				res(null);
-				return;
-            }
-            previousview = activeview?.previousElementSibling as HTMLElement;
-        }
-
-		previousview.style.display = "block";
-        activeview.offsetHeight; // force reflow
-        activeview.classList.add("active_endstate");
-        previousview.classList.remove("previous_endstate");
-
-        activeview.addEventListener("transitionend", function activeTransitionEnd() {
-            activeview.remove();
-            const previous_previousview = previousview?.previousElementSibling as HTMLElement;
-            if (previous_previousview) {
-            }
-            previousview.dataset.active = "true";
-            activeview.removeEventListener("transitionend", activeTransitionEnd);
-
-			document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
-        });
-    }
-
-	res(1);
 })
-*/
-
 
 
 
@@ -408,6 +326,30 @@ const routeload = (routeindex:num, _uri:str, urlmatches:str[]) => new Promise<st
 	res('success')
 })
 
+
+
+
+function parsepath(pathfull:str) {
+
+	const path = pathfull.slice(3); // remove /v/ prefix
+	const historystate = _history_states[_history_states.length - 1];
+
+    for (let i = 0; i < _routes.length; i++) {
+		let pathmatchstr = path.match(_routes[i].path_regex)
+		if (pathmatchstr) {   return [ pathmatchstr.slice(1), i ];   }
+    }
+    return [ [], -1 ]// catch all if not route
+
+	/*
+    const [urlmatches, routeindex] = get_view_route_uri(viewpath);
+	if (routeindex === -1) { console.log('route not found for', viewpath); return; }
+
+
+	//const historystate:HistoryStateT = {path:viewpath, type:"view", routeindex};
+	history.pushState({}, '', '/v/'+viewpath);
+	_history_states.push(historystate);
+	*/
+}
 
 
 
@@ -441,7 +383,7 @@ const handle_route_fail = (route:Route, redirect:boolean = false) => {
 export { Init, HandleLocalDBSyncUpdateTooLarge }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).SwitchStation = { NavigateToView, NavigateToSub, NavigateBack, UpdateSearchParams };
+((window as any).$N as any).SwitchStation = { NavigateTo, NavigateBack };
 
 
 
