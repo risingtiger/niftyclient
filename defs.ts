@@ -74,6 +74,8 @@ export type CMechViewT = {
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
 	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'subchanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
+	pathparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
+	searchparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
