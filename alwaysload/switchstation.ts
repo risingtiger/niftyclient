@@ -26,6 +26,14 @@ type HistoryStateT = {
 	routeindex: num
 }
 
+type PathSpec = {
+	route: Route,
+	pathparams: GenericRowT,
+	searchparams: URLSearchParams,
+	type: "view" | "sub" | "search",
+	routeindex: num
+}
+
 let _routes:Array<Route> = [];
 let _history_states:Array<HistoryStateT> = [];
 
@@ -344,12 +352,28 @@ function parsepath(pathfull:str) {
 
 	const path = pathfull.slice(3); // remove /v/ prefix
 	const historystate = _history_states[_history_states.length - 1];
+	let   pathparammatch_values:string[] = []
+	let   routematch_index = -1;
 
     for (let i = 0; i < _routes.length; i++) {
 		let pathmatchstr = path.match(_routes[i].path_regex)
-		if (pathmatchstr) {   return [ pathmatchstr.slice(1), i ];   }
+		if (pathmatchstr) {   
+			pathparammatch_values = pathmatchstr.slice(1);
+			routematch_index = i;
+			break;
+		}
     }
-    return [ [], -1 ]// catch all if not route
+
+	if (routematch_index === -1) {  return null; }
+
+	const route = _routes[routematch_index];
+	const pathparams      = GetPathParams(route.pathparams_propnames, pathparammatch_values);
+	const searchparams    = new URLSearchParams(window.location.search);
+
+	// convert searchparams to GenericRowT AI!
+
+
+
 
 	/*
     const [urlmatches, routeindex] = get_view_route_uri(viewpath);
