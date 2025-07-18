@@ -38,7 +38,18 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])
 
-	// sort _routes by route regex source. I want the most specific routes to be first AI!
+	// Sort routes by specificity - most specific routes first
+	_routes.sort((a, b) => {
+		const a_source = a.path_regex.source
+		const b_source = b.path_regex.source
+		
+		// Count specific characters (non-regex metacharacters) to determine specificity
+		const a_specificity = a_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
+		const b_specificity = b_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
+		
+		// More specific routes (higher character count) come first
+		return b_specificity - a_specificity
+	})
 
 	const parsedpath = parsepath(window.location.pathname);
 
