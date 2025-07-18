@@ -395,8 +395,8 @@ function parsepath(pathfull:str) {
 		subs.push({ path_regex: regex, pathparams_propnames, loadfunc: s.loadfunc, pattern });
 	}
 
-	// this sort was copied from the Init function. convert it to sort this function's subs array on the same type of criteria AI!
-	_routes.sort((a, b) => {
+	// Sort subs by specificity - most specific routes first
+	subs.sort((a, b) => {
 		const a_source = a.path_regex.source
 		const b_source = b.path_regex.source
 		
