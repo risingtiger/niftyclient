@@ -395,7 +395,6 @@ function parsepath(pathfull:str) {
 		subs.push({ path_regex: regex, pathparams_propnames, loadfunc: s.loadfunc, pattern });
 	}
 
-	// Sort subs by specificity - most specific routes first
 	subs.sort((a, b) => {
 		const a_source = a.path_regex.source
 		const b_source = b.path_regex.source
@@ -408,14 +407,8 @@ function parsepath(pathfull:str) {
 		return b_specificity - a_specificity
 	})
 
-	for(const s of route.lazyload_view.subs) {
-		let pathmatchstr = path.match(_routes[i].path_regex)
-		if (pathmatchstr) {   
-			pathparammatch_values = pathmatchstr.slice(1);
-			routematch_index = i;
-			break;
-		}
-    }
+	// now that subs are sorted, find the first match against the path. 
+	// each sub's path_regex is only a partical match of the path, so if the path is 'machines/1234/map', the view match might be 'machines/1234' and the sub match might be just 'map' AI!
 
 
 
