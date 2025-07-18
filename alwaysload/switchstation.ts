@@ -12,11 +12,13 @@ declare var $N: $NT;
 type Route = {
 	lazyload_view: LazyLoadT
 	path_regex: RegExp
-	subpaths: {
+	/*
+	subpaths?: {
 		path_regex: RegExp,
 		pathparams_propnames: Array<str>,
 		loadfunc?: str
 	}[],
+	*/
 	pathparams_propnames: Array<str>
 }
 
@@ -29,9 +31,12 @@ type HistoryStateT = {
 type PathSpec = {
 	route: Route,
 	pathparams: GenericRowT,
-	searchparams: URLSearchParams,
+	searchparams: GenericRowT,
 	type: "view" | "sub" | "search",
-	routeindex: num
+	sub?: {
+		pathparams: GenericRowT,
+		searchparams: GenericRowT
+	}
 }
 
 let _routes:Array<Route> = [];
@@ -233,9 +238,9 @@ function HandleLocalDBSyncUpdateTooLarge() {
 const addroute = (lazyload_view:LazyLoadT) => {
 
 	const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(lazyload_view.urlmatch!)
-
 	const subpaths:{ path_regex:RegExp, pathparams_propnames:Array<str>, loadfunc?:str }[] = [];
 
+	/*
 	if (lazyload_view.subs && lazyload_view.subs.length) {
 		lazyload_view.subs.forEach((sub) => {
 			const {regex: submatch_regex, paramnames: submatch_pathparams_propnames} = RegExParams(sub.urlmatch);
@@ -246,8 +251,9 @@ const addroute = (lazyload_view:LazyLoadT) => {
 			});
 		})
 	}
+	*/
 
-	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames, subpaths });
+	_routes.push({ lazyload_view, path_regex: regex, pathparams_propnames });
 
 	return { viewname: lazyload_view.name, pattern }
 }
@@ -368,13 +374,49 @@ function parsepath(pathfull:str) {
 
 	const route = _routes[routematch_index];
 	const pathparams      = GetPathParams(route.pathparams_propnames, pathparammatch_values);
-	const searchparams    = new URLSearchParams(window.location.search);
+	const searchparamsraw    = new URLSearchParams(window.location.search);
 
-	// Convert URLSearchParams to GenericRowT
-	const searchparams_obj: GenericRowT = {};
-	for (const [key, value] of searchparams.entries()) {
-		searchparams_obj[key] = value;
+	const searchparams: GenericRowT = {};
+	for (const [key, value] of searchparamsraw.entries()) {
+		searchparams[key] = value;
 	}
+
+	if (!route.lazyload_view.subs) {
+		return { route, pathparams, searchparams, type: "view" };
+	}
+
+
+	pathparammatch_values = []
+	routematch_index = -1;
+	const subs:any[] = []
+
+	for(const s of route.lazyload_view.subs) {
+		const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(s.urlmatch)
+		subs.push({ path_regex: regex, pathparams_propnames, loadfunc: s.loadfunc, pattern });
+	}
+
+	// this sort was copied from the Init function. convert it to sort this function's subs array on the same type of criteria AI!
+	_routes.sort((a, b) => {
+		const a_source = a.path_regex.source
+		const b_source = b.path_regex.source
+		
+		// Count specific characters (non-regex metacharacters) to determine specificity
+		const a_specificity = a_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
+		const b_specificity = b_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
+		
+		// More specific routes (higher character count) come first
+		return b_specificity - a_specificity
+	})
+
+	for(const s of route.lazyload_view.subs) {
+		let pathmatchstr = path.match(_routes[i].path_regex)
+		if (pathmatchstr) {   
+			pathparammatch_values = pathmatchstr.slice(1);
+			routematch_index = i;
+			break;
+		}
+    }
+
 
 
 
