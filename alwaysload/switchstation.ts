@@ -408,7 +408,35 @@ function parsepath(pathfull:str) {
 	})
 
 	// now that subs are sorted, find the first match against the path. 
-	// each sub's path_regex is only a partical match of the path, so if the path is 'machines/1234/map', the view match might be 'machines/1234' and the sub match might be just 'map' AI!
+	// each sub's path_regex is only a partial match of the path, so if the path is 'machines/1234/map', the view match might be 'machines/1234' and the sub match might be just 'map'
+	
+	// Get the portion of the path that wasn't matched by the main route
+	const main_route_match = path.match(route.path_regex);
+	if (!main_route_match) return { route, pathparams, searchparams, type: "view" };
+	
+	const matched_portion = main_route_match[0];
+	const remaining_path = path.slice(matched_portion.length);
+	
+	// Try to match the remaining path against sub routes
+	for (const sub of subs) {
+		const sub_match = remaining_path.match(sub.path_regex);
+		if (sub_match) {
+			const sub_pathparams = GetPathParams(sub.pathparams_propnames, sub_match.slice(1));
+			return {
+				route,
+				pathparams,
+				searchparams,
+				type: "sub",
+				sub: {
+					pathparams: sub_pathparams,
+					searchparams
+				}
+			};
+		}
+	}
+	
+	// No sub route matched, return as view
+	return { route, pathparams, searchparams, type: "view" };
 
 
 
