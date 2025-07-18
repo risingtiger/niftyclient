@@ -315,10 +315,10 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 		delete pathparams[name]; // delete it from the subparams
 	}
 
-	// hack! we're just gonna stash the subparam names inside of viewel so we can delete them on later navigations
+	// we're just gonna stash the subparam names inside of viewel so we can delete them on later navigations
 	viewel.dataset.pathparams = JSON.stringify(Object.keys(subparams))
 
-	// hack again!. we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
+	// we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
 	viewel.dataset.pathparams_loadfunc_suffix = loadfunc_suffix
 
 	const merged_pathparams = { ...pathparams, ...subparams }
