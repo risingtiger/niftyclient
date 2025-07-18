@@ -345,15 +345,11 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 	const loadeddata = _loadeddata.get(componentname)!
 
 	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		if (subel.pathparamschngd) {
-			subel.pathparamschngd(loadeddata, merged_pathparams, _searchparams.get(componentname)!)
-		}
+		subel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
-	if (viewel.pathparamschngd) {
-		viewel.pathparamschngd(loadeddata, merged_pathparams, _searchparams.get(componentname)!)
-	}
+	viewel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
 	viewel.sc()
 
 	res()
@@ -398,15 +394,11 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	_loadeddata.set(componentname, loadeddata) 
 
 	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		if (subel.searchparamschngd) {
-			subel.searchparamschngd(loadeddata, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
-		}
+		subel.kd(loadeddata, 'datachanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
-	if (activeviewel.searchparamschngd) {
-		activeviewel.searchparamschngd(loadeddata, _pathparams.get(componentname)!, _searchparams.get(componentname)!)
-	}
+	activeviewel.kd(loadeddata, 'datachanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 	activeviewel.sc()
 
 	res()
