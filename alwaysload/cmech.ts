@@ -364,6 +364,14 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 
 	const componentname     = activeviewel.tagName.toLowerCase().split("-")[1]
 	const pathparams        = _pathparams.get(componentname)!
+	const searchparams      = _searchparams.get(componentname)!
+
+	// delete any existing search params that are referenced in the viewel dataset
+	const searchparams_ref = JSON.parse(activeviewel.dataset.searchparams || "{}") as GenericRowT
+	for (const name of Object.keys(searchparams_ref)) {
+		if (searchparams[name] === undefined) continue; // if it doesn't exist, skip
+		delete searchparams[name]; // delete it from the searchparams
+	}
 
 	const promises:Promise<any>[] = []
 	let   promises_r:any[] = []
