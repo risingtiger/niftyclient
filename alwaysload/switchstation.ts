@@ -58,6 +58,10 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 		return b_specificity - a_specificity
 	})
 
+	if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index.html') {
+		history.replaceState({}, '', '/v/home');
+	}
+
 	const path = window.location.pathname.slice(3); // remove /v/ prefix
 
 	const pathspec = parsepath(path);
