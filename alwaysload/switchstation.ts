@@ -1,9 +1,15 @@
 
 
+
+// TODO: Go to a popup like machine details. Refresh. It will automatically bring the popup back up. Thats cool. But then click away from the popup. A back is triggered, but it goes all the way back home
+
+
+
+
 import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
-import { AddView as CMechAddView, RemoveActiveView as CMechRemoveActiveView, PathParamsChanged as CMechPathParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
+import { AddView as CMechAddView, PathParamsChanged as CMechPathParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
@@ -13,12 +19,6 @@ type Route = {
 	lazyload_view: LazyLoadT
 	path_regex: RegExp
 	pathparams_propnames: Array<str>
-}
-
-type HistoryStateT = {
-	path: str,
-	type: "view" | "sub" | "search",
-	routeindex: num
 }
 
 type PathSubSpecT = {
@@ -60,105 +60,51 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 	const path = window.location.pathname.slice(3); // remove /v/ prefix
 
-	const parsedpath = parsepath(path);
-	if (!parsedpath) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+	const pathspec = parsepath(path);
+	if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
 
-	try   { await gotoview(parsedpath); }
+	try   { await gotoview(pathspec); }
 	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
-	if (parsedpath.sub) {
+	const pathspecclone = structuredClone(pathspec) as PathSpecT;
+	_history_states.push(pathspecclone);
+
+	if (pathspec.sub) {
 		setTimeout(async ()=> {
-			try   { await gotoviewsub(parsedpath); }
+			try   { await gotoviewsub(pathspec); }
 			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 		}, 200)
 	}
 
-	_history_states.push(parsedpath);
+	window.addEventListener("popstate", async (_e:PopStateEvent) => {
 
-	/*
+		const lastpathspec    = structuredClone(_history_states[_history_states.length - 2]) as PathSpecT;
+		const currentpathspec = structuredClone(_history_states[_history_states.length - 1]) as PathSpecT;
 
-	const p = window.location.pathname + window.location.search
-	const historystate = { type: "view", path:p } as HistoryStateT
-	_history_states.push(historystate);
-	history.replaceState(historystate, '', p);
-	*/
-
-	window.addEventListener("popstate", async (e:PopStateEvent) => {
-
-		const state = e.state as HistoryStateT;
-		const laststate = structuredClone(_history_states[_history_states.length - 1]);
 		_history_states.pop(); // remove last state
 
-		if (state.type === "view" && laststate.type === "view") {
-			CMechRemoveActiveView()
-			if (document.getElementById("views")!.children.length === 0) {
-				try   { await setuproute("home"); } 
-				catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
-			}
-			else {
-				const viewel = document.querySelector("#views > :last-child") as HTMLElement;
-				viewel.style.display = "block";
-				viewel.dataset.active = "true"
-			}
+		if (currentpathspec.sub && !lastpathspec.sub) {
+			CMechBackToJustView(currentpathspec.route.lazyload_view.name, currentpathspec.pathparams, currentpathspec.searchparams);
 		}
 
-		else if (state.type === "sub") {
-			try   { await setuproute_sub(state.path); }
+		else if (lastpathspec.sub) {
+			try   { await gotoviewsub(lastpathspec); }
 			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 		}
+		else {
+			const viewsel = document.getElementById("views") as HTMLElement;
+			const allviews = Array.from(viewsel.children) as HTMLElement[];
+			const currentview = allviews[allviews.length - 1];
+			const previousview = allviews[allviews.length - 2]; 
+			viewsel.removeChild(currentview); // remove the last view
 
-		else if (state.type === "search") {
-			CMechSearchParamsChanged(new URLSearchParams(state.path.split('?')[1]))
-		}
-
-		else if (state.type === "view" && laststate.type === "sub") {
-			try   { await setuproute_sub(state.path); }
-			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
-		}
-	})
-
-	res(lazyload_view_urlpatterns)
-
-
-
-	/*
-	const pathname        = window.location.pathname.slice(3)
-    const searchParams    = window.location.search ? window.location.search : '';
-    const initialPath     = window.location.pathname + searchParams;
-	*/
-
-	/*
-    if (!history.state || history.state.index === undefined) {
-		await routeChanged(pathname, 'firstload');
-        history.replaceState({ index: 0, path: initialPath  }, '', initialPath);
-    } else {
-		await routeChanged(pathname, 'firstload');
-    }
-	*/
-
-
-
-
-	/*
-	window.addEventListener("touchstart", (e: TouchEvent) => {
-		const touch = e.touches[0];
-		if (touch.clientX < 50 && touch.clientY > 60) {
-			isSwipeBackGesture = true;
+			previousview.style.display = "block";
+			previousview.dataset.active = "true";
 		}
 	})
 
-
-	window.addEventListener("touchmove", (_e: TouchEvent) => {
-	})
-
-
-	window.addEventListener("touchend", () => {
-		setTimeout(() => isSwipeBackGesture = false, 600)
-	})
-
-
-	*/
+	res(lazyload_view_urlpatterns);
 })
 
 
@@ -168,39 +114,21 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 async function NavigateTo(path: string) {
 
-	const parsedpath = parsepath(path);
-	if (!parsedpath) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+	const pathspec = parsepath(path);
+	if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
+	const pathspecclone = structuredClone(pathspec) as PathSpecT;
+	_history_states.push(pathspecclone);
+	history.pushState({}, '', '/v/' + path);
 
-	try   { await gotoview(parsedpath); }
-	catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
-
-	// Create a complete deep copy of parsedpath
-	const viewpartofparsedpath = structuredClone(parsedpath);
-	_history_states.push(viewpartofparsedpath);
-
-	if (parsedpath.sub) {
-		setTimeout(async ()=> {
-			try   { await gotoviewsub(parsedpath); }
-			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
-		}, 200)
+	if (!pathspec.sub) {
+		try   { await gotoview(pathspec); }
+		catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 	}
-
-
-
-	/*
-    const [urlmatches, routeindex] = get_view_route_uri(viewpath);
-	if (routeindex === -1) { console.log('route not found for', viewpath); return; }
-
-
-	const historystate:HistoryStateT = {path:viewpath, type:"view", routeindex};
-	history.pushState({}, '', '/v/'+viewpath);
-	_history_states.push(historystate);
-
-	try   { await setuproute(newPath); }
-	catch { return; }
-	*/
-
+	else {
+		try   { await gotoviewsub(pathspec); }
+		catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+	}
 }
 
 
@@ -208,54 +136,30 @@ async function NavigateTo(path: string) {
 
 async function NavigateBack(opts:{ default:str}) {
 
-	const current_hstory_state = _history_states[_history_states.length - 1];
+	const previous_hstory_state = _history_states[_history_states.length - 2];
 
-	if (current_hstory_state.type === 'view' && document.getElementById("views")!.children.length === 1) {
+	if (!previous_hstory_state) {
+
+		if (!opts) opts = { default: "home" };
+
 		const defaultpath = opts.default || "home";
-		CMechRemoveActiveView()
-		const historystate = {path: '/v/'+defaultpath, type:"view"} as HistoryStateT
-		history.replaceState(historystate, '', '/v/'+defaultpath);
-		try   { await setuproute(defaultpath); }
-		catch { return; }
+		const pathspec = parsepath(defaultpath);
+		if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+
+		const viewsel = document.getElementById("views") as HTMLElement;
+		viewsel.innerHTML = ""; // clear all views
+
+		try   { await gotoview(pathspec); }
+		catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
+
+		history.replaceState({}, '', '/v/'+defaultpath);
+		_history_states = []
+		_history_states.push(pathspec);
 
 		return;
 	}
 	history.back()
 }
-
-async function NavigateToSub(subpath: string) {
-
-	/*
-	const p = "/v/" + newPath;
-	const historystate = {path:p, type: "sub"} as HistoryStateT
-	history.pushState(historystate, '', p);
-	_history_states.push(historystate);
-	*/
-
-	try   { await setuproute_sub(subpath); }
-	catch { return; }
-
-}
-
-
-
-
-/*
-async function NavigateToSearch(newsearchparams:GenericRowT) {
-
-	const searchparams = new URLSearchParams(window.location.search);
-	Object.entries(newsearchparams).forEach(([key, value]) => {
-		searchparams.set(key, value);
-	});
-
-	const searchparams_str = searchparams.toString();
-	const newhistoryurl = window.location.pathname + '?' + searchparams_str;
-	const historystate = { path: newhistoryurl, type: "search" } as HistoryStateT
-    history.pushState(historystate, '', newhistoryurl);
-
-	CMechSearchParamsChanged(newsearchparams)
-}
-*/
 
 
 
@@ -280,15 +184,6 @@ const addroute = (lazyload_view:LazyLoadT) => {
 const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => {
 
 	const viewsel    = document.getElementById("views") as HTMLElement;
-	const lastviewel = viewsel.lastElementChild as HTMLElement;
-	const viewname   = lastviewel?.tagName.toLowerCase().split("-")[1];
-
-	if (viewname === pathspec.route.lazyload_view.name) { 
-		// already on the correct view and no need to reload, just call cmech to reset to base view sans subviews
-		CMechBackToJustView(pathspec.route.lazyload_view.name, pathspec.pathparams, pathspec.searchparams);
-		res(); 
-		return; 
-	} 
 
 	try   { await LazyLoadLoadView(pathspec.route.lazyload_view); }
 	catch { rej(); return; }
@@ -316,71 +211,13 @@ const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => 
 
 const gotoviewsub = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => {
 
-	/*
-	const viewsel          = document.getElementById("views")!
-	const viewel           = viewsel.lastElementChild!
-	const active_view_name = viewel.tagName.toLowerCase().split("-")[1];
-	const current_route    = _routes.find(r => r.lazyload_view.name === active_view_name)!;
-	let   flag             = false;
-	*/
-
 	const pathparams = { ...pathspec.pathparams, ...pathspec.sub!.pathparams };
-	//const searchparams = { ...pathspec.searchparams, ...pathspec.sub!.searchparams };
 
 	try   { await CMechPathParamsChanged(pathspec.route.lazyload_view.name, pathparams, pathspec.sub!.loadfunc); }
 	catch { rej(); return; }
 
 	res();
-
-
-
-	/*
-	if (current_route.subpaths.length) {
-		for (const submatch of current_route.subpaths) {
-			const matches = path.match(submatch.path_regex);
-			if (matches) {
-				const subparams = matches.length > 1 ? GetPathParams(submatch.pathparams_propnames, matches.slice(1)) : {};
-				try   { await CMechPathParamsChanged(current_route.lazyload_view.name, subparams, submatch.loadfunc); }
-				catch { handle_route_fail(current_route, true); rej(null); return; }
-				flag = true;
-				break;
-			}
-		}
-	}
-
-	if (!flag) {  
-		try		{ await CMechPathParamsChanged(current_route.lazyload_view.name, {}); }
-		catch   { handle_route_fail(current_route, true); rej(null); return; }
-		flag = true;
-	}
-
-	res(1);
-	*/
 })
-
-
-
-
-/*
-const routeload = (routeindex:num, _uri:str, urlmatches:str[]) => new Promise<string>( async (res, _rej) => {
-	 
-	const route           = _routes[routeindex];
-
-	const pathparams      = GetPathParams(route.pathparams_propnames, urlmatches);
-	const searchparams    = new URLSearchParams(window.location.search);
-
-	const localdb_preload = route.lazyload_view.localdb_preload
-
-	const promises:Promise<any>[] = []
-
-	promises.push( CMechAddView(route.lazyload_view.name, pathparams, searchparams, localdb_preload) )
-
-	try   { await Promise.all(promises) }
-	catch { res('failed'); return; }
-
-	res('success')
-})
-*/
 
 
 
@@ -481,18 +318,6 @@ function parsepath(path:str) : PathSpecT | null {
 	history.pushState({}, '', '/v/'+viewpath);
 	_history_states.push(historystate);
 	*/
-}
-
-
-
-
-function get_view_route_uri(url: str) : [Array<str>, num] {
-
-    for (let i = 0; i < _routes.length; i++) {
-		let urlmatchstr = url.match(_routes[i].path_regex)
-		if (urlmatchstr) {   return [ urlmatchstr.slice(1), i ];   }
-    }
-    return [ [], -1 ]// catch all if not route
 }
 
 
