@@ -303,26 +303,29 @@ customElements.define('v-setup_push_allowance', VSetupPushAllowance);
 
 
 
-function loadfirebase() {   return new Promise(async (res:any, _rej:any)=> {
+function loadfirebase() {   return new Promise(async (res:any, rej:any)=> {
 
-    const promises = []
+    try {
+        // Load Firebase app first
+        //@ts-ignore
+        const firebaseApp = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js")
+        
+        // Initialize the app first
+        firebase_service.initializeApp = firebaseApp.initializeApp
+        firebase_service.app = firebase_service.initializeApp(firebaseConfig)
+        
+        // Then load messaging
+        //@ts-ignore
+        const firebaseMessaging = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-messaging.js")
+        
+        firebase_service.getMessaging = firebaseMessaging.getMessaging
+        firebase_service.getToken = firebaseMessaging.getToken
 
-    //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js") )
-    //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/12.0.0/firebase-messaging.js") )
-
-    let r:any;
-    try			{ r = await Promise.all(promises); }
-	catch (e)   { res(e); return; }
-
-    firebase_service.initializeApp = r[0].initializeApp
-    firebase_service.getMessaging = r[1].getMessaging
-    firebase_service.getToken = r[1].getToken
-
-    firebase_service.app = firebase_service.initializeApp(firebaseConfig)
-
-    res(true)
+        res(true)
+    } catch (e) { 
+        console.error("Firebase loading error:", e)
+        rej(e)
+    }
 })}
 
 
