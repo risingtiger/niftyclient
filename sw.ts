@@ -7,6 +7,7 @@ const AFTER_ACTIVATE_PRELOAD_ASSETS = [
 	"/v/appmsgs",
 	"/v/login",
 	"/v/home",
+	"/",
 ]
 
 const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
@@ -90,21 +91,21 @@ self.addEventListener('fetch', (e:any) => {
 			return 
 		}
 		
-		// Determine request URL type based on path
-		if (pathname.startsWith('/v/')) {
+		// Determine request URL type based on path -- treat root as home view
+		if (pathname.startsWith('/v/') || pathname === '/') {
 			requesturltype = RequestURLType.VIEW_URL;
 			response = await handle_file_call(e.request, pathname, requesturltype)
 
 		} else if (pathname.startsWith('/api/')) {
 			requesturltype = RequestURLType.INTERNAL_API;
-			response = await handle_data_call(e.request)
+			try	  { response = await handle_data_call(e.request); }
+			catch { res(new Response(null, { status: 400, statusText: 'Couldnt make the request' })); return; }
 
 		} else if (pathname.startsWith('/assets/') || pathname.startsWith('/favicon.ico') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
 			requesturltype = RequestURLType.FILE;
 			response = await handle_file_call(e.request, pathname, requesturltype)
 
 		} else {
-			// Error out for unrecognized URL patterns
 			res(new Response(null, { status: 400, statusText: 'Bad Request - Unrecognized URL pattern' }));
 			return;
 		}
@@ -222,7 +223,7 @@ async function check_update_polling() {
 
 
 
-const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
+const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) => { 
 
 	if (_isoffline && !r.headers.get('call_even_if_offline')) {
 		res(new Response(null, { status: 503, statusText: 'Network error - App Offline' }))
@@ -230,20 +231,29 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	}
 
 
-	const ar = await authrequest().catch(err=> err)
-	if (ar === "ok") {
-		// do nothing. its ok
-	}
-	else if (ar === "Network error") {
+	let ar:any;
+
+
+	try				{ ar = await authrequest(); }
+	catch (err:any) { ar = err;                 }
+
+	if (ar === "Network error") {
 		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
 		check_connectivity()
 		_isoffline = true;
 		res(new Response(null, { status: 503, statusText: 'Network error - On Auth Request' }))
 		// cannot authenticate. But this is a network error, so give retries etc a chance to recover before killing the app
+		rej();
 		return
 	}
-	else {
+	else if (ar !== "ok") {
+
+		console.log("inside of handle_data_call: authrequest failed and ar is: ")
+		console.log(ar)
+
+		//TODO: check if this is in fact handled by main. it might not be
 		// auth cannot authenticate. so do NOT resolve promise. Main.js has been notified and will handle eventual page redirection 
+		rej();
 		return
 	}
 
@@ -251,21 +261,35 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	const new_headers = new Headers(r.headers);
 
 	if (is_appapi) {
-		new_headers.append('appversion', _cache_version.toString())
+		new_headers.append('versionofapp', _cache_version.toString())
 		new_headers.append('Authorization', `Bearer ${_id_token}`)
 	}
 
 	const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
 
-	const has_cacheit = r.headers.get('cacheit') === 'true';
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
+
+
+
+
+
+
+
+
+
+
+
+
+	// TODO: Put caching back in
+
 	/* ---------- LOCAL CACHE FOR DATA API ---------- */
+	/*
 	let cache: Cache | undefined;
-	if (has_cacheit) {
+	if (r.headers.get('Nifty-RefreshCache') === 'true') {
 		cache = await caches.open(_cache_name);
 
-		if (r.headers.get('refreshcache') !== 'true') {
+		if (r.headers.get('Nifty-RefreshCache') !== 'true') {
 			const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
 			if (cached) {           // serve cached copy immediately
 				res(cached.clone());
@@ -273,7 +297,20 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 			}
 		}
 	}
+	*/
 	/* ---------------------------------------------- */
+
+
+
+
+
+
+
+
+
+
+
+
 
 	let server_response:any
 
@@ -285,6 +322,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		check_connectivity()
 		res(new Response( null, { status: 503, statusText: 'Network error' } ))
 
+		rej();
 		return null
 	}
 
@@ -292,14 +330,49 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	clearTimeout(abortsignal_timeoutid)
 
-	if (has_cacheit && server_response.status === 200) {
-		// update cache when requested
-		cache!.put(new_request, server_response.clone())
+	if (server_response.status === 200) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// TODO: Put caching back in
+		//if (r.headers.get('Nifty-Cache') === 'true') cache!.put(new_request, server_response.clone())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		res(server_response) 
 	}
 
 	if (is_appapi && server_response.status === 401) { // unauthorized
 		await error_out("sw4", "") 
 		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle the error including page redirection
+		rej();
 		return
 	}
 
@@ -343,7 +416,7 @@ const handle_file_call = (nr:Request, pathname:string, requesturltype:RequestURL
 			_isoffline = false;
 			clearTimeout(abortsignal_timeoutid)
 			
-			if (response.status === 200 && should_url_be_cached(nr)) {
+			if (response.status === 200 && should_url_be_cached(pathname)) {
 				cache.put(request_for_viewurl || nr, response.clone())
 			}
 			res(response)
@@ -453,13 +526,11 @@ function set_abort_signal(headers:Headers) {
 
 
 
-function should_url_be_cached(request:Request) {
-    if (request.url.includes(".webmanifest") || request.url.includes("/assets/") || request.url.includes("/v/")) {
+function should_url_be_cached(pathname:string) {
+    if (pathname.includes(".webmanifest") || pathname.includes("/assets/") || pathname.includes("/v/") || pathname === "/") {
         return true;
     }
-    // Also cache .js files that are not dynamic imports with ?t= (already handled by create_jsimport_file_call_request)
-    // and ensure we are caching the version without ?t= for dynamic imports
-    else if (request.url.endsWith(".js")) {
+    else if (pathname.endsWith(".js")) {
         return true;
     }
     else {
@@ -470,7 +541,7 @@ function should_url_be_cached(request:Request) {
 
 
 
-function authrequest() { return new Promise<string>(async (res,rej)=> { 
+const authrequest = () => new Promise<string>(async (res,rej)=> { 
 
 	// keep in mind that when retries are set (case in point being the refocus of the app), its probably gonna be authrequest that is gonna be first initial call 
 	// right now the the exitdelay is overriden to be 2.7 seconds (check FetchLassie logic to ascertain current value). a little problematic because refresh token could take longer on slow connections
@@ -528,11 +599,10 @@ function authrequest() { return new Promise<string>(async (res,rej)=> {
 			rej("Network error") 
         })
     }
-
     else {
         res("ok")
     }
-})}
+})
 
 
 
