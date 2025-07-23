@@ -19,14 +19,14 @@ declare var $N: $NT;
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAx0ix0_Yz6RN6_-5kiwU-_uWm4sErpXdw",
-  authDomain: "purewatertech.firebaseapp.com",
-  databaseURL: "https://purewatertech.firebaseio.com",
-  projectId: "purewatertech",
-  storageBucket: "purewatertech.firebasestorage.app",
-  messagingSenderId: "805737116651",
-  appId: "1:805737116651:web:9baada48dc65d9b72c9fae",
-  measurementId: "G-5VBS981F9K"
+	apiKey: "AIzaSyAx0ix0_Yz6RN6_-5kiwU-_uWm4sErpXdw",
+	authDomain: "purewatertech.firebaseapp.com",
+	databaseURL: "https://purewatertech.firebaseio.com",
+	projectId: "purewatertech",
+	storageBucket: "purewatertech.firebasestorage.app",
+	messagingSenderId: "805737116651",
+	appId: "1:805737116651:web:9baada48dc65d9b72c9fae",
+	measurementId: "G-5VBS981F9K"
 };
 
 const vapidKey = "BF6MOQVRtD-cw7q34V_3x2xGdnEyym2wNj0wS_qJQtnRnZHagqxV1vVpfVKX6Km-qkhCn4IIS_Pt4mMfqPxyd68"
@@ -94,7 +94,12 @@ class VSetupPushAllowance extends HTMLElement {
 		await $N.CMech.ViewConnectedCallback(this)
 		this.dispatchEvent(new Event('hydrated'));
 
-        await loadfirebase()
+		try { await loadfirebase(); }
+		catch (e) { 
+			console.log(e)
+			$N.Unrecoverable("Error loading subscription system", e, "Back to Home", "gen", "error loading firebase from gstatic", null);
+			return;
+		}
 
         navigator.serviceWorker.ready
 
@@ -303,11 +308,13 @@ function loadfirebase() {   return new Promise(async (res:any, _rej:any)=> {
     const promises = []
 
     //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js") )
+    promises.push(import ("https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js") )
     //@ts-ignore
-    promises.push(import ("https://www.gstatic.com/firebasejs/11.2.0/firebase-messaging.js") )
+    promises.push(import ("https://www.gstatic.com/firebasejs/12.0.0/firebase-messaging.js") )
 
-    const r:any = await Promise.all(promises)
+    let r:any;
+    try			{ r = await Promise.all(promises); }
+	catch (e)   { res(e); return; }
 
     firebase_service.initializeApp = r[0].initializeApp
     firebase_service.getMessaging = r[1].getMessaging
