@@ -106,7 +106,13 @@ self.addEventListener('fetch', (e:any) => {
 			response = await handle_file_call(e.request, pathname, requesturltype)
 
 		} else {
-			res(new Response(null, { status: 400, statusText: 'Bad Request - Unrecognized URL pattern' }));
+			// Pass through the request as-is for unrecognized URL patterns
+			try {
+				const response = await fetch(e.request);
+				res(response);
+			} catch (error) {
+				res(new Response(null, { status: 503, statusText: 'Network error' }));
+			}
 			return;
 		}
 
