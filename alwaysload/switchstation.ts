@@ -307,8 +307,7 @@ function parsepath(path:str) : PathSpecT | null {
 				searchparams
 			};
 		} else {
-			// this is an error.sub. searchparams_propnames is an object. we need to convert it to an array to use every method AI! 
-			if (sub.searchparams_propnames.every(( prop:any )=> searchparams.hasOwnProperty(prop))) {
+			if (Object.keys(sub.searchparams_propnames).every(( prop:any )=> searchparams.hasOwnProperty(prop))) {
 				sub_details = {
 					loadfunc: sub.loadfunc || null,
 					pathparams: {},
