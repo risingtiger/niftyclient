@@ -66,18 +66,19 @@ class COl2 extends HTMLElement {
 		const child = this.firstElementChild as HTMLElement
 		const screen_size_category = determine_screen_size_category()
 
-
 		const { shape, floatsize } = determine_shape_and_size(shapeA, floatsizeA, screen_size_category)
 		this.m.shape          = shape
 		this.m.floatsize           = floatsize
 
+
+		// DELETE WHEN ANIMATION IS BACK
+		this.style.opacity = "0";
 
 		this.sc()
 
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
 		this.background_el = this.shadow.querySelector(".background") as HTMLElement;
-
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -89,15 +90,24 @@ class COl2 extends HTMLElement {
 
 
 		function continue_to_open() {
-
 			this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
-			this.animate_in()
-		}
+			// TODO: come back to this and finish out the animating in. For now, its just a static open.
+			//this.animate_in()
 
+			// the rest of this should be deleted when animation is back
+			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
+			spacerel.style.display = "block";
+			setTimeout(()=> {
+				this.style.opacity = "1";
+				this.content_el.style.opacity = "1";
+				this.wrap_el.scrollIntoView();
+				this.setAttribute("opened", "true");
+			}, 100)
+		}
 	}
 
 
@@ -152,7 +162,6 @@ class COl2 extends HTMLElement {
 		animation.onfinish = () => this.closed()
 
 		this.wrap_el.classList.remove("active");
-		//this.animate_aux(performance.now(), 200, true);
 	}
 
 	animate_in() {
@@ -175,35 +184,7 @@ class COl2 extends HTMLElement {
 			this.wrap_el.scrollIntoView();
 			this.setAttribute("opened", "true");
 		};
-		
-		//this.animate_aux(performance.now(), 400, false);
 	}
-
-
-	/*
-	animate_aux(start_time: number, duration: number, is_out: bool = false) {
-
-		const now = performance.now();
-		const elapsed = now - start_time;
-		const progress = Math.min(elapsed / duration, 1);
-
-		const factor = is_out ? (1 - progress) : progress;
-
-		const background_max = .8
-		const a = factor * background_max;
-		
-		const theme_color = 255 - Math.round( 255 * a )
-		const theme_color_str = `rgb(${theme_color},${theme_color},${theme_color})`;
-		document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", theme_color_str);
-		document.body.style.backgroundColor = theme_color_str;
-
-		if (progress < 1) {
-			requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
-		}
-	}
-	*/
-
-
 
 	template = (_s: StateT, _m: ModelT) => { return html`{--css--}{--html--}`; };
 }

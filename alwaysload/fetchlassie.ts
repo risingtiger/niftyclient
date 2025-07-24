@@ -26,17 +26,16 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 	opts.refreshcache   = opts.refreshcache || false
 	opts.cacheit        = opts.cacheit || false
 
-    // custom cache-refresh flag
-    if (opts.refreshcache) {
-        http_opts.headers = http_opts.headers || {};
-        http_opts.headers['refreshcache'] = 'true';
-    }
 
-    // custom cache flag
     if (opts.cacheit) {
         http_opts.headers = http_opts.headers || {};
-        http_opts.headers['cacheit'] = 'true';
-    }
+        http_opts.headers['Nifty-Cache'] = 'true';
+
+		if (opts.refreshcache) {
+			http_opts.headers = http_opts.headers || {};
+			http_opts.headers['Nifty-RefreshCache'] = 'true';
+		}
+	}
 
     _activeRequestCount++;
 

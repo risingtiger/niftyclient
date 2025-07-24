@@ -19,10 +19,11 @@ subject options:
 - "aup": app_update
 - "epv": engagement_pageview
 - "eov": engagement_overlayview
+- "gen": generic
 */
 type LogItemT = {
 	type: 10|20|25|30|40; // debug | info | info_engagement | warning | error
-	subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov"; 
+	subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov" | "gen"; 
 	message: string;
 	ts: number; 
 }

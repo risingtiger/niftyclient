@@ -14,10 +14,10 @@
 
         ${_s.is_subscribed ? html`
             <h2>This Device is subscribed to notifications</h2>
-            <c-btn @click="${(e)=>this.Unsubscribe(e.target)}">Unsubscribe</c-btn>
+            <c-btn @btnclick="${(e)=>this.Unsubscribe(e)}">Unsubscribe</c-btn>
         ` : html`
             <h2>This Device is not subscribed to notifications</h2>
-            <c-btn @click="${(e)=>this.Subscribe(e.target)}">Subscribe</c-btn>
+            <c-btn @btnclick="${(e)=>this.Subscribe(e)}">Subscribe</c-btn>
         `}
 
     </div>

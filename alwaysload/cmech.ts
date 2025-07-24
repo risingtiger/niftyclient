@@ -1,7 +1,7 @@
 
 
-import { num, str } from "../defs_server_symlink.js"
-import { $NT, LazyLoadFuncReturnT, LazyLoadFuncRefreshSpecT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT } from "../defs.js"
+import { num, str, bool } from "../defs_server_symlink.js"
+import { $NT, LazyLoadFuncReturnT, LazyLoadFuncRefreshSpecT, GenericRowT, CMechViewT, CMechViewPartT, CMechLoadedDataT, FetchLassieOptsT } from "../defs.js"
 
 
 declare var $N: $NT;
@@ -9,8 +9,9 @@ declare var $N: $NT;
 type Listening = {
     paths: str[],
 	componentname:str,
+	issub:bool,
 	func_name_suffix: str,
-    cb:()=>Promise<void>
+    cb:(reason:'visible'|'sse')=>Promise<void>
 }
 
 
@@ -28,36 +29,62 @@ const Init = (lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) =
 	_all_lazyload_data_funcs = lazyload_data_funcs
 
 
+
+
+	// TODO: Put SSEvents and Engagement Events back in
+
+
 	$N.EngagementListen.Add_Listener(document.body, 'cmech', 'visible', null, async ()=> {
-		for(const l of _listening) {
-			l.cb()	
-		}
+		for(const l of _listening) {l.cb('visible')}
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "cmech", ["datasync_doc_add","datasync_doc_patch","datasync_doc_delete", "datasync_collection"], null, async (event:{path?:string, paths?:str[],_data:object}, eventname:str)=> {
+	$N.SSEvents.Add_Listener(document.body, "cmech", ["datasync_doc_add","datasync_doc_patch","datasync_doc_delete", "datasync_collection"], null, async (event:{path?:string, paths?:str[],_data:object}, _eventname:str)=> {
 
 		const event_paths = event.paths || (event.path ? [event.path] : []);
-
-		const ls = _listening.filter(l=> {
-			for(const p of l.paths) {
-				const psplit = p.split("/");
-				if (psplit.length === 1) { // is a collection e.g. 'machines', 'users'
-					if (event_paths.includes(p) || event_paths.some(ep=>ep.split('/')[0] === p)) return true;
-
-				} else { // is a document e.g. 'machines/1234', 'users/5678'
-					if (eventname === "datasync_doc_add" || eventname === "datasync_doc_delete")   return false;
-
-					if (eventname === "datasync_doc_patch" && p === event.path) return true; // e.g. 'machines/1234' matches 'machines/1234'
-					if (eventname === "datasync_collection" && p.startsWith(event.path + "/")) return true; // e.g. 'machines/1234' matches 'machines/1234
-
-					return false;
-				}
+		const event_paths_specs = event_paths.map(ep=> {
+			const spli = ep.split("/");
+			return {
+				collection: spli[0],
+				document: spli.length > 1 ? spli[1] : null	
 			}
 		})
 
+
+		const ls = _listening.filter(l=> {
+			for(const listener_path of l.paths) {
+				let runitflag = false;
+				const listener_path_psplit = listener_path.split("/");
+
+				if (
+					listener_path_psplit.length === 2 &&  // e.g. 'machines/1234', 'users/5678'
+					( 
+						event_paths_specs.find(ep=> !ep.document && ep.collection === listener_path_psplit[0]) || // e.g. event is: 'machines' and listener is 'machines/1234'
+						event_paths_specs.find(ep=> ep.document === listener_path_psplit[1] && ep.collection === listener_path_psplit[0]) // e.g. event is: 'machines/1234' and listener is 'machines/1234'
+					)
+				) { 
+					runitflag = true;	
+				}
+
+				else if (
+					listener_path_psplit.length === 1 &&  // e.g. 'machines', 'users'
+					( 
+						event_paths_specs.find(ep=> !ep.document && ep.collection === listener_path_psplit[0]) || // e.g. event is: 'machines' and listener is 'machines'
+						event_paths_specs.find(ep=> ep.document && ep.collection === listener_path_psplit[0]) // e.g. event is: 'machines/1234' and listener is 'machines'
+					)
+				) { 
+					runitflag = true;	
+				}
+
+				return runitflag;
+			}
+		})
+
+		if (ls.length === 0) { return; }
+
+
 		const promises:Promise<void>[] = []
-		ls.forEach(l=> promises.push(l.cb()))
+		ls.forEach(l=> promises.push(l.cb('sse')))
 
 		try   { await Promise.all(promises); }
 		catch { return; }
@@ -89,20 +116,15 @@ const Init = (lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) =
 const AddView = (
 	componentname:str, 
 	pathparams: GenericRowT, 
-	searchparams_raw:URLSearchParams, 
+	searchparams: GenericRowT, 
 	localdb_preload:str[]|null|undefined,
 ) => new Promise<num|null>(async (res, rej)=> {
 
-	const searchparams_genericrowt:GenericRowT = {};
-	for (const [key, value] of searchparams_raw.entries()) { 
-		searchparams_genericrowt[key] = decodeURIComponent(value); 
-	}
-
-	_searchparams.set(componentname, searchparams_genericrowt)
+	_searchparams.set(componentname, searchparams)
 	_pathparams.set(componentname, pathparams)
 
 	let loadr:LazyLoadFuncReturnT;
-	try   { loadr = await _all_lazyload_data_funcs[componentname+"_main"](pathparams, searchparams_raw, localdb_preload); }
+	try   { loadr = await _all_lazyload_data_funcs[componentname+"_main"](pathparams, searchparams, localdb_preload, {}); }
 	catch { rej(); return; }
 
 	const loadeddata = new Map<str, GenericRowT[]>();
@@ -115,7 +137,7 @@ const AddView = (
 
 	const el = parentEl.getElementsByTagName(`v-${componentname}`)[0] as HTMLElement & CMechViewT
 
-	if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, "main");  }
+	if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, false, "main");  }
 
 	el.addEventListener("hydrated", ()=> { 
 		res(1); 
@@ -270,8 +292,6 @@ const AttributeChangedCallback = (component:HTMLElement, name:string, oldval:str
 
 const ViewDisconnectedCallback = (component:HTMLElement) => {
 
-	if (!component.tagName.startsWith("V-")) throw new Error("Not a view component")
-
 	const componentname           = component.tagName.toLowerCase().split("-")[1]
 
 	_loadeddata.delete(componentname) 
@@ -297,36 +317,47 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 
 
-const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_suffix?:str) => new Promise<void>(async (res, rej) => {
+const BackToJustView = (componentname:str, pathparams:GenericRowT, searchparams:GenericRowT) => {
 
-	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
-	const pathparams   = _pathparams.get(componentname)!
-	const searchparams = _searchparams.get(componentname)!
-
-
-	// remove any already existing params listeners for this component and function name suffix
-	const i = _listening.findIndex(l=> l.func_name_suffix === viewel.dataset.pathparams_loadfunc_suffix)
-	if (i !== -1) {   _listening.splice(i, 1);   }
-
-	// now delete any subparams that are referenced in the viewel dataset
-	const pathparams_ref = JSON.parse(viewel.dataset.pathparams || "[]") as str[]
-	for (const name of pathparams_ref) {
-		if (pathparams[name] === undefined) continue; // if it doesn't exist, skip
-		delete pathparams[name]; // delete it from the subparams
+	for (let i = _listening.length - 1; i >= 0; i--) {
+		const l = _listening[i]
+		if (l.componentname === componentname && l.issub) {
+			_listening.splice(i, 1);
+		}
 	}
 
-	// we're just gonna stash the subparam names inside of viewel so we can delete them on later navigations
-	viewel.dataset.pathparams = JSON.stringify(Object.keys(subparams))
+	const loadeddata = _loadeddata.get(componentname)!
+	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
 
-	// we're gonna stash the loadfunc_suffix inside of viewel so we can delete it later 
-	viewel.dataset.pathparams_loadfunc_suffix = loadfunc_suffix
+	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
+		subel.kd(loadeddata, 'pathchngd', pathparams, searchparams)
+		subel.sc()
+	}
 
-	const merged_pathparams = { ...pathparams, ...subparams }
-	_pathparams.set(componentname, subparams)
+	viewel.kd(loadeddata, 'pathchngd', pathparams, searchparams)
+	viewel.sc()
+}
+
+
+
+
+const ParamsChanged = (componentname:str, pathparams:GenericRowT, searchparams:GenericRowT, loadfunc_suffix?:str) => new Promise<void>(async (res, rej) => {
+
+	const viewel       = document.querySelector(`#views > v-${componentname}`) as HTMLElement & CMechViewT
+
+	for (let i = _listening.length - 1; i >= 0; i--) {
+		const l = _listening[i]
+		if (l.componentname === componentname && l.issub) {
+			_listening.splice(i, 1);
+		}
+	}
+
+	_pathparams.set(componentname, pathparams) // already merged view and sub params from switchstation
+	_searchparams.set(componentname, searchparams) // already merged view and sub params from switchstation
 
 	if (loadfunc_suffix) {
 		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](merged_pathparams, searchparams); }
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + loadfunc_suffix](pathparams, searchparams, null, {}); }
 		catch { rej(); return; }
 
 		const newloadeddata = new Map<str, GenericRowT[]>();
@@ -339,17 +370,17 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 		}
 		_loadeddata.set(componentname, existing_loadeddata)
 
-		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, loadfunc_suffix);  }
+		if (loadr.refreshspecs && loadr.refreshspecs.length > 0) {   handle_refresh_listeners(loadr.refreshspecs, componentname, true, loadfunc_suffix);  }
 	}
 
 	const loadeddata = _loadeddata.get(componentname)!
 
 	for (const subel of ( viewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
+		subel.kd(loadeddata, 'pathchngd', pathparams, searchparams)
 		subel.sc()
 	}
 
-	viewel.kd(loadeddata, 'datachanged', merged_pathparams, _searchparams.get(componentname)!)
+	viewel.kd(loadeddata, 'pathchngd', pathparams, _searchparams.get(componentname)!)
 	viewel.sc()
 
 	res()
@@ -358,7 +389,10 @@ const PathParamsChanged = (componentname:str, subparams:GenericRowT, loadfunc_su
 
 
 
+/*
 const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(async (res, rej)=> {
+
+	// consider merging PathParamsChanged and SearchParamsChanged into one function. will still keep search and path params separate in dataset etc, but otherwise essentially the same
 
 	const activeviewel      = document.getElementById("views")!.lastElementChild as HTMLElement & CMechViewT
 
@@ -394,15 +428,16 @@ const SearchParamsChanged = (newsearchparams:GenericRowT) => new Promise<void>(a
 	_loadeddata.set(componentname, loadeddata) 
 
 	for (const subel of ( activeviewel.subelshldr as ( HTMLElement & CMechViewPartT )[] )) {
-		subel.kd(loadeddata, 'datachanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
+		subel.kd(loadeddata, 'searchchngd', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 		subel.sc()
 	}
 
-	activeviewel.kd(loadeddata, 'datachanged', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
+	activeviewel.kd(loadeddata, 'searchchngd', _pathparams.get(componentname)!, _searchparams.get(componentname)!)
 	activeviewel.sc()
 
 	res()
 })
+*/
 
 
 
@@ -476,27 +511,6 @@ const DataChanged = (updated:Map<str, GenericRowT[]>) => {
 
 
 
-const RemoveActiveView = () => {
-	const viewsel = document.getElementById("views")!
-	const activeview = viewsel.lastElementChild as HTMLElement & CMechViewT
-	const viewname = activeview.tagName.toLowerCase().split("-")[1];
-
-	if (!activeview) return;
-
-	_loadeddata.delete(viewname)
-	_searchparams.delete(viewname)
-	_pathparams.delete(viewname)
-
-	activeview.remove();
-}
-
-
-
-
-
-
-
-
 const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:GenericRowT[], list_of_deletes:GenericRowT[]) => { 
 
 	// Even single items like a machine (e.g. 'machines/1234') will always be an array of one object
@@ -528,6 +542,7 @@ const updateArrayIfPresent = (tolist:GenericRowT[], list_of_add_and_patches:Gene
 const handle_refresh_listeners = (
 	refreshspecs:LazyLoadFuncRefreshSpecT[],
 	componentname:str,
+	issub: boolean,
 	func_name_suffix:str,
 ) => {
 
@@ -547,12 +562,14 @@ const handle_refresh_listeners = (
 	}
 
 
-	const l = { componentname, func_name_suffix, paths: Array.from(paths), cb:()=> new Promise<void>(async (res, rej)=> {
+	const l = { componentname, func_name_suffix, issub, paths: Array.from(paths), cb:(reason:'visible'|'sse')=> new Promise<void>(async (res, rej)=> {
 		const pathparams   = _pathparams.get(componentname)!;
 		const searchparams = _searchparams.get(componentname)!;
 
 		let loadr:LazyLoadFuncReturnT;
-		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + func_name_suffix](pathparams, searchparams, undefined, true /*refreshcache*/); }
+		const fetchlassieopts:FetchLassieOptsT = { refreshcache:true }
+		if (reason === 'visible') fetchlassieopts.retries = 2;
+		try   { loadr = await _all_lazyload_data_funcs[componentname + "_" + func_name_suffix](pathparams, searchparams, null, fetchlassieopts); }
 		catch { rej(); return; }
 
 		const newloadeddata = new Map<str, GenericRowT[]>();
@@ -574,7 +591,7 @@ const handle_refresh_listeners = (
 
 
 
-export { Init, AddView, SearchParamsChanged, DataChanged, RemoveActiveView, PathParamsChanged }
+export { Init, AddView, DataChanged, ParamsChanged, BackToJustView }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = { ViewConnectedCallback, ViewPartConnectedCallback, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };

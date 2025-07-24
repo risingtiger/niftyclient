@@ -38,6 +38,7 @@ a:hover {
 }
 
 
+/* TODO: remove this since wrapper took its place. search to make sure no views are still using it */
 div.content {
     position: relative;
     display: block;

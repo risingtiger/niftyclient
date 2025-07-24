@@ -12,7 +12,7 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
+//import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 //import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit, Close as SSEClose } from './alwaysload/sse.js';
@@ -33,19 +33,19 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 
 const LAZYLOAD_DATA_FUNCS = {
 
-	appmsg_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	appmsgs_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 
 		const d = new Map<str,GenericRowT[]>()
 		res({ d, refreshspecs:[]})
 	}),
 
-	login_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	login_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 
 		const d = new Map<str,GenericRowT[]>()
 		res({ d, refreshspecs:[]})
 	}),
 
-	setup_push_allowance_main: (_pathparams:GenericRowT, _searchparams: URLSearchParams, _localdb_preload?:str[]) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	setup_push_allowance_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 		const d = new Map<str,GenericRowT[]>()
 		res({ d, refreshspecs:[]})
 	}),
@@ -56,6 +56,7 @@ const LAZYLOAD_DATA_FUNCS = {
 
 window.addEventListener("load", async (_e) => {
 
+	console.log("in cmech in EngagementListen listener callback its going to trigger some network calls. But, on mobile the cell/wifi may be inactive so we need to trigger a retries = 2 to overcome it. But I don't want to pipe that through userland. need another way to overcome it")
 
 	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE_LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
@@ -64,6 +65,7 @@ window.addEventListener("load", async (_e) => {
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		EngagementListenInit()
+		//TODO: bring localsync back online
 		//LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		CMechInit(lazyload_data_funcs)
 		LoggerInit();
@@ -73,7 +75,20 @@ window.addEventListener("load", async (_e) => {
 
 	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
 
-	const lazyload_view_urlpatterns = SwitchStationInit(lazyloads);
+
+	const lazyload_view_urlpatterns = await SwitchStationInit(lazyloads);
+
+
+
+	/*
+	- Test and make sure SSEVent.Add_Listnere isn't double adding listeners
+	- Test SSE Events to refresh listeners
+	- Test SSE Events on main view as well
+	*/
+
+
+
+
 
 	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
 	//init_shared_worker()
@@ -178,6 +193,7 @@ $N.Unrecoverable = Unrecoverable;
 
 
 function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string, clickHandler?: () => void) {
+
 	const modal = document.getElementById('alert_notice');
 	if (!modal) return; // Guard clause if modal isn't found
 	modal.classList.add('active');
@@ -276,9 +292,8 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			// This event is fired when the service worker controller changes. skip on very first load
 			if (!hasPreviousController) {hasPreviousController = true; return;}
 			 
-			const redirect = `/v/appmsgs?appupdate=done`;
-			window.location.href = redirect;
-			//setalertbox("App Update", "app has been updated. needs restarted", "Restart App", redirect);
+			const origin = window.location.origin;
+			window.location.href = "https://yavada.com/bouncebacktonifty.html?origin=" + encodeURIComponent(origin);
 		}
 	});
 })

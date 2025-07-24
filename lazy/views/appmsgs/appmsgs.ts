@@ -87,20 +87,19 @@ class VAppMsgs extends HTMLElement {
 
 
 
-	kd(_loadeddata: CMechLoadedDataT, loadstate:string, _pathparams:GenericRowT, searchparams:GenericRowT) {
-		if (loadstate === 'initial' || loadstate === 'searchchanged') {
-			this.s.logsubj = searchparams.logsubj || ''
-			this.s.showappupdated = searchparams.appupdate || false
+	kd(_loadeddata: CMechLoadedDataT, _loadstate:string, _pathparams:GenericRowT, searchparams:GenericRowT) {
 
-			if (searchparams.appupdate) {
-				this.s.showappupdated = true
-			}
-			else if (this.s.logsubj === 'ldr') { // data wipe
-				this.s.showdatawipe = true
-			}
-			else if (this.s.logsubj) { // generic
-				this.s.show_gen_logsubj = true;
-			}
+		this.s.logsubj = searchparams.logsubj || ''
+		this.s.showappupdated = searchparams.appupdate || false
+
+		if (searchparams.appupdate) {
+			this.s.showappupdated = true
+		}
+		else if (this.s.logsubj === 'ldr') { // data wipe
+			this.s.showdatawipe = true
+		}
+		else if (this.s.logsubj) { // generic
+			this.s.show_gen_logsubj = true;
 		}
 	}
 

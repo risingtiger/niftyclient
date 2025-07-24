@@ -6,32 +6,16 @@
 
 
 
-import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
+import { $NT, LazyLoadT } from  "./../defs.js" 
 import { str } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
 import { AddView as CMechAddView, ParamsChanged as CMechParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
-import { RegExParams, GetPathParams } from "./switchstation_uri.js"
+import { RegExParams } from "./switchstation_uri.js"
+import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
 declare var $N: $NT;
 
-type Route = {
-	lazyload_view: LazyLoadT
-	path_regex: RegExp
-	pathparams_propnames: Array<str>
-}
-
-type PathSubSpecT = {
-	loadfunc?: str,
-	pathparams: GenericRowT,
-	searchparams: GenericRowT
-}
-type PathSpecT = {
-	route:Route, 
-	pathparams: GenericRowT, 
-	searchparams: GenericRowT, 
-	sub?: PathSubSpecT 
-}
 
 let _routes:Array<Route> = [];
 let _history_states:Array<PathSpecT> = [];
@@ -65,7 +49,7 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 		path = window.location.pathname.slice(3); // remove /v/ prefix
 	}
 
-	const pathspec = parsepath(path + window.location.search);
+	const pathspec = ParsePath(path + window.location.search, _routes);
 	if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
 
@@ -119,7 +103,7 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 async function NavigateTo(path: string) {
 
-	const pathspec = parsepath(path);
+	const pathspec = ParsePath(path, _routes);
 	if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
 	const pathspecclone = structuredClone(pathspec) as PathSpecT;
@@ -148,7 +132,7 @@ async function NavigateBack(opts:{ default:str}) {
 		if (!opts) opts = { default: "home" };
 
 		const defaultpath = opts.default || "home";
-		const pathspec = parsepath(defaultpath);
+		const pathspec = ParsePath(defaultpath, _routes);
 		if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
 		const viewsel = document.getElementById("views") as HTMLElement;
@@ -224,121 +208,6 @@ const gotoviewsub = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) 
 
 	res();
 })
-
-
-
-
-function parsepath(path:str) : PathSpecT | null {
-
-	const split               = path.split('/s/');
-	const qsplit              = path.split('?');
-	const subsearchparams_str = qsplit.length > 1 ? qsplit[1] : ''; // the search params if it exists
-	const viewpath            = split.length > 1 ? split[0] : qsplit[0]; // the view path without sub path params
-	const subpathparams_str   = split.length > 1 ? split[1].slice(0, split[1].indexOf('?')) : ''; // the sub path params if it exists
-
-	let   pathparammatch_values:string[] = []
-	let   routematch_index = -1;
-
-    for (let i = 0; i < _routes.length; i++) {
-		let pathmatchstr = viewpath.match(_routes[i].path_regex)
-		if (pathmatchstr) {   
-			pathparammatch_values = pathmatchstr.slice(1);
-			routematch_index = i;
-			break;
-		}
-    }
-
-	if (routematch_index === -1) {  return null; }
-
-	const route           = _routes[routematch_index];
-	const pathparams      = GetPathParams(route.pathparams_propnames, pathparammatch_values);
-	const searchparamsraw = new URLSearchParams(subsearchparams_str);
-
-	const searchparams: GenericRowT = {};
-	for (const [key, value] of searchparamsraw.entries()) {
-		searchparams[key] = value;
-	}
-
-	if (!route.lazyload_view.subs || ( !subpathparams_str && !subsearchparams_str ) ) {
-		// no sub anything so just return what we got
-		return { route, pathparams:{}, searchparams:{} };
-	}
-
-
-	pathparammatch_values = []
-	routematch_index = -1;
-	const subs:any[] = []
-
-	for(const s of route.lazyload_view.subs) {
-		if (!s.urlmatch.startsWith("?")) {
-			const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(s.urlmatch)
-			subs.push({ path_regex: regex, pathparams_propnames, searchparams_propnames:{}, loadfunc: s.loadfunc, pattern });
-		} else {
-			const searchpath = s.urlmatch.startsWith("?") ? s.urlmatch.slice(1) : ""
-			const searchparams_urlsearchparams = new URLSearchParams(searchpath);
-			const searchparams_propnames = Object.fromEntries(searchparams_urlsearchparams.entries());
-			subs.push({ path_regex: null, pathparams_propnames:{}, searchparams_propnames, loadfunc: s.loadfunc, pattern:null });
-		}
-	}
-
-	subs.sort((a, b) => {
-		const a_source = a.path_regex.source
-		const b_source = b.path_regex.source
-		
-		// Count specific characters (non-regex metacharacters) to determine specificity
-		const a_specificity = a_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
-		const b_specificity = b_source.replace(/[.*+?^${}()|[\]\\]/g, '').length
-		
-		// More specific routes (higher character count) come first
-		return b_specificity - a_specificity
-	})
-
-	
-	let   sub_details:any
-	
-	// Try to match the remaining path against sub routes
-	for (const sub of subs) {
-		const sub_match = subpathparams_str.match(sub.path_regex);
-		if (sub_match) {
-			const sub_pathparams = GetPathParams(sub.pathparams_propnames, sub_match.slice(1));
-			sub_details = {
-				loadfunc: sub.loadfunc || null,
-				pathparams: sub_pathparams,
-				searchparams
-			};
-		} else {
-			const issearchmatching = Object.keys(sub.searchparams_propnames).every(( prop:any )=> {
-				const exists = searchparams.hasOwnProperty(prop);
-				if (!exists) return false;
-				
-				const expected_value = sub.searchparams_propnames[prop];
-				const actual_value = searchparams[prop];
-				return expected_value === actual_value;
-			})
-
-			if (issearchmatching) {
-				sub_details = {
-					loadfunc: sub.loadfunc || null,
-					pathparams: {},
-					searchparams
-				}
-			}
-		}
-	}
-
-
-	if (!sub_details) {
-		return { route, pathparams, searchparams };
-	}
-	else {
-		return { 
-			route, 
-			pathparams, 
-			searchparams, 
-			sub: sub_details 
-		};
-	}
-}
 
 
 

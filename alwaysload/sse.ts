@@ -6,9 +6,8 @@ type SSE_Listener = {
     name: str,
 	el: HTMLElement,
     eventnames:string[],
-	paths:str[]|null,
 	priority:number,
-    cb:(paths:str[])=>void
+    cb:(data:any[], eventname:str)=>void
 }
 
 
@@ -88,7 +87,7 @@ function Init() {
 
 
 
-function Add_Listener(el:HTMLElement, name:str, eventnames:string[], paths:str[]|null, priority_:number|null, callback_:(obj:any)=>void) {
+function Add_Listener(el:HTMLElement, name:str, eventnames:string[], priority_:number|null, callback_:(obj:any)=>void) {
 
 	for(let i = 0; i < _sse_listeners.length; i++) {
 		if (!_sse_listeners[i].el.parentElement) {
@@ -102,7 +101,6 @@ function Add_Listener(el:HTMLElement, name:str, eventnames:string[], paths:str[]
 		name: name,
 		el: el,
 		eventnames,
-		paths,
 		priority,
 		cb: callback_
 	}
@@ -139,31 +137,22 @@ function Remove_Listener(el:HTMLElement, name:str) {
 function handle_message(data: any) {
 	const eventname   = data.eventname
 	const event_data  = JSON.parse(data.data)
-	const event_paths = event_data.paths ? event_data.paths : ( event_data.path ? [event_data.path] : null )
-	handle_firestore_docs_from_worker(event_data, eventname, event_paths)
+	handle_firestore_docs_from_worker(event_data, eventname)
 }
 
 
 
 
-function handle_firestore_docs_from_worker(data:any, eventname:string, event_paths:str[]|null) {   
+function handle_firestore_docs_from_worker(data:any, eventname:string) {   
 
 	const ls = _sse_listeners.filter(l=> { 
-		if (!l.eventnames.includes(eventname)) return false;
-		
-		// if paths are specified, check if any of the paths match
-		if (event_paths && l.paths) {
-			return event_paths.some(event_path => l.paths!.includes(event_path));
-		}
-		
-		// if no paths specified on either side, include the listener
-		return true;
+		if (l.eventnames.includes(eventname)) return true;
 	})
 
 
 
 	if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
-	ls.forEach(l=> l.cb(data))
+	ls.forEach((l)=> l.cb(data, eventname))
 }
 
 /*

@@ -8,7 +8,7 @@
   "LAZYLOADS": [
 	  {
 		"type": "view",
-		"urlmatch": "^appmsgs$",
+		"urlmatch": "appmsgs",
 		"name": "appmsgs",
 		"is_instance": false,
 		"dependencies": [],
@@ -16,7 +16,7 @@
 	  },
 	  {
 		"type": "view",
-		"urlmatch": "^login$",
+		"urlmatch": "login",
 		"name": "login",
 		"is_instance": false,
 		"dependencies": [],
@@ -24,7 +24,7 @@
 	  },
 	  {
 		"type": "view",
-		"urlmatch": "^setup_push_allowance$",
+		"urlmatch": "setup_push_allowance",
 		"name": "setup_push_allowance",
 		"is_instance": false,
 		"dependencies": [

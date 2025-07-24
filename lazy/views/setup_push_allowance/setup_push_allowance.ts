@@ -80,9 +80,7 @@ class VSetupPushAllowance extends HTMLElement {
 
 
     constructor() {   
-
         super(); 
-
         this.shadow = this.attachShadow({mode: 'open'});
     }
 
@@ -92,11 +90,9 @@ class VSetupPushAllowance extends HTMLElement {
     async connectedCallback() {   
 
 		await $N.CMech.ViewConnectedCallback(this)
-		this.dispatchEvent(new Event('hydrated'));
 
 		try { await loadfirebase(); }
 		catch (e) { 
-			console.log(e)
 			$N.Unrecoverable("Error loading subscription system", e, "Back to Home", "gen", "error loading firebase from gstatic", null);
 			return;
 		}
@@ -176,7 +172,7 @@ class VSetupPushAllowance extends HTMLElement {
 						headers: { 'Content-type': 'application/json' },
 					})
 
-					e.detail.resolved()
+					e.detail.done()
 
 					if (!r.ok) {
 						alert ('Error trying to subscribe: ' + r.statusText)	
@@ -197,7 +193,7 @@ class VSetupPushAllowance extends HTMLElement {
 
 
 
-    async Unsubscribe(btnel:any) {
+    async Unsubscribe(e:CustomEvent) {
 
         navigator.serviceWorker.ready
 
@@ -219,7 +215,7 @@ class VSetupPushAllowance extends HTMLElement {
                     this.s.is_subscribed = false
                     this.sc()
 
-					btnel.setAttribute('resolved', true)
+					e.detail.done()
 
                   })
                   .catch((_e) => {
@@ -314,6 +310,7 @@ function loadfirebase() {   return new Promise(async (res:any, rej:any)=> {
         firebase_service.initializeApp = firebaseApp.initializeApp
         firebase_service.app = firebase_service.initializeApp(firebaseConfig)
         
+
         // Then load messaging
         //@ts-ignore
         const firebaseMessaging = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-messaging.js")

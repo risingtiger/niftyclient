@@ -73,9 +73,8 @@ export type CMechViewT = {
 	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'subchanged' | 'searchchanged' | 'datachanged' | 'visibled' | 'lateloaded'
-	pathparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
-	searchparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'datachngd' | 'visibled' | 'lateloaded' | 'pathchngd' | 'searchchngd'
+
 	sc:(state_changes?:any)=>void,
 }
 export type CMechViewPartT = {
@@ -86,8 +85,6 @@ export type CMechViewPartT = {
 	a: {[key:string]:any},
 	s: {[key:string]:any},
 	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // refer to CMechViewT for loadstate values
-	pathparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
-	searchparamschngd:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT)=>void,
 	sc:(state_changes?:any)=>void,
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
@@ -153,16 +150,14 @@ export type $NT = {
 	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
-		NavigateToView: (newPath: string) => void,
-		NavigateToSub: (newPath: string) => void,
+		NavigateTo: (newPath: string) => void,
 		NavigateBack: (opts:{default:str}) => void,
-		NavigateToSearch: (newsearchparams:GenericRowT) => void
 	}
 
 	IDB: {
 		GetDB:   () => Promise<IDBDatabase>,
-		GetOne:  (objectstore_name:str, id:str, localdb_preload?:str[]) => Promise<GenericRowT>,
-		GetAll:  (objectstore_names:str[], localdb_preload?:str[]) => Promise<Map<str,GenericRowT[]>>,
+		GetOne:  (objectstore_name:str, id:str, localdb_preload?:str[]|null) => Promise<GenericRowT>,
+		GetAll:  (objectstore_names:str[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
 		ClearAll:(objectstore_name:str) => Promise<num>,
 		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
 		PutOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,

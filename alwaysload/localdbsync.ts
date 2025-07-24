@@ -94,23 +94,22 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	//setup_local_db_interval_periodic()
 
 
-	$N.EngagementListen.Add_Listener(document.body, 'firestore', 'visible', 100, async ()=> {
+	$N.EngagementListen.Add_Listener(document.body, 'localdbsync', 'visible', 100, async ()=> {
 		RunCheckLatest()
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_add", ["datasync_doc_add"], 100, (event:{path:string,data:object})=> {
-		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_add", ["datasync_doc_add"], 100, (event:{path:string,data:object})=> {
+		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_patch", ["datasync_doc_patch"], 100, (event:{path:string,data:object, ispartial?:bool})=> {
-		handle_firestore_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_patch", ["datasync_doc_patch"], 100, (event:{path:string,data:object, ispartial?:bool})=> {
+		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_delete", ["datasync_doc_delete"], 100, async (event:{path:string,ts:number})=> {
-
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_delete", ["datasync_doc_delete"], 100, async (event:{path:string,ts:number})=> {
 		const pathspec = parse_into_pathspec(event.path)
 
 		let db:any
@@ -141,7 +140,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "firestore_doc_collection", ["datasync_collection"], 100, async (event:{paths:str[]})=> {
+	$N.SSEvents.Add_Listener(document.body, "datasync_collection", ["datasync_collection"], 100, async (event:{paths:str[]})=> {
 
 		// event.paths is only going to be collections, never a singe document. Single doc goes through FIRESTORE_DOC (3)
 
@@ -638,7 +637,7 @@ function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
 
 
 
-const handle_firestore_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {
+const handle_datasync_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {
 
 	if (pathspec.syncobjectstore) {   
 		await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   

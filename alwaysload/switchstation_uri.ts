@@ -1,13 +1,13 @@
 
 
-import { str } from  "../../defs_server_symlink.js" 
+import { str } from  "../defs_server_symlink.js" 
 
 
 
 
 const RegExParams = (original_matchstr:string) => {
 	const pathparamnames: Array<str> = [];
-	const pattern = original_matchstr.replace(/:([a-z][a-z_0-9]+)/g, (_match, pathparamname) => {
+	const pattern = original_matchstr.replace(/:([a-zA-Z_0-9]+)/g, (_match, pathparamname) => {
 		pathparamnames.push(pathparamname);
 		return '([a-zA-Z0-9_]+)';
 	});
