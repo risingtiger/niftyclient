@@ -7,9 +7,9 @@
 
 
 import { $NT, GenericRowT, LazyLoadT } from  "./../defs.js" 
-import { str, num } from  "../defs_server_symlink.js" 
+import { str } from  "../defs_server_symlink.js" 
 //import { Run as LazyLoadFilesRun } from './lazyload_files.js'
-import { AddView as CMechAddView, PathParamsChanged as CMechPathParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
+import { AddView as CMechAddView, ParamsChanged as CMechParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
 import { RegExParams, GetPathParams } from "./switchstation_uri.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
@@ -45,7 +45,7 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])
 
-	// Sort routes by specificity - most specific routes first
+	// Sort routes by specificity - most specific routes first. this is needed so that more specific views don't override less specific		
 	_routes.sort((a, b) => {
 		const a_source = a.path_regex.source
 		const b_source = b.path_regex.source
@@ -58,13 +58,14 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 		return b_specificity - a_specificity
 	})
 
+	let path:string;
 	if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index.html') {
-		history.replaceState({}, '', '/v/home');
+		path = 'home'
+	} else {
+		path = window.location.pathname.slice(3); // remove /v/ prefix
 	}
 
-	const path = window.location.pathname.slice(3); // remove /v/ prefix
-
-	const pathspec = parsepath(path);
+	const pathspec = parsepath(path + window.location.search);
 	if (!pathspec) { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
 
 
@@ -74,7 +75,7 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 	const pathspecclone = structuredClone(pathspec) as PathSpecT;
 	_history_states.push(pathspecclone);
 
-	if (pathspec.sub) {
+	if (pathspec.sub) { // this allows a particular view to show up on initial load like, say, a popup of a machine details
 		setTimeout(async ()=> {
 			try   { await gotoviewsub(pathspec); }
 			catch { handle_route_fail(_routes.find(r => r.lazyload_view.name === "appmsgs")!, true); return; }
@@ -216,8 +217,9 @@ const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => 
 const gotoviewsub = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => {
 
 	const pathparams = { ...pathspec.pathparams, ...pathspec.sub!.pathparams };
+	const searchparams = { ...pathspec.searchparams, ...pathspec.sub!.searchparams };
 
-	try   { await CMechPathParamsChanged(pathspec.route.lazyload_view.name, pathparams, pathspec.sub!.loadfunc); }
+	try   { await CMechParamsChanged(pathspec.route.lazyload_view.name, pathparams, searchparams, pathspec.sub!.loadfunc); }
 	catch { rej(); return; }
 
 	res();
@@ -228,9 +230,11 @@ const gotoviewsub = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) 
 
 function parsepath(path:str) : PathSpecT | null {
 
-	const split = path.split('/s/');
-	const viewpath = split[0]; // the main view path
-	const subpath  = split[1] ? split[1] : ''; // the sub path if it exists
+	const split               = path.split('/s/');
+	const qsplit              = path.split('?');
+	const subsearchparams_str = qsplit.length > 1 ? qsplit[1] : ''; // the search params if it exists
+	const viewpath            = split.length > 1 ? split[0] : qsplit[0]; // the view path without sub path params
+	const subpathparams_str   = split.length > 1 ? split[1].slice(0, split[1].indexOf('?')) : ''; // the sub path params if it exists
 
 	let   pathparammatch_values:string[] = []
 	let   routematch_index = -1;
@@ -246,17 +250,18 @@ function parsepath(path:str) : PathSpecT | null {
 
 	if (routematch_index === -1) {  return null; }
 
-	const route = _routes[routematch_index];
+	const route           = _routes[routematch_index];
 	const pathparams      = GetPathParams(route.pathparams_propnames, pathparammatch_values);
-	const searchparamsraw    = new URLSearchParams(window.location.search);
+	const searchparamsraw = new URLSearchParams(subsearchparams_str);
 
 	const searchparams: GenericRowT = {};
 	for (const [key, value] of searchparamsraw.entries()) {
 		searchparams[key] = value;
 	}
 
-	if (!route.lazyload_view.subs || !subpath) {
-		return { route, pathparams, searchparams };
+	if (!route.lazyload_view.subs || ( !subpathparams_str && !subsearchparams_str ) ) {
+		// no sub anything so just return what we got
+		return { route, pathparams:{}, searchparams:{} };
 	}
 
 
@@ -265,8 +270,15 @@ function parsepath(path:str) : PathSpecT | null {
 	const subs:any[] = []
 
 	for(const s of route.lazyload_view.subs) {
-		const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(s.urlmatch)
-		subs.push({ path_regex: regex, pathparams_propnames, loadfunc: s.loadfunc, pattern });
+		if (!s.urlmatch.startsWith("?")) {
+			const {regex, paramnames: pathparams_propnames, pattern} = RegExParams(s.urlmatch)
+			subs.push({ path_regex: regex, pathparams_propnames, searchparams_propnames:{}, loadfunc: s.loadfunc, pattern });
+		} else {
+			const searchpath = s.urlmatch.startsWith("?") ? s.urlmatch.slice(1) : ""
+			const searchparams_urlsearchparams = new URLSearchParams(searchpath);
+			const searchparams_propnames = Object.fromEntries(searchparams_urlsearchparams.entries());
+			subs.push({ path_regex: null, pathparams_propnames:{}, searchparams_propnames, loadfunc: s.loadfunc, pattern:null });
+		}
 	}
 
 	subs.sort((a, b) => {
@@ -286,7 +298,7 @@ function parsepath(path:str) : PathSpecT | null {
 	
 	// Try to match the remaining path against sub routes
 	for (const sub of subs) {
-		const sub_match = subpath.match(sub.path_regex);
+		const sub_match = subpathparams_str.match(sub.path_regex);
 		if (sub_match) {
 			const sub_pathparams = GetPathParams(sub.pathparams_propnames, sub_match.slice(1));
 			sub_details = {
@@ -294,9 +306,19 @@ function parsepath(path:str) : PathSpecT | null {
 				pathparams: sub_pathparams,
 				searchparams
 			};
+		} else {
+			// this is an error.sub. searchparams_propnames is an object. we need to convert it to an array to use every method AI! 
+			if (sub.searchparams_propnames.every(( prop:any )=> searchparams.hasOwnProperty(prop))) {
+				sub_details = {
+					loadfunc: sub.loadfunc || null,
+					pathparams: {},
+					searchparams
+				}
+			}
 		}
 	}
 
+	debugger
 	if (!sub_details) {
 		return { route, pathparams, searchparams };
 	}
@@ -308,20 +330,6 @@ function parsepath(path:str) : PathSpecT | null {
 			sub: sub_details 
 		};
 	}
-	
-
-	const historystate = _history_states[_history_states.length - 1];
-
-
-	/*
-    const [urlmatches, routeindex] = get_view_route_uri(viewpath);
-	if (routeindex === -1) { console.log('route not found for', viewpath); return; }
-
-
-	//const historystate:HistoryStateT = {path:viewpath, type:"view", routeindex};
-	history.pushState({}, '', '/v/'+viewpath);
-	_history_states.push(historystate);
-	*/
 }
 
 
