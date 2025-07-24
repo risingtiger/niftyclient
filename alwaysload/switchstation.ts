@@ -307,7 +307,14 @@ function parsepath(path:str) : PathSpecT | null {
 				searchparams
 			};
 		} else {
-			if (Object.keys(sub.searchparams_propnames).every(( prop:any )=> searchparams.hasOwnProperty(prop))) {
+			// I need to be able to access not only the key but also the value of sub.searchparams_propnames AI!
+			const issearchmatching = Object.keys(sub.searchparams_propnames).every(( prop:any )=> {
+				const exists = searchparams.hasOwnProperty(prop);
+				if (!exists) return false;
+
+			})
+
+			if (issearchmatching) {
 				sub_details = {
 					loadfunc: sub.loadfunc || null,
 					pathparams: {},
@@ -317,7 +324,7 @@ function parsepath(path:str) : PathSpecT | null {
 		}
 	}
 
-	debugger
+
 	if (!sub_details) {
 		return { route, pathparams, searchparams };
 	}
