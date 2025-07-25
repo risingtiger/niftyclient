@@ -222,9 +222,8 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
+// remove the shape parameter from the animate_out function AI!
 const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
-    
-    const easing = shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)';
     
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
@@ -238,7 +237,7 @@ const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, 
     
     const animation_options = {
         duration: 350,
-        easing: easing,
+        easing: 'cubic-bezier(0, 0.850, 0.250, 1)',
         fill: 'forwards' as FillMode
     };
     
@@ -254,6 +253,7 @@ const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, 
 
 
 function animate_theme_and_body_color(duration: number, is_out: bool = false) {
+
     let start_time: number | null = null;
     let theme_color_meta = document.head.querySelector("meta[name='theme-color']");
 
