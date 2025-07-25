@@ -77,7 +77,8 @@ class COl2 extends HTMLElement {
 		this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 		this.wrapper_el.scrollIntoView({behavior:"instant"});
-		// await for 100ms to ensure the DOM is ready AI!
+		
+		await new Promise(resolve => setTimeout(resolve, 100));
 
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
 			this.firstElementChild!.addEventListener("hydrated", ()=> {
