@@ -206,8 +206,6 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
         fill: 'forwards' as FillMode
     };
     
-    animate_theme_and_body_color(animation_options.duration, false)
-    
     const content_animation       = content_el.animate(content_keyframes, animation_options);
     const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
     
