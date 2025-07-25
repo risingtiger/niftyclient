@@ -81,6 +81,7 @@ class COl2 extends HTMLElement {
 
 		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
+		this.addEventListener('scroll', this.scrolled.bind(this));
 		//this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 
@@ -89,14 +90,14 @@ class COl2 extends HTMLElement {
 				await new Promise(resolve => setTimeout(resolve, 80));
 				this.wrapper_el.scrollIntoView({behavior:"instant"});
 				await new Promise(resolve => setTimeout(resolve, 80));
-				await animate_in(this.content_el, this.viewwrapperel)
+				await animate_in(this, this.content_el, this.viewwrapperel)
 			})
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
 			await new Promise(resolve => setTimeout(resolve, 80));
 			this.wrapper_el.scrollIntoView({behavior:"instant"});
 			await new Promise(resolve => setTimeout(resolve, 80));
-			await animate_in(this.content_el, this.viewwrapperel)
+			await animate_in(this, this.content_el, this.viewwrapperel)
 		}
 	}
 
@@ -134,8 +135,12 @@ class COl2 extends HTMLElement {
 
 
 
-	scrolled(_e: Event) {
-		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
+	async scrolled(_e: Event) {
+		if (this.scrollTop <= 1 && this.hasAttribute("opened")) {
+			this.removeEventListener('scroll', this.scrolled);
+			await this.animate_out();
+			this.dispatchEvent(new CustomEvent('ai'));
+		}
 	}
 
 	async animate_out() {
@@ -194,7 +199,7 @@ function determine_screen_size_category(): BrowserScreenSizeCategoryE {
 
 
 
-const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Promise<void>(async (res,_rej) => {
+const animate_in = (host_el: COl2, content_el:HTMLElement, viewwrapperel:HTMLElement) => new Promise<void>(async (res,_rej) => {
 
     content_el.style.opacity = '0';
     
@@ -221,8 +226,7 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
     
     await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
     
-	content_el.style.opacity = '1';
-    content_el.setAttribute('opened', 'true');
+	host_el.setAttribute('opened', 'true');
 
 	res()
 })
