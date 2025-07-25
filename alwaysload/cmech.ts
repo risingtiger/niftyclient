@@ -39,9 +39,9 @@ const Init = (lazyload_data_funcs:Array<()=>Promise<Map<str, GenericRowT[]>>>) =
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "cmech", ["datasync_doc_add","datasync_doc_patch","datasync_doc_delete", "datasync_collection"], null, async (event:{path?:string, paths?:str[],_data:object}, _eventname:str)=> {
+	$N.SSEvents.Add_Listener(document.body, "cmech", ["datasync_doc_add","datasync_doc_patch","datasync_doc_delete", "datasync_collection"], null, async (event:{paths:string[],_data:object}, _eventname:str)=> {
 
-		const event_paths = event.paths || (event.path ? [event.path] : []);
+		const event_paths = event.paths
 		const event_paths_specs = event_paths.map(ep=> {
 			const spli = ep.split("/");
 			return {

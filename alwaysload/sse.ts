@@ -145,11 +145,13 @@ function handle_message(data: any) {
 
 function handle_firestore_docs_from_worker(data:any, eventname:string) {   
 
+	const paths = data.paths || (data.path ? [data.path] : [] )
+	if (data.path) delete data.path
+	data.paths = paths
+
 	const ls = _sse_listeners.filter(l=> { 
 		if (l.eventnames.includes(eventname)) return true;
 	})
-
-
 
 	if (!ls) throw new Error("should be at least one listener for FIRESTORE_COLLECTION, but none found")
 	ls.forEach((l)=> l.cb(data, eventname))

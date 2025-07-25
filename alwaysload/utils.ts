@@ -20,10 +20,16 @@ function CSV_Download(csvstr:string, filename:string) {
     a.click()
 }
 
+
+
+
 function resolve_object_references(list: {[key: str]: any}[],  object_stores: Map<string, {[key: str]: any}[]>): {[key: str]: any}[] {
 
-    // Create lookup maps for each object store for O(1) access by ID
     const lookup_maps = new Map<string, Map<string, any>>();
+	const o = {}
+	object_stores.forEach((storeData, storeName) => {
+		o[storeName.slice(2)] = storeData;
+	});
     
     // Initialize lookup maps only for stores that are needed
     // We'll populate them on-demand when first encountered
@@ -43,7 +49,7 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
             let lookup_map = lookup_maps.get(storeName);
             if (!lookup_map) {
 				// we are assuming '1:' prefix is always present, since these are all object stores
-                const storeData = object_stores.get("1:"+storeName)!
+                const storeData = o[storeName]!
                 
                 lookup_map = new Map();
 

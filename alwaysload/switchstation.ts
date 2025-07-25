@@ -25,6 +25,7 @@ let _history_states:Array<PathSpecT> = [];
 
 const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) => {
 
+
 	LazyLoadFilesInit(lazyloads);
 
 	const lazyload_view_urlpatterns = lazyloads.filter(l => l.type === "view").map(r => addroute(r)).map(l=> [l.viewname, l.pattern])

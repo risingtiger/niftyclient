@@ -99,18 +99,18 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	})
 
 
-	$N.SSEvents.Add_Listener(document.body, "datasync_doc_add", ["datasync_doc_add"], 100, (event:{path:string,data:object})=> {
-		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_add", ["datasync_doc_add"], 100, (event:{paths:string[],data:object})=> {
+		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.paths[0]), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "datasync_doc_patch", ["datasync_doc_patch"], 100, (event:{path:string,data:object, ispartial?:bool})=> {
-		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.path), event.data)
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_patch", ["datasync_doc_patch"], 100, (event:{paths:string[],data:object, ispartial?:bool})=> {
+		handle_datasync_doc_add_or_patch(parse_into_pathspec(event.paths[0]), event.data)
 	});
 
 
-	$N.SSEvents.Add_Listener(document.body, "datasync_doc_delete", ["datasync_doc_delete"], 100, async (event:{path:string,ts:number})=> {
-		const pathspec = parse_into_pathspec(event.path)
+	$N.SSEvents.Add_Listener(document.body, "datasync_doc_delete", ["datasync_doc_delete"], 100, async (event:{paths:string[],ts:number})=> {
+		const pathspec = parse_into_pathspec(event.paths[0])
 
 		let db:any
 

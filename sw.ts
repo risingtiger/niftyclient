@@ -253,12 +253,6 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) =
 		return
 	}
 	else if (ar !== "ok") {
-
-		console.log("inside of handle_data_call: authrequest failed and ar is: ")
-		console.log(ar)
-
-		//TODO: check if this is in fact handled by main. it might not be
-		// auth cannot authenticate. so do NOT resolve promise. Main.js has been notified and will handle eventual page redirection 
 		rej();
 		return
 	}
@@ -276,46 +270,16 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) =
 	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
 
 
-
-
-
-
-
-
-
-
-
-
-
-	// TODO: Put caching back in
-
 	/* ---------- LOCAL CACHE FOR DATA API ---------- */
-	/*
-	let cache: Cache | undefined;
-	if (r.headers.get('Nifty-RefreshCache') === 'true') {
-		cache = await caches.open(_cache_name);
-
-		if (r.headers.get('Nifty-RefreshCache') !== 'true') {
-			const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
-			if (cached) {           // serve cached copy immediately
-				res(cached.clone());
-				return;
-			}
+	let cache = await caches.open(_cache_name);
+	if (r.headers.get('Nifty-Cache') === 'true' && r.headers.get('Nifty-RefreshCache') !== 'true') {
+		const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
+		if (cached) {           // serve cached copy immediately
+			res(cached.clone());
+			return;
 		}
 	}
-	*/
 	/* ---------------------------------------------- */
-
-
-
-
-
-
-
-
-
-
-
 
 
 	let server_response:any
@@ -337,41 +301,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) =
 	clearTimeout(abortsignal_timeoutid)
 
 	if (server_response.status === 200) {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		// TODO: Put caching back in
-		//if (r.headers.get('Nifty-Cache') === 'true') cache!.put(new_request, server_response.clone())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+		if (r.headers.get('Nifty-Cache') === 'true') cache!.put(new_request, server_response.clone())
 		res(server_response) 
 	}
 
