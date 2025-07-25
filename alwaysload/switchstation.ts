@@ -12,7 +12,7 @@ import { str } from  "../defs_server_symlink.js"
 import { AddView as CMechAddView, ParamsChanged as CMechParamsChanged, BackToJustView as CMechBackToJustView } from "./cmech.js"
 import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
-import {  } from "./switchstation_animate.js"
+import { Slide } from "./switchstation_animate.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 
 declare var $N: $NT;
@@ -174,7 +174,8 @@ const addroute = (lazyload_view:LazyLoadT) => {
 
 const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => {
 
-	const viewsel    = document.getElementById("views") as HTMLElement;
+	const viewsel = document.getElementById("views") as HTMLElement;
+	const old_view = viewsel.querySelector('[data-active="true"]') as HTMLElement | null;
 
 	try   { await LazyLoadLoadView(pathspec.route.lazyload_view); }
 	catch { rej(); return; }
@@ -182,19 +183,33 @@ const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => 
 	try   { await CMechAddView(pathspec.route.lazyload_view.name, pathspec.pathparams, pathspec.searchparams, pathspec.route.lazyload_view.localdb_preload); }
 	catch { rej(); return; }
 
+	const new_view = viewsel.lastElementChild as HTMLElement;
 
-	const allviews = Array.from(viewsel.children) as HTMLElement[];
-	allviews.forEach((v) => {
-		v.style.display = "none";
-		v.dataset.active = "false";
-	});
+	if (old_view) {
+		// Hide all views except the old and new ones to prevent them from being visible during transition.
+		const allviews = Array.from(viewsel.children) as HTMLElement[];
+		allviews.forEach((v) => {
+			if (v !== old_view && v !== new_view) {
+				v.style.display = "none";
+				v.dataset.active = "false";
+			}
+		});
 
-	allviews[allviews.length-1].style.display = "block";
-	allviews[allviews.length-1].dataset.active = "true";
+		Slide(old_view, new_view);
 
-	document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
+		const animation_listener = () => {
+			viewsel.removeEventListener("animationcomplete", animation_listener);
+			viewsel.dispatchEvent(new Event("visibled"));
+			res();
+		};
+		viewsel.addEventListener("animationcomplete", animation_listener);
 
-	res();
+	} else { // First view
+		new_view.style.display = "block";
+		new_view.dataset.active = "true";
+		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
+		res();
+	}
 });
 
 
