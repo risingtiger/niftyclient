@@ -17,15 +17,15 @@
 
 
 .spacer {
-	display: none;
+	display: block;
 	height: 101vh;
+	width: 100vw;
 	scroll-snap-align: start;
 }
 
 .spacer.active {
 	display: block;
 }
-
 
 .wrapper {
 	position: relative;
@@ -45,7 +45,7 @@
 	border-radius: 12px 12px 0 0;
 	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
 	z-index: 1001;
-	opacity:0;
+	opacity: 0;
 	overflow-y:scroll;
 }
 

@@ -76,21 +76,20 @@ class COl2 extends HTMLElement {
 		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
 		this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
-		this.wrapper_el.scrollIntoView({behavior:"instant"});
-		
-		await new Promise(resolve => setTimeout(resolve, 100));
+
 
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
-			this.firstElementChild!.addEventListener("hydrated", ()=> {
-				setTimeout(()=> continue_to_open.bind(this), 80)
+			this.firstElementChild!.addEventListener("hydrated", async ()=> {
+				await new Promise(resolve => setTimeout(resolve, 80));
+				this.wrapper_el.scrollIntoView({behavior:"instant"});
+				await new Promise(resolve => setTimeout(resolve, 80));
+				await animate_in(this.content_el, this.viewwrapperel)
 			})
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
-			setTimeout(()=>continue_to_open.bind(this), 80)
-		}
-
-
-		async function continue_to_open() {
+			await new Promise(resolve => setTimeout(resolve, 80));
+			this.wrapper_el.scrollIntoView({behavior:"instant"});
+			await new Promise(resolve => setTimeout(resolve, 80));
 			await animate_in(this.content_el, this.viewwrapperel)
 		}
 	}
