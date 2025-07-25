@@ -63,35 +63,42 @@ body, td {
 
 
 #views {
-  position: relative;
-  
-  
-  
-  
 
-& .view {
-	display: none;
-	position: relative;
-	opacity: 1;
-}
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	contain: layout style paint;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+	perspective: 1000px;
 
-& .view.next_startstate {
-	opacity: 0;
-	transform: translate3D(35px, 0, 0);
-}
+	& .view {
+		display: block;
+		opacity: 0;
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		transform-style: preserve-3d;
+		backface-visibility: hidden;
+	}
 
-& .view.previous_endstate {
-	transform: translate3D(-35px, 0, 0);
-}
+	& .view.next_startstate {
+		opacity: 0;
+		transform: translate3D(35px, 0, 0);
+	}
 
-& .view.active_endstate {
-	opacity: 0;
-	transform: translate3D(35px, 0, 0);
-}
+	& .view.previous_endstate {
+		transform: translate3D(-35px, 0, 0);
+	}
 
-
-	
-
+	& .view.active_endstate {
+		opacity: 0;
+		transform: translate3D(35px, 0, 0);
+	}
 }
 
 

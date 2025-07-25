@@ -1,38 +1,48 @@
-export const Slide = (old_view: HTMLElement, new_view: HTMLElement) => {
 
-    old_view.dataset.active = "false";
-    new_view.style.display = "block";
+
+
+export const Slide = async (old_view: HTMLElement, new_view: HTMLElement) => {
+
+    // Set initial states and performance hints
+    new_view.style.opacity = '0';
+    new_view.style.transform = 'translate3d(10vw, 0, 0)';
+    new_view.style.willChange = 'transform, opacity';
+    old_view.style.willChange = 'transform, opacity';
 
     const old_view_kf = [
-        { transform: 'translate3d(0, 0, 0)' },
-        { transform: 'translate3d(-100px, 0, 0)' }
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+        { transform: 'translate3d(-10vw, 0, 0)', opacity: 0.8 }
     ];
 
     const new_view_kf = [
-        { transform: 'translate3d(100%, 0, 0)' },
-        { transform: 'translate3d(0, 0, 0)' }
+        { transform: 'translate3d(10vw, 0, 0)', opacity: 0 },
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 }
     ];
 
     const old_view_opts: KeyframeAnimationOptions = {
         duration: 300,
-        easing: 'ease-in',
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
         fill: 'forwards'
     };
 
     const new_view_opts: KeyframeAnimationOptions = {
         duration: 300,
-        easing: 'ease-out',
-        fill: 'forwards'
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        fill: 'forwards',
+        delay: 50 // Slight stagger for smoother transition
     };
 
     const old_animation = old_view.animate(old_view_kf, old_view_opts);
     const new_animation = new_view.animate(new_view_kf, new_view_opts);
 
     Promise.all([old_animation.finished, new_animation.finished]).then(() => {
-        old_view.style.display = "none";
+        // Use visibility instead of display for better performance
+        old_view.style.visibility = "hidden";
+        old_view.dataset.active = "false";
         
-        old_animation.cancel();
-        new_animation.cancel();
+        // Clean up will-change to free memory
+        old_view.style.willChange = 'auto';
+        new_view.style.willChange = 'auto';
 
         new_view.dataset.active = "true";
 

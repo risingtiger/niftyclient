@@ -14,6 +14,7 @@ import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
 import { Slide } from "./switchstation_animate.js"
 import { Init as LazyLoadFilesInit, LoadView as LazyLoadLoadView } from "./lazyload_files.js"
+import { back_swipe_handler } from "./switchstation_handlebackswipe.js"
 
 declare var $N: $NT;
 
@@ -68,6 +69,19 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 		}, 200)
 	}
 
+	// Set up callback for native swipe preparation
+	back_swipe_handler.on_prepare_view(() => {
+		const viewsel = document.getElementById("views") as HTMLElement;
+		const allviews = Array.from(viewsel.children) as HTMLElement[];
+		if (allviews.length >= 2) {
+			const previousview = allviews[allviews.length - 2];
+			// Prepare previous view for native swipe animation
+			previousview.style.visibility = "visible";
+			previousview.style.opacity = "1";
+			previousview.style.transform = "translate3d(0, 0, 0)";
+		}
+	});
+
 	window.addEventListener("popstate", async (_e:PopStateEvent) => {
 
 		const lastpathspec    = structuredClone(_history_states[_history_states.length - 2]) as PathSpecT;
@@ -87,10 +101,19 @@ const Init = (lazyloads:LazyLoadT[])=> new Promise<str[][]>(async (res, _rej) =>
 			const viewsel = document.getElementById("views") as HTMLElement;
 			const allviews = Array.from(viewsel.children) as HTMLElement[];
 			const currentview = allviews[allviews.length - 1];
-			const previousview = allviews[allviews.length - 2]; 
+			const previousview = allviews[allviews.length - 2];
+			
+			// Check if this was a native iOS swipe
+			const was_native_swipe = back_swipe_handler.was_native_swipe();
+			
 			viewsel.removeChild(currentview); // remove the last view
 
-			previousview.style.display = "block";
+			if (!was_native_swipe) {
+				// Only set styles if not a native swipe (native swipe already animated)
+				previousview.style.visibility = "visible";
+				previousview.style.opacity = "1";
+				previousview.style.transform = "translate3d(0, 0, 0)";
+			}
 			previousview.dataset.active = "true";
 		}
 	})
@@ -186,18 +209,9 @@ const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => 
 	const new_view = viewsel.lastElementChild as HTMLElement;
 
 	if (old_view) {
-		// Hide all views except the old and new ones to prevent them from being visible during transition.
-		const allviews = Array.from(viewsel.children) as HTMLElement[];
-		allviews.forEach((v) => {
-			if (v !== old_view && v !== new_view) {
-				v.style.display = "none";
-				v.dataset.active = "false";
-			}
-		});
-
 		Slide(old_view, new_view);
-
 		const animation_listener = () => {
+			viewsel.dataset.active = "true";
 			viewsel.removeEventListener("animationcomplete", animation_listener);
 			viewsel.dispatchEvent(new Event("visibled"));
 			res();
@@ -205,8 +219,10 @@ const gotoview = (pathspec: PathSpecT) => new Promise<void>(async (res, rej) => 
 		viewsel.addEventListener("animationcomplete", animation_listener);
 
 	} else { // First view
-		new_view.style.display = "block";
 		new_view.dataset.active = "true";
+		new_view.style.opacity = "1";
+		new_view.style.visibility = "visible";
+		new_view.style.transform = "translate3d(0, 0, 0)";
 		document.querySelector("#views")!.dispatchEvent(new Event("visibled"));
 		res();
 	}
