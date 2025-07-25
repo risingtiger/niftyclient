@@ -1,4 +1,11 @@
 
+/* 
+modify the file to add an additional functionality:
+- Detect when the user has swiped down to close the overlay. 
+- Since the overlay element has scrollable and the wrapper and spacer element has a scroll snap point, it should scroll either back to the top or close the overlay.
+- If the user has scrolled down to the bottom, it should close the overlay. and I need to emit a custom event AI!
+
+*/
 
 import { str, bool } from "../../../defs_server_symlink.js";
 
@@ -74,7 +81,7 @@ class COl2 extends HTMLElement {
 
 		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
-		this.firstElementChild!.addEventListener("close", () => { this.close(); })
+		//this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
@@ -111,8 +118,9 @@ class COl2 extends HTMLElement {
 
 
 
-	close() {
-		this.animate_out()
+	async close() {
+		await this.animate_out()
+		this.dispatchEvent(new Event('close'))
 	}
 
 
@@ -222,7 +230,7 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
-const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) => {
+const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) => new Promise<void>(async (res, _rej) => {
     
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
@@ -246,7 +254,9 @@ const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) 
     const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
     
     await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
-};
+
+	res()
+})
 
 
 
@@ -256,8 +266,8 @@ function animate_theme_and_body_color(duration: number, is_out: bool = false) {
     let start_time: number | null = null;
     let theme_color_meta = document.head.querySelector("meta[name='theme-color']");
 
-    const start_color = is_out ? 255 : 235;
-    const end_color = is_out ? 235 : 255;
+    const start_color = is_out ? 155 : 255;
+    const end_color = is_out ? 255 : 155;
     const color_range = end_color - start_color;
 
     function frame(current_time: number) {
