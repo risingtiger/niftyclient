@@ -42,7 +42,7 @@ class COl2 extends HTMLElement {
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
-	wrap_el!: HTMLElement
+	backgroundel!: HTMLElement
 	content_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
@@ -70,13 +70,11 @@ class COl2 extends HTMLElement {
 		this.m.shape          = shape
 		this.m.floatsize           = floatsize
 
-
-		// Set initial opacity for animation
 		this.style.opacity = "1";
 
 		this.sc()
 
-		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
+		this.backgroundel = ( document.querySelector('#views>.view') as any ).shadowRoot.querySelector('.wrapper')
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
@@ -94,7 +92,6 @@ class COl2 extends HTMLElement {
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
-			// Animate in the overlay
 			animate_in(this, this.content_el, this.wrap_el)
 		}
 	}
@@ -137,7 +134,7 @@ class COl2 extends HTMLElement {
 	}
 
 	async animate_out() {
-		await animate_out(this, this.content_el, this.wrap_el, this.m.shape);
+		await animate_out(this, this.content_el, this.backgroundel, this.m.shape);
 		this.closed();
 	}
 
