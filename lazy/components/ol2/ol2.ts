@@ -206,6 +206,8 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
         fill: 'forwards' as FillMode
     };
     
+    animate_theme_and_body_color(animation_options.duration, false);
+
     const content_animation       = content_el.animate(content_keyframes, animation_options);
     const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
     
@@ -220,25 +222,72 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
-const animate_aux__old_will_be_deleted = (start_time: number, duration: number, is_out: bool = false) {
+const animate_out = async (el: HTMLElement, content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
+    
+    const easing = shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)';
+    
+    const content_keyframes = [
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+        { transform: 'translate3d(0, 100vh, 0)', opacity: 0 }
+    ];
+    
+    const background_keyframes = [
+        { transform: 'translate3d(0, 20px, 0) scale(0.92)', opacity: 0.7 },
+        { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
+    ];
+    
+    const animation_options = {
+        duration: 350,
+        easing: easing,
+        fill: 'forwards' as FillMode
+    };
+    
+    animate_theme_and_body_color(animation_options.duration, true);
+    
+    const animations: Animation[] = [content_el.animate(content_keyframes, animation_options)];
+    
+    if (viewwrapperel) {
+        animations.push(viewwrapperel.animate(background_keyframes, animation_options));
+    }
+    
+    await Promise.all(animations.map(anim => anim.finished));
+};
 
-	const now = performance.now();
-	const elapsed = now - start_time;
-	const progress = Math.min(elapsed / duration, 1);
 
-	const factor = is_out ? (1 - progress) : progress;
 
-	const background_max = .8
-	const a = factor * background_max;
-	
-	const theme_color = 255 - Math.round( 255 * a )
-	const theme_color_str = `rgb(${theme_color},${theme_color},${theme_color})`;
-	document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", theme_color_str);
-	document.body.style.backgroundColor = theme_color_str;
 
-	if (progress < 1) {
-		requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
-	}
+function animate_theme_and_body_color(duration: number, is_out: bool = false) {
+    let start_time: number | null = null;
+    let theme_color_meta = document.head.querySelector("meta[name='theme-color']");
+    if (!theme_color_meta) {
+        theme_color_meta = document.createElement('meta');
+        theme_color_meta.setAttribute('name', 'theme-color');
+        document.head.appendChild(theme_color_meta);
+    }
+
+    const start_color = is_out ? 255 : 235;
+    const end_color = is_out ? 235 : 255;
+    const color_range = end_color - start_color;
+
+    function frame(current_time: number) {
+        if (start_time === null) {
+            start_time = current_time;
+        }
+        const elapsed = current_time - start_time;
+        const progress = Math.min(elapsed / duration, 1);
+
+        const color_val = Math.round(start_color + color_range * progress);
+        const color_str = `rgb(${color_val},${color_val},${color_val})`;
+
+        theme_color_meta!.setAttribute("content", color_str);
+        document.body.style.backgroundColor = color_str;
+
+        if (progress < 1) {
+            requestAnimationFrame(frame);
+        }
+    }
+
+    requestAnimationFrame(frame);
 }
 
 
