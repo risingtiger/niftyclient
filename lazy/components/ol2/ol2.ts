@@ -220,6 +220,29 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
+const animate_aux__old_will_be_deleted = (start_time: number, duration: number, is_out: bool = false) {
+
+	const now = performance.now();
+	const elapsed = now - start_time;
+	const progress = Math.min(elapsed / duration, 1);
+
+	const factor = is_out ? (1 - progress) : progress;
+
+	const background_max = .8
+	const a = factor * background_max;
+	
+	const theme_color = 255 - Math.round( 255 * a )
+	const theme_color_str = `rgb(${theme_color},${theme_color},${theme_color})`;
+	document.head.querySelector("meta[name='theme-color']")!.setAttribute("content", theme_color_str);
+	document.body.style.backgroundColor = theme_color_str;
+
+	if (progress < 1) {
+		requestAnimationFrame(() => this.animate_aux(start_time, duration, is_out));
+	}
+}
+
+
+
 
 
 
