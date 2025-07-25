@@ -1,6 +1,7 @@
 
 
 import { str, num, bool } from "../../../defs_server_symlink.js";
+import { animate_in, animate_out } from "./ol2_animate.js";
 
 
 declare var render: any;
@@ -43,7 +44,6 @@ class COl2 extends HTMLElement {
 	shadow: ShadowRoot
 	wrap_el!: HTMLElement
 	content_el!: HTMLElement
-	background_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -71,14 +71,14 @@ class COl2 extends HTMLElement {
 		this.m.floatsize           = floatsize
 
 
-		// DELETE WHEN ANIMATION IS BACK
-		this.style.opacity = "0";
+		// Set initial opacity for animation
+		this.style.opacity = "1";
 
 		this.sc()
 
+		// wrap_el is within the shadow dom of body > .views > .view. set wrap_el to it AI!
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
-		this.background_el = this.shadow.querySelector(".background") as HTMLElement;
 
 		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
 			child.addEventListener("hydrated", continue_to_open.bind(this))
@@ -95,18 +95,8 @@ class COl2 extends HTMLElement {
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
-			// TODO: come back to this and finish out the animating in. For now, its just a static open.
-			//this.animate_in()
-
-			// the rest of this should be deleted when animation is back
-			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
-			spacerel.style.display = "block";
-			setTimeout(()=> {
-				this.style.opacity = "1";
-				this.content_el.style.opacity = "1";
-				this.wrap_el.scrollIntoView();
-				this.setAttribute("opened", "true");
-			}, 100)
+			// Animate in the overlay
+			animate_in(this, this.content_el, this.wrap_el)
 		}
 	}
 
@@ -147,44 +137,11 @@ class COl2 extends HTMLElement {
 		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
 	}
 
-	animate_out() {
-		const easing = this.m.shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)'
-
-		const animation = this.content_el.animate([
-			{ transform: 'translate3d(0, 0vh, 0)', opacity: 1 },
-			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0 }
-		], {
-			duration: 350,
-			easing: easing,
-			fill: 'forwards'
-		});
-
-		animation.onfinish = () => this.closed()
-
-		this.wrap_el.classList.remove("active");
+	async animate_out() {
+		await animate_out(this, this.content_el, this.wrap_el, this.m.shape);
+		this.closed();
 	}
 
-	animate_in() {
-		const keyframes = [
-
-			{ transform: 'translate3d(0, 100vh, 0)', opacity: 0,    offset: 0 },
-			{ transform: 'translate3d(0, 8vh, 0)',   opacity: 1,    offset: 0.65 },
-			{ transform: 'translate3d(0, 0, 0)',     opacity: 1,    offset: 1 }
-		];
-		const options = {
-			duration: 560,
-			easing: 'cubic-bezier(0, 0.850, 0.250, 1)', 
-			fill: 'forwards' as FillMode
-		};
-		const animation = this.content_el.animate(keyframes, options);
-
-		animation.onfinish = () => {
-			const spacerel = this.shadow.querySelector(".spacer") as HTMLElement;
-			spacerel.style.display = "block";
-			this.wrap_el.scrollIntoView();
-			this.setAttribute("opened", "true");
-		};
-	}
 
 	template = (_s: StateT, _m: ModelT) => { return html`{--css--}{--html--}`; };
 }
