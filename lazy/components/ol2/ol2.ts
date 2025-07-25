@@ -131,7 +131,7 @@ class COl2 extends HTMLElement {
 	}
 
 	async animate_out() {
-		await animate_out(this, this.content_el, this.viewwrapperel, this.m.shape);
+		await animate_out(this.content_el, this.viewwrapperel, this.m.shape);
 		this.closed();
 	}
 
@@ -222,8 +222,7 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
-// remove the el parameter AI!
-const animate_out = async (el: HTMLElement, content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
+const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
     
     const easing = shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)';
     
