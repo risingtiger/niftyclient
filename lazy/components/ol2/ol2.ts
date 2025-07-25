@@ -131,7 +131,7 @@ class COl2 extends HTMLElement {
 	}
 
 	async animate_out() {
-		await animate_out(this.content_el, this.viewwrapperel, this.m.shape);
+		await animate_out(this.content_el, this.viewwrapperel);
 		this.closed();
 	}
 
@@ -222,8 +222,7 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
-// remove the shape parameter from the animate_out function AI!
-const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
+const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) => {
     
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
