@@ -1,7 +1,6 @@
 
 
-import { str, num, bool } from "../../../defs_server_symlink.js";
-import { animate_in, animate_out } from "./ol2_animate.js";
+import { str, bool } from "../../../defs_server_symlink.js";
 
 
 declare var render: any;
@@ -42,8 +41,9 @@ class COl2 extends HTMLElement {
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
-	backgroundel!: HTMLElement
+	viewwrapperel!: HTMLElement
 	content_el!: HTMLElement
+	wrapper_el!: HTMLElement
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -55,7 +55,7 @@ class COl2 extends HTMLElement {
 
 
 
-	connectedCallback() {
+	async connectedCallback() {
 
 		this.s.title         = this.getAttribute("title") || "asdfsdf"
 		this.s.show_closebtn = this.getAttribute("closebtn")   === "false" ? false : true
@@ -63,36 +63,34 @@ class COl2 extends HTMLElement {
 		const shapeA         = this.getAttribute("shape") || ""
 		const floatsizeA     = this.getAttribute("floatsizes") || ""
 
-		const child = this.firstElementChild as HTMLElement
-		const screen_size_category = determine_screen_size_category()
-
-		const { shape, floatsize } = determine_shape_and_size(shapeA, floatsizeA, screen_size_category)
-		this.m.shape          = shape
-		this.m.floatsize           = floatsize
-
-		this.style.opacity = "1";
-
 		this.sc()
 
-		this.backgroundel = ( document.querySelector('#views>.view') as any ).shadowRoot.querySelector('.wrapper')
-		this.content_el = this.shadow.querySelector(".content") as HTMLElement
+		const { shape, floatsize } = determine_shape_and_size(shapeA, floatsizeA, determine_screen_size_category())
+		this.m.shape               = shape
+		this.m.floatsize           = floatsize
+		this.viewwrapperel         = ( document.querySelector('#views>.view:last-child') as any ).shadowRoot.querySelector(':host > .wrapper')
+		this.content_el            = this.shadow.querySelector(".content") as HTMLElement
+		this.wrapper_el            = this.shadow.querySelector(".wrapper") as HTMLElement
 
-		if (child.tagName.startsWith("C-") || child.tagName.startsWith("VP-")) {
-			child.addEventListener("hydrated", continue_to_open.bind(this))
+		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
+		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
+		this.firstElementChild!.addEventListener("close", () => { this.close(); })
+
+		this.wrapper_el.scrollIntoView({behavior:"instant"});
+		// await for 100ms to ensure the DOM is ready AI!
+
+		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
+			this.firstElementChild!.addEventListener("hydrated", ()=> {
+				setTimeout(()=> continue_to_open.bind(this), 80)
+			})
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
-			continue_to_open.bind(this)()
+			setTimeout(()=>continue_to_open.bind(this), 80)
 		}
 
 
-
-		function continue_to_open() {
-			this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
-			this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
-			//this.addEventListener("scroll", this.scrolled.bind(this))
-			child.addEventListener("close", () => { this.close(); })
-
-			animate_in(this, this.backgroundel)
+		async function continue_to_open() {
+			await animate_in(this.content_el, this.viewwrapperel)
 		}
 	}
 
@@ -134,7 +132,7 @@ class COl2 extends HTMLElement {
 	}
 
 	async animate_out() {
-		await animate_out(this, this.content_el, this.backgroundel, this.m.shape);
+		await animate_out(this, this.content_el, this.viewwrapperel, this.m.shape);
 		this.closed();
 	}
 
@@ -185,6 +183,40 @@ function determine_screen_size_category(): BrowserScreenSizeCategoryE {
 		return BrowserScreenSizeCategoryE.LARGE
 	}
 }
+
+
+
+
+const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Promise<void>(async (res,_rej) => {
+
+    content_el.style.opacity = '0';
+    
+    const content_keyframes = [
+        { transform: 'translate3d(0, 20vh, 0)', opacity: 0 },
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 }
+    ];
+    
+    const viewwrapperel_keyframes = [
+        { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 },
+        { transform: 'translate3d(0, 20px, 0) scale(0.92)', opacity: 0.7 }
+    ];
+    
+    const animation_options = {
+        duration: 560,
+        easing: 'cubic-bezier(0, 0.850, 0.250, 1)',
+        fill: 'forwards' as FillMode
+    };
+    
+    const content_animation       = content_el.animate(content_keyframes, animation_options);
+    const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
+    
+    await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
+    
+	content_el.style.opacity = '1';
+    content_el.setAttribute('opened', 'true');
+
+	res()
+})
 
 
 
