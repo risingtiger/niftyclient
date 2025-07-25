@@ -76,7 +76,6 @@ class COl2 extends HTMLElement {
 
 		this.sc()
 
-		// wrap_el is within the shadow dom of body > .views > .view. set wrap_el to it AI!
 		this.wrap_el = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.content_el = this.shadow.querySelector(".content") as HTMLElement
 
