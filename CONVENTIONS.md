@@ -8,7 +8,3 @@
     - catch { rej(); return; }
 - use awaits where possible, vs promise chaining. 
 
-## Web Components
-- All Web Components are Vanilla -- no use of libraries like React.
-- All DOM rendering is done by litHTML, so make sure to adhere to litHTML best practises.
-- All Web Components are contained within a single directory, which has 3 files: ts, html and css, All three are bundled as one in build process. Always put string literal html content within the html file.   
