@@ -222,17 +222,16 @@ const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Pr
 
 
 
-// match animae_out to mirror aniamte_in just in reverse AI!
 const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, shape: ShapeE) => {
     
     const easing = shape === ShapeE.FLOAT ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)';
     
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
-        { transform: 'translate3d(0, 100vh, 0)', opacity: 0 }
+        { transform: 'translate3d(0, 20vh, 0)', opacity: 0 }
     ];
     
-    const background_keyframes = [
+    const viewwrapperel_keyframes = [
         { transform: 'translate3d(0, 20px, 0) scale(0.92)', opacity: 0.7 },
         { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
     ];
@@ -245,13 +244,10 @@ const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement, 
     
     animate_theme_and_body_color(animation_options.duration, true);
     
-    const animations: Animation[] = [content_el.animate(content_keyframes, animation_options)];
+    const content_animation = content_el.animate(content_keyframes, animation_options);
+    const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
     
-    if (viewwrapperel) {
-        animations.push(viewwrapperel.animate(background_keyframes, animation_options));
-    }
-    
-    await Promise.all(animations.map(anim => anim.finished));
+    await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
 };
 
 
