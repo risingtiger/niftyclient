@@ -1,13 +1,6 @@
 
-/* 
-modify the file to add an additional functionality:
-- Detect when the user has swiped down to close the overlay. 
-- Since the overlay element has scrollable and the wrapper and spacer element has a scroll snap point, it should scroll either back to the top or close the overlay.
-- If the user has scrolled down to the bottom, it should close the overlay. and I need to emit a custom event AI!
 
-*/
-
-import { str, bool } from "../../../defs_server_symlink.js";
+import { str, num, bool } from "../../../defs_server_symlink.js";
 
 
 declare var render: any;
@@ -28,6 +21,9 @@ type StateT = {
 	title: str,
 	show_closebtn: bool,
 	show_header: bool,
+	scroll_end_timer?: any
+	isopen: bool
+	animatetheme: { duration:num, start_time:num|null, start_color:num, start_range:num, color_range:num  }
 }
 
 type ModelT = {
@@ -36,7 +32,7 @@ type ModelT = {
 }
 
 
-const ATTRIBUTES: AttributesT = { close: "" }
+const ATTRIBUTES: AttributesT = { close: "" };
 
 
 
@@ -44,13 +40,14 @@ const ATTRIBUTES: AttributesT = { close: "" }
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true };
+	s: StateT = { title: "", show_closebtn: true, show_header: true, isopen: false, animatetheme: { duration: 0, start_time: null, start_color: 155, start_range: 100, color_range: 100 } };
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
 	viewwrapperel!: HTMLElement
 	content_el!: HTMLElement
 	wrapper_el!: HTMLElement
+	theme_color_meta!: HTMLMetaElement;
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -78,10 +75,10 @@ class COl2 extends HTMLElement {
 		this.viewwrapperel         = ( document.querySelector('#views>.view:last-child') as any ).shadowRoot.querySelector(':host > .wrapper')
 		this.content_el            = this.shadow.querySelector(".content") as HTMLElement
 		this.wrapper_el            = this.shadow.querySelector(".wrapper") as HTMLElement
+		this.theme_color_meta      = document.head.querySelector("meta[name='theme-color']")!;
 
 		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
-		this.addEventListener('scroll', this.scrolled.bind(this));
 		//this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 
@@ -90,14 +87,23 @@ class COl2 extends HTMLElement {
 				await new Promise(resolve => setTimeout(resolve, 80));
 				this.wrapper_el.scrollIntoView({behavior:"instant"});
 				await new Promise(resolve => setTimeout(resolve, 80));
-				await animate_in(this, this.content_el, this.viewwrapperel)
+				await animate_in(this.content_el, this.viewwrapperel)
 			})
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
 			await new Promise(resolve => setTimeout(resolve, 80));
 			this.wrapper_el.scrollIntoView({behavior:"instant"});
 			await new Promise(resolve => setTimeout(resolve, 80));
-			await animate_in(this, this.content_el, this.viewwrapperel)
+			await animate_in(this.content_el, this.viewwrapperel)
+		}
+
+		this.content_el.style.opacity = '1';
+		this.s.isopen = true;
+
+		this.onscroll = _event => {
+			if (this.scrollTop < 20 && this.s.isopen) {
+				this.closed();
+			}
 		}
 	}
 
@@ -121,26 +127,22 @@ class COl2 extends HTMLElement {
 
 	async close() {
 		await this.animate_out()
-		this.dispatchEvent(new Event('close'))
+		this.closed()
 	}
 
 
 
 
 	closed() {
-		this.setAttribute("closed", "true")
+		this.s.isopen = false; // probably not needed, but for clarity
 		this.dispatchEvent(new Event('close'));
 	}
 
 
 
 
-	async scrolled(_e: Event) {
-		if (this.scrollTop <= 1 && this.hasAttribute("opened")) {
-			this.removeEventListener('scroll', this.scrolled);
-			await this.animate_out();
-			this.dispatchEvent(new CustomEvent('ai'));
-		}
+	scrolled(_e: Event) {
+		if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
 	}
 
 	async animate_out() {
@@ -199,7 +201,7 @@ function determine_screen_size_category(): BrowserScreenSizeCategoryE {
 
 
 
-const animate_in = (host_el: COl2, content_el:HTMLElement, viewwrapperel:HTMLElement) => new Promise<void>(async (res,_rej) => {
+const animate_in = (content_el:HTMLElement, viewwrapperel:HTMLElement) => new Promise<void>(async (res,_rej) => {
 
     content_el.style.opacity = '0';
     
@@ -226,8 +228,6 @@ const animate_in = (host_el: COl2, content_el:HTMLElement, viewwrapperel:HTMLEle
     
     await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
     
-	host_el.setAttribute('opened', 'true');
-
 	res()
 })
 
@@ -267,33 +267,36 @@ const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) 
 
 function animate_theme_and_body_color(duration: number, is_out: bool = false) {
 
-    let start_time: number | null = null;
-    let theme_color_meta = document.head.querySelector("meta[name='theme-color']");
+	this.s.animatetheme.duration = duration;
+	this.s.animatetheme.start = null;
 
-    const start_color = is_out ? 155 : 255;
+    this.s.animatetheme.start_color = is_out ? 155 : 255;
     const end_color = is_out ? 255 : 155;
-    const color_range = end_color - start_color;
+    this.s.animatetheme.color_range = end_color - this.s.animatetheme.start_color;
 
-    function frame(current_time: number) {
-        if (start_time === null) {
-            start_time = current_time;
-        }
-        const elapsed = current_time - start_time;
-        const progress = Math.min(elapsed / duration, 1);
-
-        const color_val = Math.round(start_color + color_range * progress);
-        const color_str = `rgb(${color_val},${color_val},${color_val})`;
-
-        theme_color_meta!.setAttribute("content", color_str);
-        document.body.style.backgroundColor = color_str;
-
-        if (progress < 1) {
-            requestAnimationFrame(frame);
-        }
-    }
-
-    requestAnimationFrame(frame);
+    requestAnimationFrame((ct)=>animate_theme_and_body_color__frame(ct));
 }
+
+
+
+function animate_theme_and_body_color__frame(current_time: number) {
+	if (this.s.animatetheme.start === null) {
+		this.s.animatetheme.start = current_time;
+	}
+	const elapsed = current_time - this.s.animatetheme.start;
+	const progress = Math.min(elapsed / this.s.animatetheme.duration, 1);
+
+	const color_val = Math.round(this.s.animatetheme.start_color + this.s.animatetheme.color_range * progress);
+	const color_str = `rgb(${color_val},${color_val},${color_val})`;
+
+	this.theme_color_meta!.setAttribute("content", color_str);
+	document.body.style.backgroundColor = color_str;
+
+	if (progress < 1) {
+		requestAnimationFrame(animate_theme_and_body_color__frame);
+	}
+}
+
 
 
 
