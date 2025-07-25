@@ -2,6 +2,9 @@
 
 export async function animate_in(thiscomponent: HTMLElement, background_wrapper: HTMLElement) {
 
+    const content_el = thiscomponent.shadowRoot?.querySelector('.content') as HTMLElement;
+    if (!content_el) return;
+
     // Set initial states
     thiscomponent.style.opacity = '1';
     content_el.style.opacity = '0';
@@ -49,8 +52,6 @@ export async function animate_in(thiscomponent: HTMLElement, background_wrapper:
 
 export async function animate_out(overlay_el: HTMLElement, content_el: HTMLElement, wrapper_el: HTMLElement, shape: string) {
     // Get the background wrapper element
-    const view_el = overlay_el.parentElement;
-    const background_wrapper = view_el?.querySelector('div.wrapper') as HTMLElement;
     
     const easing = shape === 'float' ? 'cubic-bezier(0.35, 0.15, 0.85, 0.64)' : 'cubic-bezier(0.46, 0.06, 1, 0.88)';
     
@@ -74,8 +75,8 @@ export async function animate_out(overlay_el: HTMLElement, content_el: HTMLEleme
     // Create animations
     const animations: Animation[] = [content_el.animate(content_keyframes, animation_options)];
     
-    if (background_wrapper) {
-        animations.push(background_wrapper.animate(background_keyframes, animation_options));
+    if (wrapper_el) {
+        animations.push(wrapper_el.animate(background_keyframes, animation_options));
     }
     
     // Remove active class

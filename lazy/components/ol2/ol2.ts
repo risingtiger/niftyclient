@@ -92,7 +92,7 @@ class COl2 extends HTMLElement {
 			//this.addEventListener("scroll", this.scrolled.bind(this))
 			child.addEventListener("close", () => { this.close(); })
 
-			animate_in(this, this.content_el, this.wrap_el)
+			animate_in(this, this.backgroundel)
 		}
 	}
 
