@@ -77,7 +77,6 @@ class COl2 extends HTMLElement {
 		this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 
-
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
 			this.firstElementChild!.addEventListener("hydrated", async ()=> {
 				await new Promise(resolve => setTimeout(resolve, 80));
