@@ -1,8 +1,10 @@
-import { str, num, bool } from "../../../defs_server_symlink.js";
+
+import { str, bool } from "../../../defs_server_symlink.js";
 import { animate_in, animate_out, init_animation_state } from "./ol2_animate.js";
 
 declare var render: any;
 declare var html: any;
+
 
 enum ShapeE { FILL = "fill", FLOAT = "float" }
 enum FloatShapeSizeE { S = 's', M = 'm', L = 'l', NA = 'na' }
@@ -74,32 +76,25 @@ class COl2 extends HTMLElement {
 
 		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
 		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
-		//this.firstElementChild!.addEventListener("close", () => { this.close(); })
 
 
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
 			this.firstElementChild!.addEventListener("hydrated", async ()=> {
-				await new Promise(resolve => setTimeout(resolve, 80));
-				this.wrapper_el.scrollIntoView({behavior:"instant"});
-				await new Promise(resolve => setTimeout(resolve, 80));
-				await animate_in(this.content_el, this.viewwrapperel)
+				this.init()
 			})
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
-			await new Promise(resolve => setTimeout(resolve, 80));
-			this.wrapper_el.scrollIntoView({behavior:"instant"});
-			await new Promise(resolve => setTimeout(resolve, 80));
-			await animate_in(this.content_el, this.viewwrapperel)
+			this.init()
 		}
 
-		this.content_el.style.opacity = '1';
-		this.s.isopen = true;
 
 		this.onscroll = _event => {
 			if (this.scrollTop < 20 && this.s.isopen) {
 				this.closed();
 			}
 		}
+
+
 	}
 
 
@@ -116,6 +111,18 @@ class COl2 extends HTMLElement {
 
 
 	sc() { render(this.template(this.s, this.m), this.shadow); }
+
+
+
+
+	async init() {
+		await new Promise(resolve => setTimeout(resolve, 80));
+		this.wrapper_el.scrollIntoView({behavior:"instant"});
+		await new Promise(resolve => setTimeout(resolve, 80));
+		await animate_in(this.content_el, this.viewwrapperel)
+
+		this.s.isopen = true;
+	}
 
 
 
