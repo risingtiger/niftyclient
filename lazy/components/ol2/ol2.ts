@@ -1,6 +1,6 @@
 
 import { str, bool } from "../../../defs_server_symlink.js";
-import { animate_in, animate_out, init_animation_state } from "./ol2_animate.js";
+import { animate_in, animate_out, init_animation_state, set_theme_and_body_color_from_progress } from "./ol2_animate.js";
 
 declare var render: any;
 declare var html: any;
@@ -92,6 +92,13 @@ class COl2 extends HTMLElement {
 			if (this.scrollTop < 20 && this.s.isopen) {
 				this.closed();
 			}
+			
+			// Calculate progress based on scroll position (0 = top, 1 = fully scrolled)
+			const max_scroll = this.scrollHeight - this.clientHeight;
+			const scroll_progress = max_scroll > 0 ? Math.min(this.scrollTop / max_scroll, 1) : 0;
+			
+			// Apply color animation based on scroll progress
+			set_theme_and_body_color_from_progress(scroll_progress);
 		}
 
 
