@@ -1,6 +1,6 @@
-import { str, num, bool } from "../../../defs_server_symlink.js";
 
-// Animation-related types
+import {num, bool } from "../../../defs_server_symlink.js";
+
 export type AnimateThemeT = { 
 	duration: num, 
 	start_time: num|null, 
@@ -9,7 +9,6 @@ export type AnimateThemeT = {
 	color_range: num  
 }
 
-// Animation state management
 let animate_theme_state: AnimateThemeT = { 
 	duration: 0, 
 	start_time: null, 
@@ -20,11 +19,18 @@ let animate_theme_state: AnimateThemeT = {
 
 let theme_color_meta: HTMLMetaElement | null = null
 
+
+
+
 export function init_animation_state(meta_element: HTMLMetaElement) {
 	theme_color_meta = meta_element
 }
 
+
+
+
 export const animate_in = (content_el: HTMLElement, viewwrapperel: HTMLElement) => new Promise<void>(async (res, _rej) => {
+
     content_el.style.opacity = '0';
     
     const content_keyframes = [
@@ -53,10 +59,14 @@ export const animate_in = (content_el: HTMLElement, viewwrapperel: HTMLElement) 
 	res()
 })
 
+
+
+
 export const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLElement) => new Promise<void>(async (res, _rej) => {
+
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
-        { transform: 'translate3d(0, 20vh, 0)', opacity: 0 }
+        { transform: 'translate3d(0, 80vh, 0)', opacity: 0 }
     ];
     
     const viewwrapperel_keyframes = [
@@ -65,8 +75,8 @@ export const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLEl
     ];
     
     const animation_options = {
-        duration: 350,
-        easing: 'cubic-bezier(0, 0.850, 0.250, 1)',
+        duration: 550,
+        easing: 'cubic-bezier(0.250, 0, 1, 0.850)',
         fill: 'forwards' as FillMode
     };
     
@@ -80,6 +90,9 @@ export const animate_out = async (content_el: HTMLElement, viewwrapperel: HTMLEl
 	res()
 })
 
+
+
+
 function animate_theme_and_body_color(duration: number, is_out: bool = false) {
 	animate_theme_state.duration = duration;
 	animate_theme_state.start_time = null;
@@ -88,8 +101,11 @@ function animate_theme_and_body_color(duration: number, is_out: bool = false) {
     const end_color = is_out ? 255 : 155;
     animate_theme_state.color_range = end_color - animate_theme_state.start_color;
 
-    requestAnimationFrame((ct) => animate_theme_and_body_color__frame(ct));
+    requestAnimationFrame(animate_theme_and_body_color__frame);
 }
+
+
+
 
 function animate_theme_and_body_color__frame(current_time: number) {
 	if (animate_theme_state.start_time === null) {
