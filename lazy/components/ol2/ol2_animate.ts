@@ -107,13 +107,7 @@ function animate_theme_and_body_color(duration: number, is_out: bool = false) {
 
 
 
-function animate_theme_and_body_color__frame(current_time: number) {
-	if (animate_theme_state.start_time === null) {
-		animate_theme_state.start_time = current_time;
-	}
-	const elapsed = current_time - animate_theme_state.start_time;
-	const progress = Math.min(elapsed / animate_theme_state.duration, 1);
-
+function set_theme_and_body_color_from_progress(progress: number) {
 	const color_val = Math.round(animate_theme_state.start_color + animate_theme_state.color_range * progress);
 	const color_str = `rgb(${color_val},${color_val},${color_val})`;
 
@@ -121,6 +115,16 @@ function animate_theme_and_body_color__frame(current_time: number) {
 		theme_color_meta.setAttribute("content", color_str);
 	}
 	document.body.style.backgroundColor = color_str;
+}
+
+function animate_theme_and_body_color__frame(current_time: number) {
+	if (animate_theme_state.start_time === null) {
+		animate_theme_state.start_time = current_time;
+	}
+	const elapsed = current_time - animate_theme_state.start_time;
+	const progress = Math.min(elapsed / animate_theme_state.duration, 1);
+
+	set_theme_and_body_color_from_progress(progress);
 
 	if (progress < 1) {
 		requestAnimationFrame(animate_theme_and_body_color__frame);
