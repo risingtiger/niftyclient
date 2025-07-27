@@ -11,6 +11,7 @@ declare var html: any;
 
 
 
+
 enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
 type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
 
@@ -19,7 +20,7 @@ type AttributesT = {
 }
 
 type StateT = {
-    issaving: bool,
+    savingstate: 0|1|2,
     val: str,
 	saved_val: str,
 	newval: str,
@@ -62,7 +63,7 @@ const ATTRIBUTES:AttributesT = { val: "" }
 class CIn2 extends Lit_Element {
 
 	a:AttributesT = { ...ATTRIBUTES };
-    s:StateT = { val: "", saved_val:"", newval: "", issaving: false, err_msg: "", options: "", min: "", max: "", updatemoment: 0, saveability: true }
+    s:StateT = { val: "", saved_val:"", newval: "", savingstate: 0, err_msg: "", options: "", min: "", max: "", updatemoment: 0, saveability: true }
     m:ModelT = { name: "", type: TypeT.TOGGLE, inputtype: "text", label: "", labelwidth: 0, placeholder: "" }
 	controlel:HTMLElement = document.body
     
@@ -72,7 +73,6 @@ class CIn2 extends Lit_Element {
 
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
-
 
 
     constructor() {   
@@ -157,22 +157,21 @@ class CIn2 extends Lit_Element {
 
     public updatedone(newval?:str) {      
 
+		const fnc = ()=> {
+			this.setAttribute("val", newval || this.s.newval);
+			this.s.savingstate = 2;
+			this.s.saved_val = this.s.newval;
+			this.sc()
+
+			setTimeout(()=> { this.s.savingstate = 0;this.sc(); }, 500)
+		}
+
 		const diff = Date.now() - this.s.updatemoment
 
 		if (diff > 1000) {
-			this.setAttribute("val", newval || this.s.newval);
-			this.s.issaving = false;
-			this.saved_val = this.s.newval;
-			this.sc()
-
+			fnc();
 		} else {
-			setTimeout(() => { 
-				this.setAttribute("val", newval || this.s.newval);
-				this.s.issaving = false;
-				this.s.saved_val = this.s.newval;
-				this.sc()
-
-			}, 1000);
+			setTimeout(fnc, 1000);
 		}
 	}
 
@@ -212,19 +211,20 @@ class CIn2 extends Lit_Element {
 
 
     focused() {
-		( this.controlel as HTMLInputElement ).select();
+		// Only select all text on mobile and iPad devices
+		const is_mobile_or_ipad = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+								  (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+		
+		if (is_mobile_or_ipad) {
+			( this.controlel as HTMLInputElement ).select();
+		}
 		this.sc()
 	}
 
 
 
-
     blurred() {
-		const val = ( this.controlel as HTMLInputElement ).value || "";
-
-		if (this.s.saveability && val !== this.s.val && !this.s.issaving) {
-			confirm("Do you want to save changes?") ? this.runupdate() : console.log('nope');
-		}
+		this.runupdate()
 	}
 
 
@@ -238,14 +238,6 @@ class CIn2 extends Lit_Element {
 				this.sc()
 			}
 		}
-	}
-
-
-
-
-	dselect_updated() {
-		this.runupdate()
-		this.sc()
 	}
 
 
@@ -269,7 +261,13 @@ class CIn2 extends Lit_Element {
 
 
     actionicon_clicked(_e:Event) {
-		this.controlel.focus()
+
+		if (this.m.type === TypeT.DSELECT) {
+			this.runupdate();this.sc();
+
+		} else if (this.m.type === TypeT.INPUT) {
+			this.controlel.focus()
+		}
 	}
 
 
@@ -292,11 +290,14 @@ class CIn2 extends Lit_Element {
 							class="controlel"><span class="inner"></span></span>`;
 
 		} else if (this.m.type === TypeT.DSELECT) {
+			const options = this.s.options
+			const optionsparsed = options.split(",").map(o=> o.split(":")) // [label, value]
+			const selectedlabel = optionsparsed.find(o=>o[1] === this.s.val)?.[0] || "";
 
 			return html`<c-dselect 
 							options="${this.getAttribute('options') || ''}" 
-							@update="${()=>this.dselect_updated()}" 
-							val="${this.s.val}"></c-dselect>`;
+							@update="${()=>{this.runupdate();this.sc();}}" 
+							val="${this.s.val}"><span slot="instigator">${selectedlabel}</span></c-dselect>`;
 
 		} else if (this.m.type === TypeT.INPUT) {
 
@@ -349,7 +350,7 @@ class CIn2 extends Lit_Element {
 			done: this.updatedone.bind(this)
 		}}))
 
-		this.s.issaving = true;
+		this.s.savingstate = 1;
 		this.sc()
     }
 

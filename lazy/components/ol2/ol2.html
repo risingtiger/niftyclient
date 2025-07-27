@@ -1,8 +1,8 @@
 
 
-<div class="spacer">&nbsp;</div>
-<div class="wrapper">
-	<div class="content shape-${_m.shape} floatsize-${_m.floatsize}" >
+<div class="spacer" shape="${_m.shape}">&nbsp;</div>
+<div class="wrapper" shape="${_m.shape}">
+	<div class="content floatsize-${_m.floatsize}" >
 		${_s.show_header ? html`
 		<header>
 			<div class="left">${_s.show_closebtn ? html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>

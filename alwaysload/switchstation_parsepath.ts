@@ -56,7 +56,7 @@ function ParsePath(path:str, allroutes:Array<Route>) : PathSpecT | null {
 
 	if (!route.lazyload_view.subs || ( !subpathparams_str && !subsearchparams_str ) ) {
 		// no sub anything so just return what we got
-		return { route, pathparams:{}, searchparams:{} };
+		return { route, pathparams, searchparams };
 	}
 
 

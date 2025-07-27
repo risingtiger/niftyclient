@@ -1,6 +1,6 @@
 
 import { str, bool } from "../../../defs_server_symlink.js";
-import { animate_in, animate_out, init_animation_state, set_theme_and_body_color_from_progress } from "./ol2_animate.js";
+import { animate_in, animate_out, init_animation_state, get_isanmiating, run_handle_scroll } from "./ol2_animate.js";
 
 declare var render: any;
 declare var html: any;
@@ -19,7 +19,6 @@ type StateT = {
 	show_closebtn: bool,
 	show_header: bool,
 	scroll_end_timer?: any
-	isopen: bool
 }
 
 type ModelT = {
@@ -35,7 +34,7 @@ const ATTRIBUTES: AttributesT = { close: "" };
 class COl2 extends HTMLElement {
 
 	a: AttributesT = { ...ATTRIBUTES };
-	s: StateT = { title: "", show_closebtn: true, show_header: true, isopen: false };
+	s: StateT = { title: "", show_closebtn: true, show_header: true};
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M };
 
 	shadow: ShadowRoot
@@ -43,6 +42,12 @@ class COl2 extends HTMLElement {
 	content_el!: HTMLElement
 	wrapper_el!: HTMLElement
 	theme_color_meta!: HTMLMetaElement;
+
+	private handle_click = (_e: MouseEvent) => { this.close(); }
+	private handle_content_click = (e: MouseEvent) => { e.stopPropagation(); }
+	private handle_scroll = (_e: Event) => { 
+		run_handle_scroll(this, this.viewwrapperel, ()=>this.closed()); 
+	}
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -62,20 +67,22 @@ class COl2 extends HTMLElement {
 		const shapeA         = this.getAttribute("shape") || ""
 		const floatsizeA     = this.getAttribute("floatsizes") || ""
 
-		this.sc()
-
 		const { shape, floatsize } = determine_shape_and_size(shapeA, floatsizeA, determine_screen_size_category())
 		this.m.shape               = shape
 		this.m.floatsize           = floatsize
+
+		this.setAttribute("shape", shape);
+
+		this.sc()
+
 		this.viewwrapperel         = ( document.querySelector('#views>.view:last-child') as any ).shadowRoot.querySelector(':host > .wrapper')
 		this.content_el            = this.shadow.querySelector(".content") as HTMLElement
 		this.wrapper_el            = this.shadow.querySelector(".wrapper") as HTMLElement
 		this.theme_color_meta      = document.head.querySelector("meta[name='theme-color']")!;
 
-		init_animation_state(this.theme_color_meta);
 
-		this.addEventListener("click", (_e: MouseEvent) => {this.close();   }, false);
-		this.content_el.addEventListener("click", (e: MouseEvent) => {   e.stopPropagation();   }, false);
+		this.addEventListener("click", this.handle_click, false);
+		this.content_el.addEventListener("click", this.handle_content_click, false);
 
 
 		if (this.firstElementChild!.tagName.startsWith("C-") || this.firstElementChild!.tagName.startsWith("VP-")) {
@@ -86,22 +93,6 @@ class COl2 extends HTMLElement {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  
 			this.init()
 		}
-
-
-		this.onscroll = _event => {
-			if (this.scrollTop < 20 && this.s.isopen) {
-				this.closed();
-			}
-			
-			// Calculate progress based on scroll position (0 = top, 1 = fully scrolled)
-			const max_scroll = this.scrollHeight - this.clientHeight;
-			const scroll_progress = max_scroll > 0 ? Math.min(this.scrollTop / max_scroll, 1) : 0;
-			
-			// Apply color animation based on scroll progress
-			set_theme_and_body_color_from_progress(scroll_progress);
-		}
-
-
 	}
 
 
@@ -123,18 +114,37 @@ class COl2 extends HTMLElement {
 
 
 	async init() {
-		await new Promise(resolve => setTimeout(resolve, 80));
-		this.wrapper_el.scrollIntoView({behavior:"instant"});
-		await new Promise(resolve => setTimeout(resolve, 80));
-		await animate_in(this.content_el, this.viewwrapperel)
 
-		this.s.isopen = true;
+		await new Promise(resolve => setTimeout(()=>resolve(1),20));
+
+		if (this.m.shape === ShapeE.FILL) {
+			this.wrapper_el.scrollIntoView({behavior:"instant"});
+			this.addEventListener('scroll', this.handle_scroll);
+		}
+
+		await new Promise(resolve => setTimeout(()=>resolve(1),20));
+
+		init_animation_state(this.theme_color_meta, this.m.shape);
+
+		await animate_in(this.content_el, this.viewwrapperel)
+	}
+
+
+
+	disconnectedCallback() {
+		this.removeEventListener("click", this.handle_click);
+		if (this.content_el) {
+			this.content_el.removeEventListener("click", this.handle_content_click);
+		}
+		this.removeEventListener("scroll", this.handle_scroll);
 	}
 
 
 
 
 	async close() {
+		if ( get_isanmiating() ) return;
+
 		await this.animate_out()
 		this.closed()
 	}
@@ -143,7 +153,6 @@ class COl2 extends HTMLElement {
 
 
 	closed() {
-		this.s.isopen = false; // probably not needed, but for clarity
 		this.dispatchEvent(new Event('close'));
 	}
 

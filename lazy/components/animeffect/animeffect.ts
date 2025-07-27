@@ -1,6 +1,6 @@
 
 
-import { str, num, bool } from "../../../defs_server_symlink.js";
+import { str } from "../../../defs_server_symlink.js";
 
 declare var render: any;
 declare var html: any;
@@ -8,72 +8,62 @@ declare var html: any;
 
 
 
-enum WhatE { INIT, SPIN }
+enum WhatE { INIT = 0, SPIN = 1 }
+
+type AttributesT = {
+    prop: str,
+    active: boolean,
+}
 
 type StateT = {
     what: WhatE,
 }
 
 type ModelT = {
-    what: WhatE,
+	propa:str
 }
 
 
-
-
+const ATTRIBUTES:AttributesT = { prop: "", active: false }
 
 
 
 
 class CAnimeffect extends HTMLElement {
 
-    s:StateT
-    m:ModelT
+	a:AttributesT = { ...ATTRIBUTES };
+    s:StateT = { what: WhatE.INIT };
+    m:ModelT = { propa: "" };
 
     shadow:ShadowRoot
 
 
-
-
-    static get observedAttributes() { return ['active']; }
-
-
+	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
 
     constructor() {   
-
         super(); 
-
         this.shadow = this.attachShadow({mode: 'open'});
-
-        this.s = { what: WhatE.INIT } 
-
-
     }
 
 
 
 
     connectedCallback() {   
+		this.a.active = this.hasAttribute('active')
+		this.s.what = WhatE.SPIN // spin is default. we'll add more animation types later
+		this.sc();
     }
 
 
 
 
     async attributeChangedCallback(name:str, _old_val:str, new_val:str) {
-
-        if (name === "active" && new_val === "" ) { 
-
-            if (this.s.what === WhatE.INIT) {
-
-                switch (this.getAttribute("what")) {
-                    case "spin": this.s.what = WhatE.SPIN; break;
-                    default: this.s.what = WhatE.SPIN; break;
-                }
-
-                this.sc()
-            }
-        }
+		
+		if (name === 'active') {
+			this.a.active = new_val === 'true'
+			this.sc();
+		}
     }
 
 

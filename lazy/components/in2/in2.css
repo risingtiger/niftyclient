@@ -1,5 +1,4 @@
 :host {
-    color: orange;
     -webkit-font-smoothing: antialiased;
     display: flex;
     -webkit-font-smoothing: antialiased;
@@ -8,14 +7,14 @@
     justify-content: space-between;
     flex-wrap: nowrap;
     text-indent: 0;
-
-    padding-left: 11px;
+    padding-left: 0;
     height: 52px;
     border-bottom-width: 0.5px;
     border-bottom-style: solid;
     border-bottom-color: var(--bordercolor);
-    padding-right: 8px;
+    padding-right: 0;
 }
+
 
 
 :host > label {
@@ -25,63 +24,61 @@
     font-family: var(--fontfamily);
     font-weight: 700;
     color: rgb(190 56 151);
-    padding: 17px 0 0 0px;
+    padding: 17px 0 0 11px;
 }
 :host > label::after {
     content: ":";
 }
 
+
 :host > section {
     position: relative;
     flex: 1;
-	padding-right: 20px;
-
+    padding-right: 8px;
+    padding-top: 6px;
+    text-align: right;
 
 	& > i.icon {
 		display:block;
 		position:absolute;
+		padding: 13px 8px 14px 13px;
 		right: 0px;
-		font-family: icons !important;
-		font-style: normal;
-		font-weight: normal !important;
-		font-variant: normal;
-		text-transform: none;
-		-webkit-font-smoothing: antialiased;
+		width: 20px;
+		height: 20px;
+		opacity: 1;
+		transition: 0.3s easeout;
+		transition-property: opacity, transform;
 	}
 	& > i.icon::before {
+		font-family: icons !important;
+        font-style: normal;
+        font-weight: normal !important;
+        font-variant: normal;
+        text-transform: none;
+        -webkit-font-smoothing: antialiased;
+        font-size: 18px;
+		content: "\f114";
 		font-size: 18px;
-		color: var(--actioncolor);
-		padding: 20px 0px 0 13px;
-		cursor: pointer;
+		color: #8b8b8b;
 	}
-
+	& > i.icon.icon-type0::before { /* input */
+		content: "\f114";
+	}
+	& > i.icon.icon-type1::before { /* dselect */
+		content: "\f114";
+	}
+	& > i.icon.icon-type2 { /* toggle switch */
+		display: none;
+	}
 }
-
-c-animeffect {
-	position: absolute;
-	opacity: 1;
-	top: 9px;
-	right: 4px;
-	width: 18px;
-	height: 18px;
-}
-c-animeffect.active {
-	opacity: 1;
-}
-
-
-c-dselect + c-animeffect {
-	top: 8px;
-	right: 5px;
+section.saving > i.icon {
+	opacity: 0;
+	transform: translate3d(0, 9px, 0);
 }
 
 
-.switch + c-animeffect {
-	top: 7px;
-	right: 3px;
-}
 
-:host input {
+input {
 	font-size: var(--textsize);
 	height: 35px;
 	box-sizing: border-box;
@@ -89,20 +86,38 @@ c-dselect + c-animeffect {
 	border: none;
 	border-radius: 4px;
 	border: 1px solid #dcdcdc;
-	padding: 7px 5px 8px 8px;
+	padding: 9px 34px 8px 8px;
 	color: #6d6d6d;
 	display: block;
 	margin-top: 0;
 	width: 100%;
 	height: 39px;
+	border: none;
+	text-align: right;
+	transition: 0.3s ease-out;
+	transition-property: filter;
+}
+section.saving input {
+	filter: blur(3px);
 }
 
-:host c-dselect {
+
+c-dselect {
 	display: block;
 	width: 100%;
+	height: 40px;
+}
+c-dselect::part(instigator) {
+    font-size: var(--textsize);
+    color: #6d6d6d;
+    padding: 11px 35px 0 0;
+    display: block;
+}
+section.saving c-dselect::part(instigator) {
+	filter: blur(3px);
 }
 
-:host span.switch {
+span.switch {
     position: relative;
     display: inline-block;
     border-width: 1px;
@@ -113,8 +128,7 @@ c-dselect + c-animeffect {
     width: 30px;
     height: 18px;
     user-select: none;
-
-    margin-top: 6px;
+    margin-top: 10px;
     margin-right: 2px;
 
     & > .inner {
@@ -129,7 +143,7 @@ c-dselect + c-animeffect {
         transform: translateX(2px);
     }
 }
-:host span.switch.animate {
+span.switch.animate {
 	transition: 0.4s cubic-bezier(0.73, 0.01, 0.28, 1);
 	transition-property: background-color, border-color, transform;
 
@@ -138,7 +152,7 @@ c-dselect + c-animeffect {
 		transition-property: background-color, transform;
 	}
 }
-:host span.switch.istrue {
+span.switch.istrue {
     border-color: rgba(255, 255, 255, 0);
     background-color: #36cf90;
 
@@ -148,3 +162,25 @@ c-dselect + c-animeffect {
     }
 }
 
+c-animeffect {
+	position: absolute;
+	opacity: 1;
+	top: 18px;
+	right: 9px;
+	width: 18px;
+	height: 18px;
+}
+c-animeffect.active {
+	opacity: 1;
+}
+
+c-dselect + c-animeffect {
+	top: 8px;
+	right: 5px;
+}
+
+
+span.switch + c-animeffect {
+	top: 7px;
+	right: 3px;
+}
