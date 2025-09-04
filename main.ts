@@ -12,12 +12,13 @@ declare var SETTINGS:any
 import { Init as SwitchStationInit } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
-//import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
+import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
-//import { Init as LazyLoadFilesInit } from './alwaysload/lazyload_files.js';
 import { Init as SSEInit, Close as SSEClose } from './alwaysload/sse.js';
 import { Init as LoggerInit } from './alwaysload/logger.js';
 import { Init as EngagementListenInit } from './alwaysload/engagementlisten.js';
+import { Init as LazyLoadFilesInit } from "./alwaysload/lazyload_files.js"
+import { Init as DatahodlInit } from "./alwaysload/datahodl.js"
 import {Init as CMechInit} from './alwaysload/cmech.js';
 import {Init as IDBInit } from './alwaysload/indexeddb.js';
 import './alwaysload/utils.js';
@@ -33,21 +34,21 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 
 const LAZYLOAD_DATA_FUNCS = {
 
-	appmsgs_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	appmsgs: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 
 		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshspecs:[]})
+		res({ d, refreshon:[]})
 	}),
 
-	login_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	login: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 
 		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshspecs:[]})
+		res({ d, refreshon:[]})
 	}),
 
-	setup_push_allowance_main: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
+	setup_push_allowance: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
 		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshspecs:[]})
+		res({ d, refreshon:[]})
 	}),
 }
 
@@ -56,8 +57,6 @@ const LAZYLOAD_DATA_FUNCS = {
 
 window.addEventListener("load", async (_e) => {
 
-	console.log("in cmech in EngagementListen listener callback its going to trigger some network calls. But, on mobile the cell/wifi may be inactive so we need to trigger a retries = 2 to overcome it. But I don't want to pipe that through userland. need another way to overcome it")
-
 	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE_LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
 	const all_localdb_objectstores = [ ...SETTINGS.INSTANCE.INFO.localdb_objectstores, ...SETTINGS.MAIN.INFO.localdb_objectstores ]
@@ -65,17 +64,17 @@ window.addEventListener("load", async (_e) => {
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		EngagementListenInit()
-		//TODO: bring localsync back online
-		//LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
-		CMechInit(lazyload_data_funcs)
+		LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
+		DatahodlInit(lazyload_data_funcs)
+		CMechInit()
 		LoggerInit();
-		
 	}
 
 
 	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
 
 
+	LazyLoadFilesInit(lazyloads);
 	const lazyload_view_urlpatterns = await SwitchStationInit(lazyloads);
 
 
@@ -108,9 +107,7 @@ document.querySelector("#views")!.addEventListener("visibled", () => {
 let toast_id_counter = 0;
 function ToastShow(msg: string, level?: number | null, _duration?: number | null) { // _duration argument is no longer used
 
-
     const toast_id = `maintoast-${toast_id_counter}`;
-    
     const toast_el = document.createElement('c-toast') as any; // Cast to any for custom element properties
     toast_el.id = toast_id;
 
@@ -135,7 +132,7 @@ function ToastShow(msg: string, level?: number | null, _duration?: number | null
     });
 
 	setTimeout(() => {
-		const toast_els = document.querySelectorAll("c-toast");
+		const toast_els = Array.from( document.querySelectorAll("c-toast") )
 		let   bottom_position = 20;
 		for (const el of toast_els) {
 			( el as HTMLElement).style.bottom = `${bottom_position}px`;

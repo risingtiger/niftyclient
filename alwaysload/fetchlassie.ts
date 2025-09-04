@@ -82,7 +82,7 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 		return;
 	}
 
-	if (result.status === 410) {
+	if (result.statusText === "updatedrequired") {
 		// this is an app update. Just stop since main will initiate update UI process
 		return
 	}

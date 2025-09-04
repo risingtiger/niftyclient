@@ -10,26 +10,72 @@ export type Route = {
 	pathparams_propnames: Array<str>
 }
 
-export type PathSubSpecT = {
-	loadfunc?: str,
-	pathparams: GenericRowT,
-	searchparams: GenericRowT
-}
 export type PathSpecT = {
 	route:Route, 
 	pathparams: GenericRowT, 
 	searchparams: GenericRowT, 
-	sub?: PathSubSpecT 
+	sub?: { loadfunc:str|null } 
 }
 
 
+
+
 function ParsePath(path:str, allroutes:Array<Route>) : PathSpecT | null {
+
+	const subsplit                       = path.split('/s/');
+	const qsplit                         = path.split('?');
+	const searchstr                      = qsplit.length > 1 ? qsplit[1] : ''; // the search params if it exists
+	const viewpathstr                    = subsplit.length > 1 ? subsplit[0] : qsplit[0]; // the view path without sub path params
+	const substr                         = subsplit.length > 1 ? subsplit[1].split('?')[0] : ''; // the sub path params if it exists
+
+	let   pathparams:GenericRowT = {}
+	let   route:Route
+	let   searchparams:GenericRowT = {}
+
+	{
+		for (let i = 0; i < allroutes.length; i++) {
+			let pathmatch = viewpathstr.match(allroutes[i].path_regex)
+			if (!pathmatch) continue;
+
+			route = allroutes[i]
+			pathparams = GetPathParams(route.pathparams_propnames, pathmatch.slice(1));
+			break;
+		}
+
+		if (!route) {  return null; }
+
+
+		for(const [key, val] of ( new URLSearchParams(searchstr) ).entries()) {   searchparams[key] = val;   }
+	}
+
+
+	if (!substr) {   return { route, pathparams, searchparams };   }
+
+
+	for(const s of route.lazyload_view.subs) {
+
+		const {regex, paramnames} = RegExParams(s.urlmatch)
+
+		const match = substr.match(regex);
+		if (!match) { continue; }
+
+		const subpathparams = GetPathParams(paramnames, match.slice(1));
+		const loadfunc = s.loadfunc || null
+		pathparams = { ...pathparams, ...subpathparams }
+		return  { route, pathparams, searchparams, sub:{ loadfunc } }
+	}
+}
+
+
+
+
+function _ParsePath(path:str, allroutes:Array<Route>) : PathSpecT | null {
 
 	const split               = path.split('/s/');
 	const qsplit              = path.split('?');
 	const subsearchparams_str = qsplit.length > 1 ? qsplit[1] : ''; // the search params if it exists
 	const viewpath            = split.length > 1 ? split[0] : qsplit[0]; // the view path without sub path params
-	const subpathparams_str   = split.length > 1 ? split[1].slice(0, split[1].indexOf('?')) : ''; // the sub path params if it exists
+	const subpathparams_str   = split.length > 1 ? split[1].split('?')[0] : ''; // the sub path params if it exists
 
 	let   pathparammatch_values:string[] = []
 	let   routematch_index = -1;
@@ -101,6 +147,8 @@ function ParsePath(path:str, allroutes:Array<Route>) : PathSpecT | null {
 				pathparams: sub_pathparams,
 				searchparams
 			};
+			break;
+
 		} else {
 			const issearchmatching = Object.keys(sub.searchparams_propnames).every(( prop:any )=> {
 				const exists = searchparams.hasOwnProperty(prop);

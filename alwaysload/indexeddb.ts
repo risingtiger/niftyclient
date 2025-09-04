@@ -2,7 +2,6 @@
 
 import { GenericRowT } from  "./../defs.js" 
 import { str, num } from  "../defs_server_symlink.js" 
-import { EnsureObjectStoresActive } from "./localdbsync.js"
 
 
 let _db:IDBDatabase|null  = null;
@@ -34,12 +33,10 @@ const GetDB = () => new Promise<IDBDatabase>(async (res, rej) => {
 
 
 
-const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]|null) => new Promise<GenericRowT>(async (res, rej) => {
+const GetOne = (objectstore_name:str, id:str) => new Promise<GenericRowT>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
-
-	if (localdb_preload) {   await EnsureObjectStoresActive(localdb_preload);   }
 
 	const transaction = (_db as IDBDatabase).transaction(objectstore_name, 'readonly');
 	const objectStore = transaction.objectStore(objectstore_name);
@@ -55,12 +52,10 @@ const GetOne = (objectstore_name:str, id:str, localdb_preload?:str[]|null) => ne
 
 
 
-const GetAll = (objectstore_names:str[], localdb_preload?:str[]|null) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
+const GetAll = (objectstore_names:str[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
 
 	try   { _db = await openindexeddb() }
 	catch { rej(); return; }
-
-	if (localdb_preload) {   await EnsureObjectStoresActive(localdb_preload);   }
 
 	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
 
@@ -71,6 +66,38 @@ const GetAll = (objectstore_names:str[], localdb_preload?:str[]|null) => new Pro
 	for (const objectstore_name of objectstore_names) {
 		const objectstore = transaction.objectStore(objectstore_name)
 		promises.push(GetAll_S(objectstore))
+	}
+
+	const r = await Promise.all(promises).catch(() => null);
+	if (r === null) { rej(); return; }
+
+	for (let i=0; i<r.length; i++) {
+		returns.set(objectstore_names[i], r[i])
+	}
+
+	transaction.onerror    = () => rej();
+	transaction.oncomplete = () => res(returns);
+})
+
+
+
+
+const GetRangeAll = (objectstore_names:str[], keys:str[], lower_bounds:str[]|num[], upper_bounds:str[]|num[]) => new Promise<Map<str,GenericRowT[]>>(async (res, rej) => {
+
+	try   { _db = await openindexeddb() }
+	catch { rej(); return; }
+
+	const returns:Map<str,GenericRowT[]> = new Map<str,GenericRowT[]>() // key being the objectstore name
+
+	const transaction = ( _db as IDBDatabase ).transaction(objectstore_names, 'readonly');
+
+	const promises:Promise<any>[] = []
+	let   i = 0;
+
+	for (const objectstore_name of objectstore_names) {
+		const objectstore = transaction.objectStore(objectstore_name)
+		promises.push(GetRangeAll_S(objectstore, keys[i], lower_bounds[i], upper_bounds[i]))
+		i++
 	}
 
 	const r = await Promise.all(promises).catch(() => null);
@@ -192,7 +219,23 @@ const Count = (objectstore_name:str) => new Promise<number>(async (res, rej) => 
 const GetAll_S = (objectstore:IDBObjectStore) => new Promise<GenericRowT[]>((res, rej) => {
 	const request = objectstore.getAll();
 	request.onsuccess = (ev:any) => {
-		const records = ev.target.result.filter((r:any) => !r.isdeleted);
+		const records = ev.target.result;
+		res(records);
+	}
+	request.onerror   = (ev:any) => rej(ev.target.error);
+})
+
+
+
+
+const GetRangeAll_S = (objectstore:IDBObjectStore, key:str, lower_bound:str|num, upper_bound:str|num) => new Promise<GenericRowT[]>((res, rej) => {
+
+	const key_range = IDBKeyRange.bound(lower_bound, upper_bound);
+	const index     = objectstore.index(key);
+	const request   = index.getAll(key_range);
+
+	request.onsuccess = (ev:any) => {
+		const records = ev.target.result
 		res(records);
 	}
 	request.onerror   = (ev:any) => rej(ev.target.error);
@@ -293,7 +336,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, ClearAll, AddOne, PutOne, DeleteOne, Count, GetOne_S, GetAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
+((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, GetRangeAll, ClearAll, AddOne, PutOne, DeleteOne, Count, GetOne_S, GetAll_S, GetRangeAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
 
 
 

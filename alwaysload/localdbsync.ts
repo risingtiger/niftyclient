@@ -3,12 +3,12 @@
 import { num, str, bool } from '../defs_server_symlink.js'
 import { $NT, GenericRowT  } from '../defs.js'
 import { HandleLocalDBSyncUpdateTooLarge as SwitchStationHandleLocalDBSyncUpdateTooLarge } from './switchstation.js'
-import { DataChanged as CMechDataChanged } from './cmech.js'
+import { RunUpdateFromLocalDBUpdate as DataHodlRunUpdateFromLocalDBUpdate } from './datahodl.js'
 
 
 declare var $N:$NT
 
-type OperationTypeT = 'add' | 'patch' | 'delete';
+/*
 type PendingSyncOperationT = {
 	id: str;
 	docid: str,
@@ -17,10 +17,16 @@ type PendingSyncOperationT = {
 	oldts: num;
 	payload: GenericRowT;
 };
+*/
 
-type SyncObjectStoresT = { name: string, ts: num|null, lock:boolean, indexes:string[]|null }
+type SyncObjectStoresT = {
+	name: string,
+	ts: num|null,
+	lock:boolean,
+	indexes:string[]|null
+}
 
-export type PathSpecT = {
+export type LocalDBSyncPathSpecT = {
 	path:string,
 	p: string[],
 	collection: string,
@@ -33,6 +39,7 @@ export type PathSpecT = {
 let DBNAME:str = ""
 let DBVERSION:num = 0
 
+/*
 const PERIODIC_PAGELOAD_DELAY_MS             = 3 * 1000
 const PERIODIC_INTERVAL_MS                   = 1 * 60 * 1000
 const SYNC_PENDING_INTERVAL_MS               = 1 * 60 * 1000 // every 1 minute
@@ -42,18 +49,21 @@ const SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY = 'localdbsync_sync_pending_interva
 const CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY = 'localdbsync_check_latest_interval_ts'
 const WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY   = 'localdbsync_wipe_local_interval_ts'
 const PENDING_SYNC_STORE_NAME                = 'localdbsync_pending_sync_operations';
+*/
 const COLLECTION_TS							 = 'localdbsync_collections_ts'
 
 let _syncobjectstores:SyncObjectStoresT[] = []
-let _activepaths:PathSpecT[] = []
+let _activepaths:LocalDBSyncPathSpecT[] = []
 let _a_millis = 0
 
 
 
 
 	
-// notes to consider for coming back later to make this actually legit for real customers
+// TODO: notes to consider for coming back later to make this actually legit for real customers
 
+// 1. NO HANDLING YET AT ALL OF DELETES. THAT NEEDS IMPLEMENTED SOONER THAN LATER
+// 2. record_failed_sync_operation is not being utilzed yet. need to get that done
 // 1. If the local pending operation is out of date (a newer record exists at the server), its just gonna go away, silently and the browser is going to silently replace actual local collections data with latest from server (not here, but in datasetter on page focus etc)
 // 2. If count is over, it just fucking deletes them all. Once again, silent data loss, pretty bad
 // 3. When run_wipe_local is called, it instantly just fucking murders every bit of data, including any pending. Just, bleeeeeeeep, GONE!. So yeeah,, thats fucked too.
@@ -90,10 +100,6 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	}
 
 
-	// TODO: I have this disabled cause its disrupting of the UX. Would like to put it back in for Xenition but not for PWT
-	//setup_local_db_interval_periodic()
-
-
 	$N.EngagementListen.Add_Listener(document.body, 'localdbsync', 'visible', 100, async ()=> {
 		RunCheckLatest()
 	})
@@ -109,6 +115,8 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 	});
 
 
+	/*
+	circle back to this, but no circle jerk, cause, honestly, I'll probably just say fuck it and ignore the delete functionality for now, since I'm able to squek by without dealing with it
 	$N.SSEvents.Add_Listener(document.body, "datasync_doc_delete", ["datasync_doc_delete"], 100, async (event:{paths:string[],ts:number})=> {
 		const pathspec = parse_into_pathspec(event.paths[0])
 
@@ -133,11 +141,12 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 		try { await $N.IDB.TXResult(tx); } catch { return; }
 
-		const datapath = "1:"+pathspec.collection
+		const datapath = pathspec.collection
 		CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata]]]))
 
 		return;
 	});
+	*/
 
 
 	$N.SSEvents.Add_Listener(document.body, "datasync_collection", ["datasync_collection"], 100, async (event:{paths:str[]})=> {
@@ -150,14 +159,14 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 		const r = await datasetter(pathspecs, {}, true, true)
 		if (r === null || r === 1) return
 
-		notify_of_datachange(r as Map<str, GenericRowT[]>)
+		notify_of_datachange(pathspecs, r as Map<str, GenericRowT[]>) //typescript is being dumb here
 	});
 	
 	return true
 
 
 
-	function findrelevantpathspecs_from_ssepaths(ssepaths?:str[]) : PathSpecT[]|null {
+	function findrelevantpathspecs_from_ssepaths(ssepaths?:str[]) : LocalDBSyncPathSpecT[]|null {
 
 		const ssepathspecs         = ssepaths?.map(sp=> parse_into_pathspec(sp)) || []
 
@@ -179,19 +188,21 @@ const RunCheckLatest = async () => {
 	if (_activepaths.length === 0) return
 
 	const r = await datasetter(_activepaths, {retries:2}, true, true)
-	if (r === null || r === 1) return
+	if (r === null || typeof r === 'number') return
 
-	notify_of_datachange(r as Map<str, GenericRowT[]>)
+	const pathspecs = [...r.keys()].map(k=> parse_into_pathspec(k))
+
+	notify_of_datachange(pathspecs, r)
 }
 
 
 
 
-const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (res,rej)=> {
+const PreloadObjectStores = (names:str[]) => new Promise<num|null>(async (res,rej)=> {
 
 	// currently is only main level firestore collections. will add subcollections soon
 
-	const pathspecs:PathSpecT[] = names.map(name=> parse_into_pathspec(name))
+	const pathspecs:LocalDBSyncPathSpecT[] = names.map(name=> parse_into_pathspec(name))
 
 	const newpathspecs = pathspecs.filter(pathspec => 
 		!_activepaths.some(activePath => 
@@ -217,12 +228,12 @@ const EnsureObjectStoresActive = (names:str[]) => new Promise<num|null>(async (r
 const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {  
 
 	const pathspec = parse_into_pathspec(path)
-	let   wholedata:GenericRowT = {}
+	//let   wholedata:GenericRowT = {}
 	let   db:any
 
 
 	try { db = await $N.IDB.GetDB(); }
-	catch { record_failed(); return; }
+	catch { record_failed("Add: GetDB Failed"); return; }
 
 	data.ts = Math.floor(Date.now() / 1000)
 	data.id = crypto.randomUUID();
@@ -238,25 +249,24 @@ const Add = (path:str, data:GenericRowT) => new Promise<num>(async (res,_rej)=> 
 	try   { await $N.IDB.TXResult(tx); } 
 	catch { aye_errs = true; }
 
-	if (aye_errs) { record_failed(); return; }
+	if (aye_errs) { record_failed("Add: AddOne_S or TXResult Failed"); return; }
 
 	res(1);
 
-	const datapath = "1:"+pathspec.collection
-	const returnmap = new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]])
-	CMechDataChanged(returnmap)
+	DataHodlRunUpdateFromLocalDBUpdate([ pathspec ])
+	//const returnmap = new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]])
 
 
 	{
 		// handle the add operation on the server
 
-		const body = { path:cname, data }
+		const body = { path:cname, data, suppress_sse: true }
 		const opts: { method: 'POST', body: string } = { method: 'POST', body: JSON.stringify(body), }
 
 		const r = await $N.FetchLassie('/api/firestore_add', opts, null)
 		if (!r.ok) { 
 			//await record_failed_sync_operation('add', cname, data.ts, data)
-			record_failed();
+			record_failed("Add: FetchLassie Failed");
 			return
 		}
 	}
@@ -272,7 +282,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	let db:any
 
 	try   { db = await $N.IDB.GetDB(); }
-	catch { record_failed(); return; }
+	catch { record_failed("Patch: GetDB Failed"); return; }
 
 	const cname              = pathspec.syncobjectstore.name;
 	const tx: IDBTransaction = db.transaction([cname], "readwrite", { durability: "relaxed" });
@@ -280,7 +290,7 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	let   wholedata: GenericRowT;
 
 	try   { wholedata = await $N.IDB.GetOne_S(objectStore, pathspec.docid!); }
-	catch { record_failed(); return; }
+	catch { record_failed("Patch GetOne_S Failed"); return; }
 
 	update_record_with_new_data(wholedata, newdata)
 
@@ -289,38 +299,45 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 	newdata.ts = wholedata.ts
 
 	try   { await $N.IDB.PutOne_S(objectStore, wholedata); }
-	catch { record_failed(); return; }
+	catch { record_failed("Patch PutOne_S failed"); return; }
 
-	try { await $N.IDB.TXResult(tx); } catch { record_failed(); return; }
+	try { await $N.IDB.TXResult(tx); } catch { record_failed("Patch TXResult failed"); return; }
 
 	res(1);
 
-	const datapath = "1:"+pathspec.collection
-	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]]))
+	DataHodlRunUpdateFromLocalDBUpdate([ pathspec ])
+	//CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [wholedata as GenericRowT]]]))
 
 
 	{   
 		// handle the patch operation on the server
 
-		const body = { path:pathspec.path, oldts, newdata:change_newdata_for_firestore_update(newdata) }
+		const body = { path:pathspec.path, oldts, newdata:change_newdata_for_firestore_update(newdata), suppress_sse: true }
 		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 		const r = await $N.FetchLassie('/api/firestore_patch', opts, null)
 
 		if (!r.ok) {
-			record_failed()
+			record_failed("Patch FetchLassie Failed");
 			//await record_failed_sync_operation('patch', cname, oldts, newdata);
 			return;
 		}
 		else if (( r.data as any ).code === 10) { // has been deleted at the server
+			record_failed("Patch FetchLassie Failed cause has been deleted at server. Need to handle this case");
+			/*
+			circle back to this, but honestly I'll probably fucking not since I don't actually have to deal with it yet 
+
 			await $N.IDB.DeleteOne(cname, pathspec.docid!);
 			const data = { id: pathspec.docid, isdeleted: true }
 			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [data as GenericRowT]]]))
 			return;
+			*/
 		}
 		else if (( r.data as any ).code === 11) { // newer data at server
 			await $N.IDB.PutOne(cname, ( r.data as any ).data);
-			CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [( r.data as any ).data]]]))
+			alert ("Data is newer at server so local changes just got replaced. need to handle this better")
+			DataHodlRunUpdateFromLocalDBUpdate([ pathspec ])
+			//CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [( r.data as any ).data]]]))
 			return;
 		}
 		else if (( r.data as any ).code === 1) { // all good
@@ -364,6 +381,13 @@ const Patch = (pathstr:str, newdata:GenericRowT) => new Promise<num>(async (res,
 
 
 
+/*
+
+Circle back to this whole delete mess.
+The reason why I'm not dealing with it yet, is I don't FUCKING WANT any delete flags in the indexeddb database. 
+ if I have deleteflags in the indexeddb databse I have to filter out on each and every read row, .... and fuck that. 
+  .... and turns out I like performance more
+
 const Delete = (pathstr:str) => new Promise<num>(async (res,_rej)=> {  
 
 	const pathspec = parse_into_pathspec(pathstr)
@@ -386,12 +410,12 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,_rej)=> {
 	catch { record_failed(); return; }
 	
 	res(1);
-	const datapath = "1:"+pathspec.collection
+	const datapath = pathspec.collection
 	CMechDataChanged(new Map<str, GenericRowT[]>([[datapath, [existingdata]]]))
 
 
 	{
-		const body = { path: pathspec.path, oldts, ts: existingdata.ts }
+		const body = { path: pathspec.path, oldts, ts: existingdata.ts, suppress_sse: true }
 		const opts:  { method: 'POST', body: string } = {method: "POST", body: JSON.stringify(body)};
 
 		const r = await $N.FetchLassie('/api/firestore_delete', opts, null)
@@ -419,10 +443,12 @@ const Delete = (pathstr:str) => new Promise<num>(async (res,_rej)=> {
 		}
 	}
 })
+*/
 
 
 
 
+/*
 const RunSyncPending__not_doing_pending_operations_yet = async () => new Promise<boolean>(async (res, _rej) => {
 
 	const exists = localStorage.getItem(PENDING_SYNC_STORE_NAME + "_exists") === "true" || false
@@ -518,10 +544,12 @@ const RunSyncPending__not_doing_pending_operations_yet = async () => new Promise
 
 	res(true)
 })
+*/
 
 
 
 
+/*
 const run_wipe_local = async () => {
 
 	try {
@@ -575,10 +603,12 @@ const run_wipe_local = async () => {
 		localStorage.removeItem(COLLECTION_TS)
 	}
 }
+*/
 
 
 
 
+/*
 const setup_local_db_interval_periodic = () => {
 
 	const run_sync_if_needed = () => {
@@ -603,7 +633,7 @@ const setup_local_db_interval_periodic = () => {
 		
 
 		// Run the tasks at their respective intervals
-		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); /*RunSyncPending();*/ }
+		if (now - sync_pending_interval_ts >= SYNC_PENDING_INTERVAL_MS) { localStorage.setItem(SYNC_PENDING_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunSyncPending(); }
 		if (now - check_latest_run_ts >= CHECK_LATEST_INTERVAL_MS)		{ localStorage.setItem(CHECK_LATEST_INTERVAL_LOCALSTORAGE_KEY, now.toString()); RunCheckLatest(); }
 		if (now - wipe_local_run_ts >= WIPE_LOCAL_INTERVAL_MS)			{ localStorage.setItem(WIPE_LOCAL_INTERVAL_LOCALSTORAGE_KEY, now.toString()); run_wipe_local(); }
 	}
@@ -614,37 +644,38 @@ const setup_local_db_interval_periodic = () => {
 	// Set up periodic checking in case the user stays on the page for a long time
 	setInterval(run_sync_if_needed, PERIODIC_INTERVAL_MS)
 }
+*/
 
 
 
 
-function notify_of_datachange(returns:Map<str, GenericRowT[]>) {
+function notify_of_datachange(pathspecs:LocalDBSyncPathSpecT[], returns:Map<str, GenericRowT[]>) {
 
-	let is_too_large_to_update = false
-
-	if ([...returns].some(rr=> rr[1].length === 300)) is_too_large_to_update = true
-
-	if (is_too_large_to_update) {
+	if ([...returns.values()].some(rv=> rv.length === 300)) {
 		SwitchStationHandleLocalDBSyncUpdateTooLarge()
 		return
 	}	
 
-	if ([...returns].some(rr => rr[1].length >= 1)) {
-		CMechDataChanged(returns)
-	}
+	DataHodlRunUpdateFromLocalDBUpdate(pathspecs)
+
+	// if ([...returns.keys()].some(rr => rr[1].length >= 1)) {
+	// 	CMechDataChanged([...returns.keys()])
+	// }
 }
 
 
 
 
-const handle_datasync_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {
+const handle_datasync_doc_add_or_patch = (pathspec:LocalDBSyncPathSpecT, data:GenericRowT) => new Promise<num>(async (res,_rej)=> {
 
 	if (pathspec.syncobjectstore) {   
 		await write_to_indexeddb_store([ pathspec.syncobjectstore ], [ [data] ]);   
 	}
 
-	const datapathspec = "1:"+pathspec.collection
-	CMechDataChanged(new Map<str, GenericRowT[]>([[datapathspec, [data as GenericRowT]]]))
+	DataHodlRunUpdateFromLocalDBUpdate([ pathspec ])
+
+	//const datapathspec = pathspec.collection
+	//CMechDataChanged(new Map<str, GenericRowT[]>([[datapathspec, [data as GenericRowT]]]))
 
 	res(1)
 })
@@ -652,7 +683,7 @@ const handle_datasync_doc_add_or_patch = (pathspec:PathSpecT, data:GenericRowT) 
 
 
 
-const datasetter = (pathspecs:PathSpecT[], opts?:{retries?:num}, force_refresh_syncobjectstores:bool = false, returnnewdata=false) => new Promise<num|null|Map<str,GenericRowT[]>>(async (res,_rej)=> { 
+const datasetter = (pathspecs:LocalDBSyncPathSpecT[], opts?:{retries?:num}, force_refresh_syncobjectstores:bool = false, returnnewdata=false) => new Promise<num|null|Map<str,GenericRowT[]>>(async (res,_rej)=> { 
 
 	opts = opts || {retries:0}
 	opts.retries = opts.retries || 0
@@ -697,7 +728,7 @@ const datasetter = (pathspecs:PathSpecT[], opts?:{retries?:num}, force_refresh_s
 
 
 
-function parse_into_pathspec(path:str) : PathSpecT {
+function parse_into_pathspec(path:str) : LocalDBSyncPathSpecT {
 
 	const p                    = path.split('/') as Array<string>
 	const collection           = p[0]
@@ -721,7 +752,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 	let   continue_calling  = true	
 	const paths             = syncobjectstores.map(dc=> dc.name)
 	const tses              = syncobjectstores.map(dc=> dc.ts || null)
-	const returns           = new Map<str,GenericRowT[]>( paths.map(path=> ["1:"+path, []]) )
+	const returns           = new Map<str,GenericRowT[]>( paths.map(path=> [path, []]) )
 	const body              = { runid:runidstring, paths, tses }
 
 	while (continue_calling) {
@@ -755,7 +786,7 @@ const load_into_syncobjectstores = (syncobjectstores:SyncObjectStoresT[], retrie
 
 
 	function pushtoreturns( path:string, docs:GenericRowT[] ) {
-		const rp = returns.get("1:"+path)!
+		const rp = returns.get(path)!
 		const available_space = returnnewdata_limit - rp.length
 		rp.push(...docs.slice(0, available_space))
 	}
@@ -802,7 +833,8 @@ const write_to_indexeddb_store = (syncobjectstores: SyncObjectStoresT[], datas:A
 
 const update_record_with_new_data = (record: GenericRowT, newdata: any): void => {
 	for (const key in newdata) {
-		if (typeof record[key] == 'object') 
+		// TODO: Currently. this is borked. If newdata[key] is null is borks. But null should be allowed, for example, user deciding to set a payment source to NOT a specific account
+		if (typeof record[key] == 'object' && record[key] !== null) 
 			update_record_with_new_data(record[key], newdata[key])
 		else 
 			record[key] = newdata[key]
@@ -819,13 +851,15 @@ const update_record_with_new_data = (record: GenericRowT, newdata: any): void =>
 
 
 
-const record_failed = () => {
-	run_wipe_local()
+const record_failed = (msg:str) => {
+	// for now, just a local alert. later, will be a proper pending operation recorded to be retried later
+	alert("LocalDBSync Failed -- " + msg)
 }
 
 
 
 
+/*
 const record_failed_sync_operation = (
 	type: OperationTypeT,
 	target_store: string,
@@ -856,6 +890,7 @@ const record_failed_sync_operation = (
 
 	res()
 })
+*/
 
 
 
@@ -867,9 +902,9 @@ async function redirect_from_error(errmsg:str) {
 
 
 
-export { Init, RunCheckLatest, run_wipe_local as RunWipeLocal, EnsureObjectStoresActive } 
+export { Init, PreloadObjectStores } 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).LocalDBSync = { Add, Patch, Delete };
+((window as any).$N as any).LocalDBSync = { Add, Patch };
 
 
 

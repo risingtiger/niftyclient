@@ -312,14 +312,14 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) =
 		return
 	}
 
-	else if (is_appapi && server_response.status === 410) {
+	else if (is_appapi && server_response.headers.get('updatedrequired')) {
 		(self as any).clients.matchAll().then((clients:any) => {
 			clients.forEach((client: any) => {
 				client.postMessage({ action: 'update_init' });
 			})
 		})
 		// resolve, otherwise the fetch request will stay pending and disrupt service worker from updating
-		res(new Response( null, { status: 410, statusText: 'Outdated' } ))
+		res(new Response( null, { status: 200, statusText: 'updatedrequired' } ))
 		return
 
 	} else {

@@ -97,9 +97,13 @@ input {
 	transition: 0.3s ease-out;
 	transition-property: filter;
 }
+input::placeholder {
+	color: #b0b0b0;
+}
 section.saving input {
 	filter: blur(3px);
 }
+
 
 
 c-dselect {

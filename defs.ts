@@ -6,11 +6,8 @@ import { bool, num, str } from './defs_server_symlink.js'
 export type GenericRowT = { [key:string]: any }
 
 
-export type LazyLoadFuncRefreshSpecT = {
-	type: "datasync" | "placeholder", paths: str[] 
-}
 export type LazyLoadFuncReturnT = {
-	d:Map<str, GenericRowT[]>, refreshspecs:LazyLoadFuncRefreshSpecT[]
+	d:Map<str, GenericRowT[]>, refreshon:str[]
 }
 export type LazyLoadT = {
     type: "view" | "component" | "thirdparty" | "lib",
@@ -73,7 +70,7 @@ export type CMechViewT = {
 	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'datachngd' | 'visibled' | 'lateloaded' | 'pathchngd' | 'searchchngd'
+	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'datachanged' | 'visibled' | 'lateloaded' | 'paramschanged' | 'searchchanged'
 
 	sc:(state_changes?:any)=>void,
 }
@@ -126,7 +123,7 @@ export type $NT = {
 	CMech: {
 		ViewConnectedCallback: (component:HTMLElement & CMechViewT, opts?: {kdonvisibled?:boolean, kdonlateloaded?:boolean}) => Promise<void>
 		ViewPartConnectedCallback: (component:HTMLElement & CMechViewPartT) => Promise<void>
-		AttributeChangedCallback: (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => void
+		AttributeChangedCallback: (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => Promise<void>
 		ViewDisconnectedCallback: (component:HTMLElement) => void
 		ViewPartDisconnectedCallback: (component:HTMLElement) => void,
 	}
@@ -150,25 +147,27 @@ export type $NT = {
 	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
-		NavigateTo: (newPath: string) => void,
-		NavigateBack: (opts:{default:str}) => void,
+		GoTo: (newPath: string) => void,
+		GoBack: (opts:{default:str}) => void,
 	}
 
 	IDB: {
-		GetDB:   () => Promise<IDBDatabase>,
-		GetOne:  (objectstore_name:str, id:str, localdb_preload?:str[]|null) => Promise<GenericRowT>,
-		GetAll:  (objectstore_names:str[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
-		ClearAll:(objectstore_name:str) => Promise<num>,
-		AddOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
-		PutOne: (objectstore_name:str, data:GenericRowT) => Promise<string>,
-		DeleteOne: (objectstore_name:str, id:str) => Promise<string>,
-		Count:  (objectstore_name:str) => Promise<number>,
-		GetOne_S: (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
-		GetAll_S: (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
-		AddOne_S: (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
-		PutOne_S: (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
-		DeleteOne_S: (objectstore:IDBObjectStore, id:string) => Promise<string>,
-		TXResult: (tx:IDBTransaction) => Promise<num>,
+		GetDB:        () => Promise<IDBDatabase>,
+		GetOne:       (objectstore_name:str, id:str, localdb_preload?:str[]|null) => Promise<GenericRowT>,
+		GetAll:       (objectstore_names:str[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
+		GetRangeAll:  (objectstore_names:str[], key:str[], lower_bound:str[]|num[], upper_bound:str[]|num[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
+		ClearAll:     (objectstore_name:str) => Promise<num>,
+		AddOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		PutOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		DeleteOne:    (objectstore_name:str, id:str) => Promise<string>,
+		Count:        (objectstore_name:str) => Promise<number>,
+		GetOne_S:     (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
+		GetAll_S:     (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
+		GetRangeAll_S:(objectstore:IDBObjectStore, key:str[], lower_bound:str[]|num[], upper_bound:str[]|num) => Promise<GenericRowT[]>,
+		AddOne_S:     (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		PutOne_S:     (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		DeleteOne_S:  (objectstore:IDBObjectStore, id:string) => Promise<string>,
+		TXResult:     (tx:IDBTransaction) => Promise<num>,
 	}
 }
  

@@ -50,3 +50,48 @@ export const Slide = async (old_view: HTMLElement, new_view: HTMLElement) => {
     });
 };
 
+export const SlideBack = async (current_view: HTMLElement, previous_view: HTMLElement) => {
+
+    // Prepare views for animation
+    previous_view.style.visibility = "visible";
+    previous_view.style.willChange = 'transform, opacity';
+    current_view.style.willChange = 'transform, opacity';
+
+    const current_view_kf = [
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 },
+        { transform: 'translate3d(10vw, 0, 0)', opacity: 0 }
+    ];
+
+    const previous_view_kf = [
+        // previous_view was left at this state by the forward animation
+        { transform: 'translate3d(-10vw, 0, 0)', opacity: 0.8 },
+        { transform: 'translate3d(0, 0, 0)', opacity: 1 }
+    ];
+
+    const current_view_opts: KeyframeAnimationOptions = {
+        duration: 300,
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        fill: 'forwards'
+    };
+
+    const previous_view_opts: KeyframeAnimationOptions = {
+        duration: 300,
+        easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        fill: 'forwards',
+        delay: 50 // Stagger incoming view
+    };
+
+    const current_animation = current_view.animate(current_view_kf, current_view_opts);
+    const previous_animation = previous_view.animate(previous_view_kf, previous_view_opts);
+
+    await Promise.all([current_animation.finished, previous_animation.finished]);
+    
+    current_view.style.willChange = 'auto';
+    previous_view.style.willChange = 'auto';
+
+    current_view.dataset.active = "false";
+    previous_view.dataset.active = "true";
+
+    document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+};
+

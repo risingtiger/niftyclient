@@ -11,6 +11,7 @@
 
     /* layout and spacing */
     --padding-container: 10px;
+	--viewheader-height: 34px;
 }
 
 @font-face { 
@@ -22,8 +23,8 @@
 
 html {
   width:  100vw;
+  height: 100svh;
 	/*
-  height: 100%;
 	*/
 }
 
@@ -36,6 +37,7 @@ body {
   overflow-x: hidden;
 	*/
 	width: 100vw;
+	height: 100svh;
 	margin: 0;
 	padding: 0;
 	background-color:white;
@@ -63,12 +65,11 @@ body, td {
 
 
 #views {
-
 	position: absolute;
 	top: 0;
 	left: 0;
 	width: 100vw;
-	height: 100vh;
+	height: 100svh;
 	contain: layout style paint;
 	transform: translateZ(0);
 	backface-visibility: hidden;
@@ -81,7 +82,7 @@ body, td {
 		top: 0;
 		left: 0;
 		width: 100vw;
-		height: 100vh;
+		height: 100svh;
 		transform-style: preserve-3d;
 		backface-visibility: hidden;
 	}
