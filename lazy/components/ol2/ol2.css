@@ -1,5 +1,6 @@
 
 
+
 :host {
 	position: fixed;
 	top: 0;
@@ -7,10 +8,17 @@
 	width: 100vw;
 	height: 100vh;
 	overflow-y: scroll;
-	scroll-snap-type: y mandatory;
+	scroll-snap-type: none;
 	scrollbar-width: none;
 	z-index: 1000;
+	visibility: hidden;
 }
+:host([readytoanimate]) {
+	visibility: visible;
+	scroll-snap-type: y mandatory;
+}
+/* :host( [shape="fill"] ) { */
+/* } */
 
 :host::-webkit-scrollbar {
 	display: none;
@@ -19,7 +27,7 @@
 
 .spacer {
 	display: none;
-	height: 101vh;
+	height: 100vh;
 	width: 100vw;
 	scroll-snap-align: start;
 }
@@ -33,12 +41,13 @@
 
 .wrapper {
 	position: relative;
-	height: 101vh;
+	height: 100vh;
 	scroll-snap-align: start;
 	overflow-y: hidden;
-	padding-top: 38px;
+	padding-top: 22px;
 	box-sizing: border-box;
 }
+
 
 .content {
 	position: relative;
@@ -50,12 +59,13 @@
 	box-shadow: 0 4px 14px 0px rgb(0 0 0 / 19%);
 	z-index: 1001;
 	opacity: 0;
-	overflow-y:scroll;
+	overflow-y: hidden;
 }
 
 .wrapper[shape="float"] .content {
-	height: calc(100vh - 6vh); 
+	height: calc(100vh - 12vh); 
 	margin: 0 auto;
+	border-radius: 12px 12px 12px 12px;
 }
 .wrapper[shape="fill"] .content {
 	width: 100vw;
@@ -77,50 +87,42 @@
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
+	font-size: 16px;
+	color: var(--actioncolor);
+	cursor: pointer;
 
-    & .left {
-        display: block;
-        width: 20%;
-        font-family: var(--fontfamily);
-        font-size: 16px;
-        font-weight: 400;
-        color: var(--actioncolor);
-        cursor: pointer;
+	.left, .right { width: 20%; }
 
-		a {
-			-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-		}
-    }
-
+	a {
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+		cursor: pointer;
+	}
+	
     & .middle {
-        display: block;
         width: 60%;
 
         & h1 {
-			font-family: var(--fontfamily);
-			-webkit-font-smoothing: antialiased;
-			color: var(--textcolor);	
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            padding: 0;
-            margin: 0;
-        }
+			/* font-family: var(--fontfamily); */
+			/* -webkit-font-smoothing: antialiased; */
+			color: var(--textcolor);
+			font-size: 18px;
+			font-weight: bold;
+			text-align: center;
+			padding: 0;
+			margin: 0;
+			}
     }
 
     & .right {
-        display: block;
-        width: 20%;
-        font-size: 16px;
-        font-weight: 400;
-        text-align: right;
-        color: var(--actioncolor);
+        slot[name="headerright"]::slotted(*) {
+            color: blue;
+        }
     }
 }
 
 .content > slot {
-    display: block;
-    overflow-y: auto;
+    /* display: block; */
+    /* overflow-y: hidden; */
 }
 
 

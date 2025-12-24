@@ -5,19 +5,15 @@ import { str } from "../defs_server_symlink";
 
 
 
-function CSV_Download(csvstr:string, filename:string) {
+function CSVDownload(csvstr:string, filename:string) {
 
-    const blob = new Blob([csvstr], { type: 'text/csv' }); 
-  
-    const url = window.URL.createObjectURL(blob) 
-  
-    const a = document.createElement('a') 
-  
+	const blob = new Blob([csvstr], {type: 'text/csv'})
+	const url = URL.createObjectURL(blob)
+	const a = document.createElement('a')
     a.setAttribute('href', url) 
-  
     a.setAttribute('download', `${filename}.csv`); 
-  
-    a.click()
+	a.click()
+	URL.revokeObjectURL(url)
 }
 
 
@@ -69,4 +65,4 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Utils = { CSV_Download, resolve_object_references };
+((window as any).$N as any).Utils = { CSVDownload, resolve_object_references };

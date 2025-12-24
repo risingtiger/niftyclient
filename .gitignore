@@ -2,7 +2,11 @@
 node_modules/
 .vscode/
 
+playwright/.auth/
+playwright-report/
+
 defs_server_symlink.ts
 
 **/.DS_Store
+
 

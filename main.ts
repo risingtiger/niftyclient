@@ -1,21 +1,19 @@
-import { str, GenericRowT } from "./defs_server_symlink.js";
-import { $NT, LazyLoadFuncReturnT } from "./defs.js";
+import { $NT, ToastLevelT } from "./defs.js";
 
 
 declare var $N: $NT;
-declare var INSTANCE_LAZYLOAD_DATA_FUNCS:any
 declare var SETTINGS:any
 
 
 // --THE FOLLOWING GET BUNDLED INTO THE MAIN BUNDLE
 
-import { Init as SwitchStationInit } from './alwaysload/switchstation.js';
+import { Init as SwitchStationInit, Get_Lazyload_View_Url_Patterns } from './alwaysload/switchstation.js';
 import './thirdparty/lit-html.js';
 import './alwaysload/fetchlassie.js';
 import { Init as LocalDBSyncInit  } from './alwaysload/localdbsync.js';
 import './alwaysload/influxdb.js';
 import { Init as SSEInit, Close as SSEClose } from './alwaysload/sse.js';
-import { Init as LoggerInit } from './alwaysload/logger.js';
+import { init as loggerInit } from './alwaysload/logger.js';
 import { Init as EngagementListenInit } from './alwaysload/engagementlisten.js';
 import { Init as LazyLoadFilesInit } from "./alwaysload/lazyload_files.js"
 import { Init as DatahodlInit } from "./alwaysload/datahodl.js"
@@ -32,80 +30,72 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 //let _worker_port: MessagePort|null = null;
 
 
-const LAZYLOAD_DATA_FUNCS = {
-
-	appmsgs: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
-
-		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshon:[]})
-	}),
-
-	login: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
-
-		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshon:[]})
-	}),
-
-	setup_push_allowance: (_pathparams:GenericRowT, _searchparams: GenericRowT, _localdb_preload:str[]|null, _fetchlassieopts:GenericRowT) => new Promise<LazyLoadFuncReturnT>(async (res, _rej) => {
-		const d = new Map<str,GenericRowT[]>()
-		res({ d, refreshon:[]})
-	}),
-}
-
-
 
 
 window.addEventListener("load", async (_e) => {
 
-	const lazyload_data_funcs = { ...LAZYLOAD_DATA_FUNCS, ...INSTANCE_LAZYLOAD_DATA_FUNCS }
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
 	const all_localdb_objectstores = [ ...SETTINGS.INSTANCE.INFO.localdb_objectstores, ...SETTINGS.MAIN.INFO.localdb_objectstores ]
+	const lazyload_view_urlpatterns = Get_Lazyload_View_Url_Patterns(lazyloads);
 
+	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
+
+	if ((window as any).APPVERSION > 0) {
+		try         { await setup_service_worker(lazyload_view_urlpatterns); }
+		catch (err) { alert("unable to load service worker"); console.error("Service Worker setup failed:", err); return; }
+	}
+
+	/* **** load always load modules **** */
 	{
 		IDBInit(all_localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
 		EngagementListenInit()
 		LocalDBSyncInit(SETTINGS.INSTANCE.INFO.localdb_objectstores, SETTINGS.INSTANCE.INFO.firebase.project, SETTINGS.INSTANCE.INFO.firebase.dbversion)
-		DatahodlInit(lazyload_data_funcs)
+		DatahodlInit()
 		CMechInit()
-		LoggerInit();
+		loggerInit();
+		LazyLoadFilesInit(lazyloads);
+		await SwitchStationInit();
 	}
+	/* ********************************** */
 
+	// let path:string;
+	// if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index.html') {
+	// 	path = 'home'
+	// } else {
+	// 	path = window.location.pathname.slice(3) + window.location.search // remove /v/ prefix and combine in search
+	// }
 
-	localStorage.setItem("identity_platform_key", SETTINGS.INSTANCE.INFO.firebase.identity_platform_key)
+	setTimeout(()=> SSEInit(), 2500)
 
-
-	LazyLoadFilesInit(lazyloads);
-	const lazyload_view_urlpatterns = await SwitchStationInit(lazyloads);
-
-
-
-	/*
-	- Test and make sure SSEVent.Add_Listnere isn't double adding listeners
-	- Test SSE Events to refresh listeners
-	- Test SSE Events on main view as well
-	*/
-
-
-
-
-
-	if ((window as any).APPVERSION > 0) await setup_service_worker(lazyload_view_urlpatterns)
 	//init_shared_worker()
-	setTimeout(()=> SSEInit(), 1800)
-	//await new Promise<void>((res)=> setTimeout(()=>{ res() }, 500)); 
 })
 
 
 
 
-document.querySelector("#views")!.addEventListener("visibled", () => {
-})
+window.addEventListener('online', () => {
+	if (_serviceworker_reg?.active) {
+		_serviceworker_reg.active.postMessage({ action: "networkchange", data: { state: 'online' } });
+	}
+});
+
+window.addEventListener('offline', () => {
+	if (_serviceworker_reg?.active) {
+		_serviceworker_reg.active.postMessage({ action: "networkchange", data: { state: 'offline' } });
+	}
+});
+
+document.addEventListener('visibilitychange', () => {
+	if (_serviceworker_reg?.active) {
+		_serviceworker_reg.active.postMessage({ action: "visibilitychange", is_visible: document.visibilityState === 'visible' });
+	}
+});
 
 
 
 
 let toast_id_counter = 0;
-function ToastShow(msg: string, level?: number | null, _duration?: number | null) { // _duration argument is no longer used
+function ToastShow(msg: string, level: ToastLevelT = 'info', _duration?: number | null) { // _duration argument is no longer used
 
     const toast_id = `maintoast-${toast_id_counter}`;
     const toast_el = document.createElement('c-toast') as any; // Cast to any for custom element properties
@@ -145,6 +135,26 @@ $N.ToastShow = ToastShow;
 
 
 
+function clickity(el:HTMLElement) {
+	el.classList.add("clickity")
+	const activeviewel = document.querySelector("#views > .view:last-child")!
+	const intrv = setInterval(() => {
+		const isactive = activeviewel.getAttribute("data-active") === "true"
+		if (!isactive) {
+			el.classList.remove("clickity")
+			clearInterval(intrv)
+		}
+	}, 100)
+	setTimeout(() => {
+		el.classList.remove("clickity")
+		clearInterval(intrv)
+	}, 8000)
+}
+$N.Clickity = clickity;
+
+
+
+
 /*
 function init_shared_worker() {
 	_shared_worker = new SharedWorker('/shared_worker.js');
@@ -178,13 +188,35 @@ $N.GetSharedWorkerPort = ()=>_worker_port!;
 
 
 
-async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: string, logerrmsg: string|null, redirectionurl:string|null) {
+async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj: string, logerrmsg: string|null, redirectionurl?:string|null) {
 
 	const redirect = redirectionurl || `/v/appmsgs?logsubj=${logsubj}`;
 	setalertbox(subj, msg, btnmsg, redirect);
-	$N.Logger.Log(40, logsubj, logerrmsg||"");
+	$N.Logger.log(40, logsubj, logerrmsg||"");
 }
 $N.Unrecoverable = Unrecoverable;
+
+
+
+
+async function GetConnectedState(): Promise<'online' | 'offline'> {
+
+	if (!_serviceworker_reg?.active) return 'online';
+
+	return new Promise((resolve) => {
+
+		const handler = (event: MessageEvent) => {
+			if (event.data.action === 'connectedstate') {
+				navigator.serviceWorker.removeEventListener('message', handler);
+				resolve(event.data.state as 'online' | 'offline');
+			}
+		};
+
+		navigator.serviceWorker.addEventListener('message', handler);
+		_serviceworker_reg.active!.postMessage({ action: 'getconnectedstate' });
+	});
+}
+$N.GetConnectedState = GetConnectedState;
 
 
 
@@ -193,57 +225,71 @@ function setalertbox(subj: string, msg: string, btnmsg: string, redirect: string
 
 	const modal = document.getElementById('alert_notice');
 	if (!modal) return; // Guard clause if modal isn't found
-	modal.classList.add('active');
 
-	const titleEl = document.getElementById('alert_notice_title');
-	const msgEl = document.getElementById('alert_notice_msg');
-	const btnReset = document.getElementById('alert_notice_btn');
+	const isAlreadyActive = modal.classList.contains('active');
 
-	if (titleEl) titleEl.textContent = subj;
-	if (msgEl) msgEl.textContent = msg;
-	
-	if (btnReset) {
-		btnReset.textContent = btnmsg;
-        // To prevent multiple listeners if setalertbox is called multiple times for the same button,
-        // replace the button with a clone of itself. This removes all old event listeners.
-        const newBtnReset = btnReset.cloneNode(true) as HTMLElement;
-        btnReset.parentNode?.replaceChild(newBtnReset, btnReset); // Use parentNode for safety
+	if (!isAlreadyActive) {
+		modal.classList.add('active');
 
-		newBtnReset.addEventListener('click', () => {
-			if (clickHandler) {
-				clickHandler();
-			} else {
-				window.location.href = redirect;
-			}
-		});
+		const titleEl = document.getElementById('alert_notice_title');
+		const btnReset = document.getElementById('alert_notice_btn');
+
+		if (titleEl) titleEl.textContent = subj;
+
+		if (btnReset) {
+			btnReset.textContent = btnmsg;
+			// To prevent multiple listeners if setalertbox is called multiple times for the same button,
+			// replace the button with a clone of itself. This removes all old event listeners.
+			const newBtnReset = btnReset.cloneNode(true) as HTMLElement;
+			btnReset.parentNode?.replaceChild(newBtnReset, btnReset); // Use parentNode for safety
+
+			newBtnReset.addEventListener('click', () => {
+				if (clickHandler) {
+					clickHandler();
+				} else {
+					window.location.href = redirect;
+				}
+			});
+		}
+	}
+
+	// Always add the new message
+	const msgContainer = document.getElementById('alert_notice_msg_container');
+	if (msgContainer) {
+		const newMsgEl = document.createElement('p');
+		newMsgEl.textContent = msg;
+		msgContainer.appendChild(newMsgEl);
+
+		// Scroll to bottom to show the latest message
+		msgContainer.scrollTop = msgContainer.scrollHeight;
 	}
 }
 
 
 
 
-
-const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<void>((resolve, _reject) => {
+const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<void>((resolve, reject) => {
 
 	// Check if very first time loading the service worker, so we can skip the controllerchange event
 	let hasPreviousController = navigator.serviceWorker.controller ? true : false;
 
-	 navigator.serviceWorker.register('/sw.js').then(registration => {
+	navigator.serviceWorker.register('/sw.js').then(registration => {
 
 		_serviceworker_reg = registration;
 
-         navigator.serviceWorker.ready.then(() => {                                                             
-			registration.active?.postMessage({                                                                 
-				action:"initial_data_pass",                                                               
-				id_token: localStorage.getItem("id_token"),                                                    
-				token_expires_at: localStorage.getItem("token_expires_at"),                                    
-				refresh_token: localStorage.getItem("refresh_token"),                                          
+         navigator.serviceWorker.ready.then(() => {
+			registration.active?.postMessage({
+				action:"initial_data_pass",
+				id_token: localStorage.getItem("id_token"),
+				token_expires_at: localStorage.getItem("token_expires_at"),
+				refresh_token: localStorage.getItem("refresh_token"),
 				user_email: localStorage.getItem("user_email"),
 				lazyload_view_urlpatterns,
-			});                                                                                                
+			});
 
 			resolve()
-		}); 
+		})
+		.catch((err) => {   reject(err);   });
 
 		navigator.serviceWorker.addEventListener('message', (event:any) => {
 
@@ -270,6 +316,10 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 				}
 			}
 
+			else if (event.data.action === 'backonline') {
+				document.dispatchEvent(new Event('backonline'));
+			}
+
 			/*
 			else if (event.data.action === 'logit') {
 				// can add this back in to logger if needed
@@ -292,6 +342,9 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 			const origin = window.location.origin;
 			window.location.href = "https://yavada.com/bouncebacktonifty.html?origin=" + encodeURIComponent(origin);
 		}
+	})
+	.catch((err) => {
+		reject(err);
 	});
 })
 

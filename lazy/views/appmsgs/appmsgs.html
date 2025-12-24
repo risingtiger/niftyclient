@@ -9,8 +9,8 @@
 </header>
 
 
-<div class="content">
-    ${s.showdatawipe ? html`
+<div class="wrapper">
+    ${_s.showdatawipe ? html`
 		<div class="message-container">
 			<strong>App Data Refreshed</strong>
 			<br>
@@ -18,7 +18,7 @@
 		</div>
     ` : ''}
 
-    ${s.show_gen_logsubj && localStorage.getItem("id_token") ? html`
+    ${_s.show_gen_logsubj && localStorage.getItem("id_token") ? html`
 		<div class="message-container">
 			<strong class="error-message">There was an error in the app.</strong>
 			<br>
@@ -29,11 +29,11 @@
     ` : ''}
 
 
-	<div id="logsubj" class="log-container ${s.showlogs ? 'active' : ''}">
-		${s.logs.map((row) => html`<div class="log-entry">${row}</div>`)}
+	<div id="logsubj" class="log-container ${_s.showlogs ? 'active' : ''}">
+		${_s.logs.map((row) => html`<div class="log-entry">${row}</div>`)}
 	</div>
 
-	<div id="appupdated" class="message-container ${s.showappupdated ? 'active' : ''}">
+	<div id="appupdated" class="message-container ${_s.showappupdated ? 'active' : ''}">
 		<h2>App Updated</h2>
 		<button @click="${()=>window.location.href='/v/home'}">Go to Home</button>
 	</div>

@@ -82,6 +82,8 @@ class CBtn extends HTMLElement {
         if (this.s.mode == ModeT.INERT) {
             if (this.m.show_anime_on_click) this.to_start_anime()
 			this.dispatchEvent(new CustomEvent("btnclick", {detail: {done: this.done.bind(this)}}))
+
+			setTimeout(() => {if (this.s.mode === ModeT.SAVING) this.done();}, 5000)
         }
     }
 

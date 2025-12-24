@@ -1,5 +1,7 @@
 
 
+
+
 :host {
     position: relative;
     font-weight: 600;
@@ -34,13 +36,16 @@
 
 
 :host([small]) {
-    padding: 2px 10px 0 10px;
+    padding: 3px 8px 0px 8px;
     height: 24px;
+    font-weight: normal;
+    font-size: 13px;
 }
 
 :host #slotwrap.subdued {
     opacity: 0.4;
 }
+
 
 :host c-animeffect {
     position: absolute;

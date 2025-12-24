@@ -10,6 +10,9 @@ let _activeRequestCount = 0 // Track number of active requests
 
 
 
+
+
+
 function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, opts:FetchLassieOptsT|undefined|null) { return new Promise<FetchResultT>(async (fetch_callback)=> { 
 
     const http_opts     = http_optsP || { method: "GET", headers: {}, body: null }
@@ -18,23 +21,18 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
     http_opts.headers   = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
     http_opts.body      = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-	if (!opts) { opts   = { retries: 0, background: true, animate: true }; }
+	if (!opts) { opts   = { retries: 0, background: true, animate: true, cacheit: false }; }
 
-	opts.retries        = opts.retries || 0
-	opts.background     = opts.background || true
-	opts.animate        = opts.animate || true
-	opts.refreshcache   = opts.refreshcache || false
-	opts.cacheit        = opts.cacheit || false
+	opts.retries                = opts.retries || 0
+	opts.background             = opts.background || true
+	opts.animate                = opts.animate || true
+	opts.cacheit                = opts.cacheit || false
 
 
     if (opts.cacheit) {
+		const future_epoch_seconds = get_cache_future_epoch_seconds_from_str(opts.cacheit === true ? "5m" : opts.cacheit as string)
         http_opts.headers = http_opts.headers || {};
-        http_opts.headers['Nifty-Cache'] = 'true';
-
-		if (opts.refreshcache) {
-			http_opts.headers = http_opts.headers || {};
-			http_opts.headers['Nifty-RefreshCache'] = 'true';
-		}
+        http_opts.headers['Nifty-Cache'] = future_epoch_seconds.toString();
 	}
 
     _activeRequestCount++;
@@ -52,8 +50,7 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 	http_opts.headers["sse_id"] = localStorage.getItem('sse_id') || null
 
 	if (opts.retries && opts.retries > 0) {
-		http_opts.headers["call_even_if_offline"] = "true"
-		http_opts.headers["exitdelay"] = 2.7
+		http_opts.headers["exitdelay"] = 3.1
 	}
 
 	let result:any = null
@@ -63,11 +60,13 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
 		if (result.status !== 503) break
 
 		// will cycle to next retry if more retries specified
+		await new Promise((res)=>setTimeout(res, 1500)) 
 	}
 
     _activeRequestCount--;
 
-    // Only clear animations if this is the last active request
+
+	/* ---------- CLEAR ANIMATION IF NO MORE ACTIVE REQUESTS ---------- */
     if (_activeRequestCount === 0) {
         if (_timeoutWaitingAnimateId !== null) {
             clearTimeout(_timeoutWaitingAnimateId);
@@ -76,35 +75,32 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
         setBackgroundOverlay(false);
         setWaitingAnimate(false);
     }
+	/* ---------------------------------------------- */
 
-	if (result.status === 503) {
-		fetch_callback({ status: 503, statusText: "Network error", ok: false }); 
+
+	if (result.status !== 200) {
+		fetch_callback({headers:result.headers, status: result.status, statusText: result.statusText, ok: false})
 		return;
 	}
 
-	if (result.statusText === "updatedrequired") {
-		// this is an app update. Just stop since main will initiate update UI process
-		return
-	}
-
-	const returnobj:FetchResultT = {
-		status: result.status,
-		statusText: result.statusText,
-		ok: result.status === 200,
-	}
-
 	try {
-		if (result.status === 200) {
-			if (http_opts.headers["Accept"] === "application/json") {
-				returnobj.data = await result.json() // call could fail
-			} else {
-				returnobj.data = await result.text() // call could fail
-			}
+		const returnobj:FetchResultT = {
+			headers: result.headers,
+			status: 200, // we handled non-200 above
+			statusText: result.statusText,
+			ok: true, // we've handled non-200 above
 		}
-	} catch (e) { /* do nothing. data is empty */ }
 
+		if (http_opts.headers["Accept"] === "application/json") {
+			returnobj.data = await result.json() // call could fail
+		} else {
+			returnobj.data = await result.text() // call could fail
+		}
+		fetch_callback(returnobj)
 
-	fetch_callback(returnobj)
+	} catch (e) {
+		fetch_callback({status: 400, statusText: "Could not parse text or json", ok: false, headers: result.headers})
+	}
 })}
 
 
@@ -114,9 +110,8 @@ const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Resp
 	fetch( url, http_opts )
 		.then(async (server_response:Response)=> {
 			response_callback(server_response)
-			// just pass through basically. service worker handles hanging fertches etc, so handle
-			// status 200, 400 or any other at the instance code
-		})
+		});
+
 		// no need to catch errors here, as we are already catching them in the service worker
 })
 
@@ -134,6 +129,31 @@ function setBackgroundOverlay(ison:boolean) {
 function setWaitingAnimate(ison:boolean) {
     const xel = document.querySelector("#fetchlassy_overlay .waiting_animate")!
     if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
+}
+
+
+
+
+function get_cache_future_epoch_seconds_from_str(cache_time_amount:string):string {
+
+	const normalized = cache_time_amount.trim().toLowerCase()
+	const match = normalized.match(/^(\d{1,3})([smhd])$/)
+
+	if (!match) {
+		// Unhandled Case: handle invalid cache time format
+		return Math.floor(Date.now() / 1000).toString()
+	}
+
+	const amount = Number(match[1])
+	const unit = match[2]
+	let multiplier = 1
+
+	if (unit === "m") multiplier = 60
+	if (unit === "h") multiplier = 3600
+	if (unit === "d") multiplier = 86400
+
+	const nowInSeconds = Math.floor(Date.now() / 1000)
+	return ( nowInSeconds + amount * multiplier ).toString()
 }
 
 

@@ -9,6 +9,9 @@ declare var $N: $NT;
 /*
 subject options:
 - "srf": switch_station_route_load_fail
+- "srg": switch_station_route_goto
+- "cmp": cmech post load fail
+- "ole": overlay load error of vp component
 - "ixe": indexeddb_error
 - "sse": sse_listener_error
 - "sw4": sw_fetch_not_authorized
@@ -16,13 +19,14 @@ subject options:
 - "lde": localdbsync_error
 - "ldp": localdbsync_error_toomany_pending
 - "ldr": localdbsync_third_day_reset
+- "dhl": datahodl error
 - "aup": app_update
 - "epv": engagement_pageview
 - "eov": engagement_overlayview
 - "gen": generic
 */
 type LogItemT = {
-	type: 10|20|25|30|40; // debug | info | info_engagement | warning | error
+	type: 10|20|30|40; // debug | info | warning | error
 	subject: "srf" | "ixe" | "sse" | "sw4" | "swe" | "lde" | "ldp" | "ldr" | "aup" | "epv" | "eov" | "gen"; 
 	message: string;
 	ts: number; 
@@ -51,15 +55,16 @@ const MAX_SENDBEACON_PAYLOAD_SIZE = 60 * 1024; // 60KB
 
 
 
-function Init() {
-	$N.EngagementListen.Add_Listener(document.body, "logger", "hidden", null, () => {
+function init() {
+	$N.EngagementListen.Add_Listener(document.body, "logger", [ "hidden" ], null, () => {
 		sendlogs()
 	})
 }
 
 
 
-async function Log(type: number, subject:string, message: string) {
+
+async function log(type: number, subject:string, message: string) {
 
     if (window.location.hostname === "localhost")   return;
 
@@ -68,7 +73,7 @@ async function Log(type: number, subject:string, message: string) {
 
 	if (message.length > 36) {message = message.slice(0, 33) + "...";}
 
-    const log_entry = {type, subject, message, ts};
+    const log_entry = { type, subject, message, ts };
 
     try   { await $N.IDB.AddOne(LOG_STORE_NAME, log_entry); } 
 	catch {}
@@ -77,7 +82,7 @@ async function Log(type: number, subject:string, message: string) {
 
 
 
-async function Get() {
+async function get() {
 
 	let user_email = localStorage.getItem("user_email")
 
@@ -89,7 +94,7 @@ async function Get() {
     const csvstr = await $N.FetchLassie(url, { headers: { 'Content-Type': 'text/csv', 'Accept': 'text/csv' } }, {  } )
 	if (!csvstr.ok) {   alert ("unable to retrieve logs"); return;   }
 
-	$N.Utils.CSV_Download(csvstr.data as string, "logs")
+	$N.Utils.CSVDownload(csvstr.data as string, "logs")
 }
 
 
@@ -175,11 +180,11 @@ function get_browser() {
 
 
 
-export { Init }
+export { init }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Logger = { Log, Get };
+((window as any).$N as any).Logger = { log, get };
 
 
 

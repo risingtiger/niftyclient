@@ -83,11 +83,12 @@ class CToast extends HTMLElement {
 
         if (name == "action" && newval === 'run' && (oldval === '' || oldval === null)) {
 
+            const level = this.getAttribute("level") || "info"
+
             const msg = this.getAttribute("msg") || ""
-            const level = this.getAttribute("level") || "0"
             const duration = this.getAttribute("duration") || DEFAULT_DURATION
 
-            await this.action(msg, Number(level), Number(duration))
+            await this.action(msg, level, Number(duration))
 
             this.setAttribute("action", "")
         }
@@ -96,7 +97,7 @@ class CToast extends HTMLElement {
 
 
 
-    action(msg:str, level:LevelT, duration:num|null) { 
+    action(msg:str, levelstr:string, duration:num|null) { 
 
         return new Promise((res) => { 
 
@@ -105,14 +106,10 @@ class CToast extends HTMLElement {
             this.els.msg = this.shadow.getElementById("msg") as HTMLElement
             this.els.msg.textContent = msg
 
+			this.setlevelfromstr(levelstr)
 
-            switch (level) {
-                case LevelT.INFO: this.classList.add("level_info"); break
-                case LevelT.SAVED: this.classList.add("level_saved"); break
-                case LevelT.SUCCESS: this.classList.add("level_success"); break
-                case LevelT.WARNING: this.classList.add("level_warning"); break
-                case LevelT.ERROR: this.classList.add("level_error"); break
-            }
+			this.classList.remove("level_info", "level_saved", "level_success", "level_warning", "level_error")
+			this.classList.add(this.s.level_class)
 
             this.style.display = "block"
             this.offsetHeight
@@ -136,6 +133,20 @@ class CToast extends HTMLElement {
 
 
     sc() {   render(this.template(), this.shadow);   }
+
+
+
+
+	setlevelfromstr(levelstr:str) {
+		switch (levelstr.toLowerCase()) {
+			case "info":    this.s.level = LevelT.INFO;    this.s.level_class = "level_info";    break;
+			case "saved":   this.s.level = LevelT.SAVED;   this.s.level_class = "level_saved";   break;
+			case "success": this.s.level = LevelT.SUCCESS; this.s.level_class = "level_success"; break;
+			case "warning": this.s.level = LevelT.WARNING; this.s.level_class = "level_warning"; break;
+			case "error":   this.s.level = LevelT.ERROR;   this.s.level_class = "level_error";   break;
+			default:        this.s.level = LevelT.INFO;    this.s.level_class = "level_info";    break;
+		}
+	}
 
 
 

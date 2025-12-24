@@ -1,5 +1,5 @@
-import { bool } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, $NT, GenericRowT } from "../../../defs.js"
+import { bool, str } from '../../../defs_server_symlink.js'
+import { CMechLoadedDataT, $NT, GenericRowT, CMechViewLoadStateT, LazyLoadFuncReturnT } from "../../../defs.js"
 
 
 
@@ -66,16 +66,7 @@ class VLogin extends HTMLElement {
 
 
 
-    async connectedCallback() {   
-		await $N.CMech.ViewConnectedCallback(this)
-		this.dispatchEvent(new Event('hydrated'));
-
-		const emailInput    = this.shadow.getElementById('emailinput')    as any;
-		const passwordInput = this.shadow.getElementById('passwordinput') as any;
-		
-		emailInput.addEventListener(   'input', (e: any) => this.s.email    = e.target.value)
-		passwordInput.addEventListener('input', (e: any) => this.s.password = e.target.value)
-    }
+    async connectedCallback() {$N.CMech.RegisterView(this);}
 
 
 
@@ -92,26 +83,45 @@ class VLogin extends HTMLElement {
 
 
 
-	kd(_loadeddata: CMechLoadedDataT, loadstate:string, _pathparams:GenericRowT, searchparams:GenericRowT) {
-		if (loadstate === 'initial' || loadstate === 'searchchanged') {
-            // Check for error parameter in URL
-            if (searchparams.error) {
-                this.s.errorMessage = decodeURIComponent(searchparams.error as string);
-            }
-            
-            // Restore email from URL params if available
-            if (searchparams.email) {
-                this.s.email = decodeURIComponent(searchparams.email as string);
-            }
-            
-            this.sc();
-		}
+	static load(_pathparams:GenericRowT, _searchparams:GenericRowT): Promise<LazyLoadFuncReturnT> {
+		return new Promise(async (res, _rej) => {
+			const d = new Map<str,GenericRowT[]>()
+			res({ d, refreshon:[]})
+		})
 	}
 
 
 
 
-    sc() {
+	ingest(_loadeddata: CMechLoadedDataT, _pathparams:GenericRowT, searchparams:GenericRowT, _loadstate:CMechViewLoadStateT) {
+		// Check for error parameter in URL
+		if (searchparams.error) {
+			this.s.errorMessage = decodeURIComponent(searchparams.error as string);
+		}
+		
+		// Restore email from URL params if available
+		if (searchparams.email) {
+			this.s.email = decodeURIComponent(searchparams.email as string);
+		}
+		
+		this.render();
+	}
+
+
+
+
+	hydrated() {
+		const emailInput    = this.shadow.getElementById('emailinput')    as any;
+		const passwordInput = this.shadow.getElementById('passwordinput') as any;
+		
+		emailInput.addEventListener(   'input', (e: any) => this.s.email    = e.target.value)
+		passwordInput.addEventListener('input', (e: any) => this.s.password = e.target.value)
+	}
+
+
+
+
+    render() {
         render(this.template(this.s), this.shadow);
     }
 
@@ -122,7 +132,7 @@ class VLogin extends HTMLElement {
 
         this.s.isLoading = true;
         this.s.errorMessage = "";
-        this.sc();
+        this.render();
 
 		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + localStorage.getItem("identity_platform_key");
 
@@ -152,7 +162,7 @@ class VLogin extends HTMLElement {
 			if (!response.ok) {
 				this.s.isLoading = false;
 				this.s.errorMessage = "Login failed. Please check your credentials and try again.";
-				this.sc();
+				this.render();
 				return;
 			}
 		
@@ -171,7 +181,7 @@ class VLogin extends HTMLElement {
 		} catch (error) {
 			this.s.isLoading = false;
 			this.s.errorMessage = "Login failed. Please try again.";
-			this.sc();
+			this.render();
 		}
     }
     
@@ -179,13 +189,13 @@ class VLogin extends HTMLElement {
         // Simple validation
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter a valid email address";
-            this.sc();
+            this.render();
             return false;
         }
 
         if (!this.s.password || this.s.password.length < 6) {
             this.s.errorMessage = "Password must be at least 6 characters";
-            this.sc();
+            this.render();
             return false;
         }
 
@@ -198,13 +208,13 @@ class VLogin extends HTMLElement {
     async ResetPassword() {
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter your email address to reset your password";
-            this.sc();
+            this.render();
             return;
         }
 
         this.s.isLoading = true;
         this.s.errorMessage = "";
-        this.sc();
+        this.render();
 
 		const r = await $N.FetchLassie(`/api/reset_password?email=${this.s.email}`);
 
@@ -218,7 +228,7 @@ class VLogin extends HTMLElement {
 			}
 
 			this.s.errorMessage = errorMessage;
-			this.sc();
+			this.render();
 			return
 		}
 
@@ -227,7 +237,7 @@ class VLogin extends HTMLElement {
 		this.s.password = "";
 		this.s.resetlink = ( r.data as any ).link
 
-		this.sc()
+		this.render()
     }
 
 

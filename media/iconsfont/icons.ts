@@ -1,4 +1,5 @@
 export type IconsId =
+  | "_25_circles"
   | "_24_trash"
   | "_23_tripledot"
   | "_22_copy"
@@ -25,6 +26,7 @@ export type IconsId =
   | "_01_arrowright1";
 
 export type IconsKey =
+  | "i25Circles"
   | "i24Trash"
   | "i23Tripledot"
   | "i22Copy"
@@ -51,6 +53,7 @@ export type IconsKey =
   | "i01Arrowright1";
 
 export enum Icons {
+  i25Circles = "_25_circles",
   i24Trash = "_24_trash",
   i23Tripledot = "_23_tripledot",
   i22Copy = "_22_copy",
@@ -78,28 +81,29 @@ export enum Icons {
 }
 
 export const ICONS_CODEPOINTS: { [key in Icons]: string } = {
-  [Icons.i24Trash]: "61697",
-  [Icons.i23Tripledot]: "61698",
-  [Icons.i22Copy]: "61699",
-  [Icons.i21Save]: "61700",
-  [Icons.i20Burger]: "61701",
-  [Icons.i19Add]: "61702",
-  [Icons.i18List]: "61703",
-  [Icons.i17Piggy]: "61704",
-  [Icons.i16Bucket]: "61705",
-  [Icons.i15Stopwatch]: "61706",
-  [Icons.i14Pressure]: "61707",
-  [Icons.i13Meter]: "61708",
-  [Icons.i12Info]: "61709",
-  [Icons.i11Graph]: "61710",
-  [Icons.i10Location]: "61711",
-  [Icons.i09Refresh]: "61712",
-  [Icons.i08Search]: "61713",
-  [Icons.i07Tune]: "61714",
-  [Icons.i06Edit2]: "61715",
-  [Icons.i05Edit1]: "61716",
-  [Icons.i04Checkcircle]: "61717",
-  [Icons.i03Arrowright2]: "61718",
-  [Icons.i02Arrowleft1]: "61719",
-  [Icons.i01Arrowright1]: "61720",
+  [Icons.i25Circles]: "61697",
+  [Icons.i24Trash]: "61698",
+  [Icons.i23Tripledot]: "61699",
+  [Icons.i22Copy]: "61700",
+  [Icons.i21Save]: "61701",
+  [Icons.i20Burger]: "61702",
+  [Icons.i19Add]: "61703",
+  [Icons.i18List]: "61704",
+  [Icons.i17Piggy]: "61705",
+  [Icons.i16Bucket]: "61706",
+  [Icons.i15Stopwatch]: "61707",
+  [Icons.i14Pressure]: "61708",
+  [Icons.i13Meter]: "61709",
+  [Icons.i12Info]: "61710",
+  [Icons.i11Graph]: "61711",
+  [Icons.i10Location]: "61712",
+  [Icons.i09Refresh]: "61713",
+  [Icons.i08Search]: "61714",
+  [Icons.i07Tune]: "61715",
+  [Icons.i06Edit2]: "61716",
+  [Icons.i05Edit1]: "61717",
+  [Icons.i04Checkcircle]: "61718",
+  [Icons.i03Arrowright2]: "61719",
+  [Icons.i02Arrowleft1]: "61720",
+  [Icons.i01Arrowright1]: "61721",
 };

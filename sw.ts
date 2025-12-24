@@ -1,35 +1,49 @@
-enum UpdateState { DEFAULT, UPDATING, UPDATED }
-
-enum RequestURLType { INTERNAL_API, FILE, VIEW_URL}
 
 
-const AFTER_ACTIVATE_PRELOAD_ASSETS = [
+import { PRELOAD_BASE_ASSETS_T } from './defs.js';
+
+
+//enum UpdateState { DEFAULT, UPDATING, UPDATED }
+
+const enum RequestURLType { INTERNAL_API, FILE, VIEW_URL}
+
+const enum ConnectStateE { ONLINE, OFFLINE }
+
+const PRELOAD_BASE_ASSETS:PRELOAD_BASE_ASSETS_T[] = [
 	"/v/appmsgs",
 	"/v/login",
 	"/v/home",
 	"/",
 ]
 
-const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
-const MAX_CHECK_CONNECTIVITY_INTERVAL     = 5 * 60 * 1000; // 5 minutes max backoff
-const EXITDELAY                           = 9000 // just the default. can be overridden in the fetch request
+//const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
+const CONNECTEDSTATE_CHECK_TIMEOUT             = 5000
+const PERIODIC_MAINTENANCE_INTERVAL            = 60 * 60 * 1000; // every hour
+const INITIAL_PERIODIC_MAINTENANCE_INTERVAL    = 15 * 1000 
+const DELAY_PRELOAD_BASE_ASSETS                = 10 * 1000;
+const EXITDELAY                                = 9000 // just the default. can be overridden in the fetch request
+const BACKOFF_MAX                              = 24; // max 120s (5s * 24)
 
-let _cache_name        = 'cacheV__0__';
-let _cache_version     = Number(_cache_name.split("__")[1])
-let _id_token          = ""
-let _token_expires_at  = 0
-let _refresh_token     = ""
-let _user_email        = ""
+let _cache_name                                = 'cacheV__0__';
+let _cache_version                             = Number(_cache_name.split("__")[1])
+let _id_token                                  = ""
+let _token_expires_at                          = 0
+let _refresh_token                             = ""
 let _lazyload_view_urlpatterns:Array<string[]> = []
-let _isoffline         = false
-let _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL;
-let timeouthandler:any = null
+let _connectedstate                            = ConnectStateE.ONLINE; // assume online at start
+let _connectedcheck_timeout:any                = 0;
+let _backoff_multiplier                        = 1;
+let _is_test_logging                           = true;
+const _client_visibility:Map<string, boolean>  = new Map(); // track visibility per client/tab
+
+
 
 
 
 
 
 self.addEventListener('install', (event:any) => {
+
 	//(self as any).skipWaiting();
 	event.waitUntil((async () => {
 
@@ -50,6 +64,7 @@ self.addEventListener('install', (event:any) => {
 
 
 self.addEventListener('activate', (event:any) => {
+
 	event.waitUntil((async () => {
 		const cacheKeys = await caches.keys();
 		for (const key of cacheKeys) {
@@ -60,7 +75,7 @@ self.addEventListener('activate', (event:any) => {
 
 		await (self as any).clients.claim();
 
-		setTimeout(()=> load_assets_into_cache(AFTER_ACTIVATE_PRELOAD_ASSETS), 5000);
+		setTimeout(()=> preload_base_assets_into_cache(PRELOAD_BASE_ASSETS), DELAY_PRELOAD_BASE_ASSETS);
 	})());
 });
 
@@ -73,53 +88,44 @@ self.addEventListener('controllerchange', (_e:any) => {
 
 
 
-self.addEventListener('fetch', (e:any) => {
+self.addEventListener('fetch', (e:FetchEvent) => {
 
-    let promise = new Promise(async (res, _rej) => {
+	let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
 
-		let requesturltype:RequestURLType = RequestURLType.VIEW_URL // default view_Url
-		let response:Response|null = null
+	const pathname = ( new URL(e.request.url) ).pathname;
 
-		const pathname = ( new URL(e.request.url) ).pathname;
+	if (pathname.startsWith("sse_add_listener")) {   return;   }
 
-		if (
-			e.request.url.includes("identitytoolkit.googleapis.com") ||
-			e.request.url.includes("sse_add_listener"))
-		{
-			const r = await fetch(e.request)
+
+	if (pathname.startsWith('/v/') || pathname === '/') {
+		requesturltype = RequestURLType.VIEW_URL;
+		e.respondWith(handle_file_call(e.request, pathname, requesturltype)) // always returns a response
+		return;
+	}
+
+	if (pathname.startsWith('/assets/') || pathname.startsWith('/favicon.ico') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
+		requesturltype = RequestURLType.FILE;
+		e.respondWith(handle_file_call(e.request, pathname, requesturltype)) // always returns a response
+		return;
+	}
+
+	if (pathname.startsWith('/api/')) {
+		requesturltype = RequestURLType.INTERNAL_API;
+		e.respondWith(handle_data_call(e.request)); // always returns a response
+		return;
+	}
+
+	e.respondWith(new Promise<Response>(async (res, _rej) => {
+		try {
+			const r = await fetch(e.request, { signal: AbortSignal.timeout(EXITDELAY) });
 			res(r)
-			return 
+
+		} catch (err) {
+			set_connectedstate_offline('fetch call timeout');
+			res(new Response(null, { status: 503, statusText: 'Network error' }));
 		}
-		
-		// Determine request URL type based on path -- treat root as home view
-		if (pathname.startsWith('/v/') || pathname === '/') {
-			requesturltype = RequestURLType.VIEW_URL;
-			response = await handle_file_call(e.request, pathname, requesturltype)
+	}));
 
-		} else if (pathname.startsWith('/api/')) {
-			requesturltype = RequestURLType.INTERNAL_API;
-			try	  { response = await handle_data_call(e.request); }
-			catch { res(new Response(null, { status: 400, statusText: 'Couldnt make the request' })); return; }
-
-		} else if (pathname.startsWith('/assets/') || pathname.startsWith('/favicon.ico') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
-			requesturltype = RequestURLType.FILE;
-			response = await handle_file_call(e.request, pathname, requesturltype)
-
-		} else {
-			// Pass through the request as-is for unrecognized URL patterns
-			try {
-				const response = await fetch(e.request);
-				res(response);
-			} catch (error) {
-				res(new Response(null, { status: 503, statusText: 'Network error' }));
-			}
-			return;
-		}
-
-		res(response)
-    })
-
-    e.respondWith(promise)
 })
 
 
@@ -136,8 +142,43 @@ self.addEventListener('message', async (e:any) => {
 		_id_token = e.data.id_token;
 		_token_expires_at = Number(e.data.token_expires_at);
 		_refresh_token = e.data.refresh_token;
-		_user_email = e.data.user_email;
 		_lazyload_view_urlpatterns = e.data.lazyload_view_urlpatterns;
+		clearTimeout(_connectedcheck_timeout) // probably not needed since this should be the first call 	
+		setTimeout(()=>periodicmaintenance(), INITIAL_PERIODIC_MAINTENANCE_INTERVAL);
+		connectedcheck()
+	}
+
+	else if (e.data.action === 'networkchange') {
+		clearTimeout(_connectedcheck_timeout)	
+		_connectedcheck_timeout = setTimeout(()=> {
+			connectedcheck()
+		}, 750) // give it a timeout because the phone might be active on the cell network but not actually online just yet
+	}
+
+	else if (e.data.action === 'set_test_logging_true') {
+		_is_test_logging = true;
+	}
+
+	else if (e.data.action === 'visibilitychange') {
+		const clientId = e.source?.id;
+		if (!clientId) return;
+		
+		const was_any_focused = isAnyClientFocused();
+		_client_visibility.set(clientId, e.data.is_visible);
+		const is_any_focused = isAnyClientFocused();
+		
+		// if app just came back into focus, trigger an immediate check
+		if (!was_any_focused && is_any_focused) {
+			clearTimeout(_connectedcheck_timeout);
+			connectedcheck();
+		}
+	}
+
+	else if (e.data.action === 'getconnectedstate') {
+		e.source.postMessage({ 
+			action: 'connectedstate', 
+			state: _connectedstate === ConnectStateE.ONLINE ? 'online' : 'offline' 
+		});
 	}
 })
 
@@ -229,103 +270,133 @@ async function check_update_polling() {
 
 
 
-const handle_data_call = (r:Request) => new Promise<Response>(async (res, rej) => { 
+const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
-	if (_isoffline && !r.headers.get('call_even_if_offline')) {
-		res(new Response(null, { status: 503, statusText: 'Network error - App Offline' }))
+	const base_headers  = new Headers(r.headers);
+	const should_cache  = base_headers.has('Nifty-Cache')
+	const cache_api     = should_cache ? await caches.open(_cache_name) : null
+
+	// Check cache first before checking offline state
+	if (should_cache && cache_api) {
+		const cached_response = await cache_api!.match(r);
+		if (cached_response) {
+			const keys = await cache_api!.keys();
+			const req = keys.find(k => k.url === r.url && k.method === r.method && k.headers.has('Nifty-Cache'));
+			const cache_ts = req?.headers.get('Nifty-Cache') || null;	
+			const ts = cache_ts ? Number(cache_ts) : null;
+			if (ts && !isNaN(ts)) { 
+				const nowts = Math.round(Date.now() / 1000)
+
+				if (nowts > ts) {
+					// cache expired. default to proceed to network fetch
+
+				} else {
+					const headers_with_flag = new Headers(cached_response.headers);
+					headers_with_flag.set('Nifty-Is-Cache', 'true');
+					const flagged_response = new Response(cached_response.body, {
+						status: cached_response.status,
+						statusText: cached_response.statusText,
+						headers: headers_with_flag
+					});
+					res(flagged_response);
+					return
+				}
+			}
+			// unable to verify ts. proceed to network fetch
+		}
+		// no valid cache found, proceed to network fetch
+	}
+
+	// Now check offline state - no valid cache available at this point
+	if (_connectedstate === ConnectStateE.OFFLINE) {
+		res(new Response(null, { status: 503, statusText: 'Network error - App Offline', headers: new Headers() }));
 		return
 	}
 
 
 	let ar:any;
 
-
-	try				{ ar = await authrequest(); }
-	catch (err:any) { ar = err;                 }
-
-	if (ar === "Network error") {
-		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-		check_connectivity()
-		_isoffline = true;
-		res(new Response(null, { status: 503, statusText: 'Network error - On Auth Request' }))
-		// cannot authenticate. But this is a network error, so give retries etc a chance to recover before killing the app
-		rej();
-		return
-	}
-	else if (ar !== "ok") {
-		rej();
-		return
-	}
-
-	const is_appapi   = r.url.includes("/api/") ? true : false
-	const new_headers = new Headers(r.headers);
-
-	if (is_appapi) {
-		new_headers.append('versionofapp', _cache_version.toString())
-		new_headers.append('Authorization', `Bearer ${_id_token}`)
-	}
-
-	const { signal, abortsignal_timeoutid } = set_abort_signal(r.headers)
-
-	const new_request = new Request(r, {headers: new_headers, cache: 'no-store', signal});
-
-
-	/* ---------- LOCAL CACHE FOR DATA API ---------- */
-	let cache = await caches.open(_cache_name);
-	if (r.headers.get('Nifty-Cache') === 'true' && r.headers.get('Nifty-RefreshCache') !== 'true') {
-		const cached = await cache.match(new_request);   // ignoreVary defaults to false and is fine
-		if (cached) {           // serve cached copy immediately
-			res(cached.clone());
-			return;
+	try			{ ar = await authrequest(); }
+	catch (err) { 
+		if (err === "Network error") {
+			set_connectedstate_offline('data call timeout');
+			res(new Response(null, { status: 503, statusText: 'Network error', headers: new Headers() })); 
+			return; 
 		}
-	}
-	/* ---------------------------------------------- */
-
-
-	let server_response:any
-
-	try			 { server_response = await fetch(new_request) }
-	catch (_err) {
-		if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-		_isoffline = true;
-		clearTimeout(abortsignal_timeoutid)
-		check_connectivity()
-		res(new Response( null, { status: 503, statusText: 'Network error' } ))
-
-		rej();
-		return null
+		await error_out("sw4", "authrequest failed during data call - " + err)
+		res(new Response(null, { status: 401, statusText: 'Unauthorized', headers: new Headers() })); return; 
 	}
 
-	_isoffline = false;
 
-	clearTimeout(abortsignal_timeoutid)
+	base_headers.append('versionofapp', _cache_version.toString())
+	base_headers.append('Authorization', `Bearer ${_id_token}`)
 
-	if (server_response.status === 200) {
-		if (r.headers.get('Nifty-Cache') === 'true') cache!.put(new_request, server_response.clone())
-		res(server_response) 
+	const network_request = new Request(r, { headers: base_headers, cache: 'no-store', signal: AbortSignal.timeout(EXITDELAY) });
+
+	let server_response:Response;
+
+	try			    {   server_response = await fetch(network_request) }
+	catch (err:any) {
+		set_connectedstate_offline('data call timeout');
+		res(new Response(null, { status: 503, statusText: 'Network error', headers: new Headers() }));
+		return;
 	}
 
-	if (is_appapi && server_response.status === 401) { // unauthorized
+
+	if (server_response.status === 401) { // unauthorized
 		await error_out("sw4", "") 
-		// don't resolve. the fetch request will stay pending. But main.js will be notified and will handle the error including page redirection
-		rej();
+		res(new Response( null, { status: 401, statusText: 'Unauthorized', headers: new Headers()  } ))
 		return
 	}
 
-	else if (is_appapi && server_response.headers.get('updatedrequired')) {
+	if (server_response.headers.get('updatedrequired')) {
 		(self as any).clients.matchAll().then((clients:any) => {
 			clients.forEach((client: any) => {
 				client.postMessage({ action: 'update_init' });
 			})
 		})
 		// resolve, otherwise the fetch request will stay pending and disrupt service worker from updating
-		res(new Response( null, { status: 200, statusText: 'updatedrequired' } ))
+		res(new Response( null, { status: 426, statusText: 'updatedrequired', headers: new Headers()  } ))
 		return
 
-	} else {
-		res(server_response) 
-	} 
+	}
+
+	if (server_response.status === 200 && should_cache && cache_api) {   
+		cache_api!.put(network_request!, server_response.clone());   
+	}
+
+	res(server_response) 
 })
+
+
+
+
+/*
+const revalidate_cached_request = async (original_request: Request, _cached_response: Response, response_digest: string, base_headers: Headers, cache_api: Cache) => new Promise<void>(async (res, _rej) => {
+
+	let r:Response;
+
+	base_headers.set('Nifty-Cache-Digest', response_digest);
+
+	const { signal } = set_abort_signal(base_headers)
+	const cache_refresh_request = new Request(original_request, { headers: base_headers, cache: 'no-store', signal });
+
+	try { r = await fetch(cache_refresh_request); } 
+	catch (_err) { console.error("revalidate_cached_request fetch error"); res(); return; }
+
+	if (r.status === 304) {   console.log("no modifications"); return;   }
+
+	if (r.status !== 200) {   res(); return;   }
+
+	await cache_api.put(cache_refresh_request, r.clone());
+
+	(self as any).clients.matchAll().then((clients:any) => {
+		clients.forEach((client:any) => {
+			client.postMessage({ action: 'cache_revalidated', url: original_request.url });
+		})
+	})
+});
+*/
 
 
 
@@ -338,33 +409,29 @@ const handle_file_call = (nr:Request, pathname:string, requesturltype:RequestURL
 	const cache   = await caches.open(_cache_name)
 	const match_r = await cache.match(request_for_viewurl || nr)
 
-	if (match_r) { 
-		res(match_r) 
+	if (match_r) {   res(match_r); return;  } 
 
-	} else if (_isoffline && !nr.headers.get('call_even_if_offline')) {
-		res(set_failed_file_response(nr))
 
-	} else {
-		const { signal, abortsignal_timeoutid } = set_abort_signal(nr.headers)
-		
-		try {
-			const response = await fetch(nr, { signal })
-			_isoffline = false;
-			clearTimeout(abortsignal_timeoutid)
-			
-			if (response.status === 200 && should_url_be_cached(pathname)) {
-				cache.put(request_for_viewurl || nr, response.clone())
-			}
-			res(response)
+	if (_connectedstate === ConnectStateE.OFFLINE) {   res(set_failed_file_response()); return;   }
 
-		} catch (err:any) {
-			if (!_isoffline) _check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-			_isoffline = true;
-			clearTimeout(abortsignal_timeoutid)
-			check_connectivity()
-			res(set_failed_file_response(nr))
-		}
+
+	let r:any
+	try { r = await fetch(nr, { signal: AbortSignal.timeout(EXITDELAY) }); }
+	catch (err:any) {
+		set_connectedstate_offline('file call timeout');
+		res(set_failed_file_response())
+		return
 	}
+		
+	if (r.status !== 200) {
+		res(set_failed_file_response())
+		return;
+	}
+
+	if (r.status === 200 && should_url_be_cached(pathname)) {
+		cache.put(request_for_viewurl || nr, r.clone())
+	}
+	res(r)
 })
 
 
@@ -386,51 +453,7 @@ const get_view_name_from_url = (pathname: string): string | null => {
 
 
 
-const set_failed_file_response = (nr:Request) => { 
-	return nr.url.includes("/v/") ? set_failed_file_response_htmlpage(nr) : set_failed_file_response_other(nr)
-}
-
-
-
-
-const set_failed_file_response_htmlpage = (_nr:Request) => { 
-
-	let headers = new Headers({
-		'Content-Type': 'text/html; charset=UTF-8',
-		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-		'X-Content-Type-Options': 'nosniff'
-	})
-
-	const responsebody = `<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Unable To Load Page</title>
-	</head>
-	<body>
-		<script>
-			setTimeout(()=> {
-				window.location.href = "/v/appmsgs?logsubj=sw4&logmsg=Unable to load page - " + window.location.href
-			}, 2000)
-		</script>
-	</body>
-	</html>`
-
-	const returnresponse = new Response(responsebody, {                               
-		status: 200,                                                               
-		statusText: 'OK',                                                
-		headers: headers
-	})
-
-	return returnresponse
-}
-
-
-
-
-const set_failed_file_response_other = (_nr:Request) => { 
-
+const set_failed_file_response = () => { 
 	let headers: {[key: string]: string} = {
 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
 	}
@@ -449,16 +472,60 @@ const set_failed_file_response_other = (_nr:Request) => {
 
 
 
-function set_abort_signal(headers:Headers) {
+// const set_failed_file_response_htmlpage = (_nr:Request) => { 
+//
+// 	let headers = new Headers({
+// 		'Content-Type': 'text/html; charset=UTF-8',
+// 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+// 		'X-Content-Type-Options': 'nosniff'
+// 	})
+//
+// 	const responsebody = `<!DOCTYPE html>
+// 	<html lang="en">
+// 	<head>
+// 		<meta charset="UTF-8">
+// 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+// 		<title>Unable To Load Page</title>
+// 	</head>
+// 	<body>
+// 		<script>
+// 			setTimeout(()=> {
+// 				window.location.href = "/v/appmsgs?logsubj=sw4&logmsg=Unable to load page - " + window.location.href
+// 			}, 2000)
+// 		</script>
+// 	</body>
+// 	</html>`
+//
+// 	const returnresponse = new Response(responsebody, {                               
+// 		status: 200,                                                               
+// 		statusText: 'OK',                                                
+// 		headers: headers
+// 	})
+//
+// 	return returnresponse
+// }
+//
+//
+//
+//
+// const set_failed_file_response_other = (_nr:Request) => { 
+//
+// 	let headers: {[key: string]: string} = {
+// 		'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+// 	}
+//
+// 	const responsebody = `Unable to Load File`
+//
+// 	const returnresponse = new Response(responsebody, {                               
+// 		status: 503,                                                               
+// 		statusText: 'Network error',                                                
+// 		headers
+// 	})
+//
+// 	return returnresponse
+// }
+//
 
-	let controller              = new AbortController()
-	const { signal }            = controller;
-	const custom_exitdelay      = headers.get("exitdelay")
-	const exitdelay             = custom_exitdelay ? parseFloat(custom_exitdelay)*1000 : EXITDELAY;
-	const abortsignal_timeoutid = setTimeout(() => { controller.abort(); }, exitdelay);
-
-	return { signal, abortsignal_timeoutid }
-}
 
 
 
@@ -479,9 +546,6 @@ function should_url_be_cached(pathname:string) {
 
 const authrequest = () => new Promise<string>(async (res,rej)=> { 
 
-	// keep in mind that when retries are set (case in point being the refocus of the app), its probably gonna be authrequest that is gonna be first initial call 
-	// right now the the exitdelay is overriden to be 2.7 seconds (check FetchLassie logic to ascertain current value). a little problematic because refresh token could take longer on slow connections
-
     if (!_id_token) {
 		await error_out("sw4", "authrequest no token in browser storage")
 		rej("No token in browser storage")
@@ -493,16 +557,13 @@ const authrequest = () => new Promise<string>(async (res,rej)=> {
 
         const body = { refresh_token: _refresh_token }
 
-        const { signal, abortsignal_timeoutid } = set_abort_signal(new Headers()); // dumb header, not used
-
         fetch('/api/refresh_auth', {
             method: 'POST',
             headers: {'Content-Type': 'application/json',},
             body: JSON.stringify(body),
-            signal: signal
+            signal: AbortSignal.timeout(EXITDELAY)
 
         }).then(async r=> {
-            clearTimeout(abortsignal_timeoutid);
 
             let data = await r.json() as any
 
@@ -531,7 +592,6 @@ const authrequest = () => new Promise<string>(async (res,rej)=> {
             }
 
         }).catch(async _err=> {
-            clearTimeout(abortsignal_timeoutid);
 			rej("Network error") 
         })
     }
@@ -555,8 +615,7 @@ const error_out = (subject:string, errmsg:string="") => new Promise((res, _rej) 
 		})
 	})
 
-	// by the time this settimeout hits, the main thread has been notified and should have already completely redirected the app to error page
-	setTimeout(()=> { res(1) }, 100)
+	res(1)
 })
 
 
@@ -583,36 +642,131 @@ function logit(type:number, subject:string, msg:string="") {
 
 
 
-const check_connectivity = async () => {
+const isAnyClientFocused = () => _client_visibility.size === 0 || [..._client_visibility.values()].some(v => v === true);
 
-	if (_isoffline) {
 
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 3000);
 
-		await fetch('/api/ping', { signal: controller.signal })
-			.then(()=> {
-				clearTimeout(timeout);
-				_check_connectivity_interval = MAX_CHECK_CONNECTIVITY_INTERVAL
-				_isoffline = false;
-			})
-			.catch(()=> {
-				clearTimeout(timeout);
-				_check_connectivity_interval = Math.min(_check_connectivity_interval * 1.5, MAX_CHECK_CONNECTIVITY_INTERVAL)
-				_isoffline = true;
-			})
+
+const set_connectedstate_offline = (logmsg = "set to offline") => {
+
+	_connectedstate = ConnectStateE.OFFLINE;
+	clearTimeout(_connectedcheck_timeout);
+	_connectedcheck_timeout = setTimeout(()=> connectedcheck(), 500);  
+
+	for_testing_log(logmsg);
+}
+
+const getBackoffTimeout = () => CONNECTEDSTATE_CHECK_TIMEOUT * _backoff_multiplier;
+const incrementBackoff  = () => { _backoff_multiplier = Math.min(_backoff_multiplier + 1, BACKOFF_MAX); }
+const resetBackoff      = () => { _backoff_multiplier = 1; }
+
+
+
+
+const connectedcheck = async () => {
+
+	const navigOn    = (self as any).navigator.onLine ? true : false
+	
+	const anyFocused = isAnyClientFocused();
+
+	// online and stable and app focused - use base interval, reset backoff
+	if (_connectedstate === ConnectStateE.ONLINE && navigOn && anyFocused) {	
+		resetBackoff();
+		_connectedcheck_timeout = setTimeout(()=> connectedcheck(), CONNECTEDSTATE_CHECK_TIMEOUT);  
+		return;   
 	}
 
-	clearTimeout(timeouthandler)
-	// hack! just keep it checking every 5 seconds
-	_check_connectivity_interval = INITIAL_CHECK_CONNECTIVITY_INTERVAL
-	timeouthandler = setTimeout(() => check_connectivity(), _check_connectivity_interval)
+	// online but app not focused - use backoff
+	if (_connectedstate === ConnectStateE.ONLINE && navigOn && !anyFocused) {	
+		incrementBackoff();
+		_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());  
+		return;   
+	}
+
+	// was online, now navigator says offline - start backing off
+	if (_connectedstate === ConnectStateE.ONLINE && !navigOn) {   
+		_connectedstate = ConnectStateE.OFFLINE; 
+		incrementBackoff();
+		_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());  
+		return;   
+	}
+
+	// still offline, keep backing off
+	if (_connectedstate === ConnectStateE.OFFLINE && !navigOn) {    
+		incrementBackoff();
+		_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());  
+		return;   
+	}
+
+	// at this point, internal state is offline, but navigator says online, so do a fetch test
+
+	fetch('/api/ping', { signal: AbortSignal.timeout(3000) })
+		.then((r:Response)=> {
+			if (r.status !== 200) { 
+				_connectedstate = ConnectStateE.OFFLINE;
+				incrementBackoff();
+				_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());  
+				return; 
+			}
+			// ping succeeded - back online, reset backoff
+			_connectedstate = ConnectStateE.ONLINE
+			if (isAnyClientFocused()) {
+				resetBackoff();
+				_connectedcheck_timeout = setTimeout(()=> connectedcheck(), CONNECTEDSTATE_CHECK_TIMEOUT);
+			} else {
+				incrementBackoff();
+				_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());
+			}
+
+			// let the main thread know we're back online
+			(self as any).clients.matchAll().then((clients:any) => {
+				clients.forEach((client: any) => {
+					client.postMessage({ action: 'backonline' });
+				})
+			})
+		})
+		.catch(()=> {
+			_connectedstate = ConnectStateE.OFFLINE;
+			incrementBackoff();
+			_connectedcheck_timeout = setTimeout(()=> connectedcheck(), getBackoffTimeout());
+		})
 }
 
 
 
 
-const load_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej) => {
+const periodicmaintenance = async () => {
+
+	// clean up stale client visibility entries
+	const activeClients = await (self as any).clients.matchAll();
+	const activeIds = new Set(activeClients.map((c:any) => c.id));
+	for (const [id] of _client_visibility) {
+		if (!activeIds.has(id)) _client_visibility.delete(id);
+	}
+
+	// yoink out caches older than what their Nifty-Cache header says
+	const now  = Math.round(Date.now() / 1000)
+	let cache  = await caches.open(_cache_name);
+	const keys = await cache.keys();
+
+	keys.forEach((req) => {
+		const tsstring = req.headers.get('Nifty-Cache')
+		if (!tsstring) return;
+
+		const ts = Number(tsstring)
+		if (now > ts) {
+			cache.delete(req.url);
+		}
+	})
+
+	setTimeout(()=> periodicmaintenance(), PERIODIC_MAINTENANCE_INTERVAL);
+}
+
+
+
+
+const preload_base_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej) => {
+
     const cache = await caches.open(_cache_name);
 
     const promises = assets.map(async (url) => {
@@ -622,12 +776,8 @@ const load_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej
                 return 1; // Already cached
             }
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), EXITDELAY); // Timeout for individual fetch
-            
-            const response = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeout);
-            
+            const response = await fetch(url, { signal: AbortSignal.timeout(EXITDELAY) });
+
             if (response && response.status === 200) {
                 await cache.put(url, response.clone());
                 return 1; // Fetched and cached
@@ -642,3 +792,17 @@ const load_assets_into_cache = (assets:string[]) => new Promise(async (res, _rej
         res(1); 
     });
 });
+
+
+
+
+function for_testing_log(msg:string, secondarymsg:string="") {
+
+	if (!_is_test_logging) return;
+
+	if (!secondarymsg) { console.debug(msg); } else { console.debug(msg, secondarymsg);  }
+}
+
+
+
+

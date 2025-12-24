@@ -1,8 +1,7 @@
 
+
 import { bool, str } from '../../../defs_server_symlink.js'
 import { CMechLoadedDataT, $NT, GenericRowT, LazyLoadFuncReturnT } from "../../../defs.js"
-
-
 
 
 declare var render: any;
@@ -10,24 +9,16 @@ declare var html: any;
 declare var $N: $NT;
 
 
-
 type AttributesT = {
     propa: string,
 }
 
 type ModelT = {
-	propa: string,
+	dummydata: Object[],
 }
 type StateT = {
-    showlogs: bool,
-	showappupdated: bool
-	showdatawipe: bool,
-	show_gen_logsubj: bool,
-	logs: string[],
-    logsubj: string,
+    propa: bool,
 }
-
-
 
 
 const ATTRIBUTES:AttributesT = { propa: "" }
@@ -35,22 +26,14 @@ const ATTRIBUTES:AttributesT = { propa: "" }
 
 
 
-class VAppMsgs extends HTMLElement {
+class VTestAssist extends HTMLElement {
 
-	m:ModelT = { propa: "" };
+	m:ModelT = { dummydata: [] };
 	a:AttributesT = { ...ATTRIBUTES };
     s:StateT = {
-		showlogs: false,
-		showappupdated: false,
-		showdatawipe: false,
-		show_gen_logsubj: false,
-		logs: [],
-        logsubj: ""
+		propa: false
 	}
-
     shadow:ShadowRoot
-
-
 
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
@@ -58,9 +41,9 @@ class VAppMsgs extends HTMLElement {
 
 
 
-    constructor() {   
+    constructor() {
 
-        super(); 
+        super();
         this.shadow = this.attachShadow({mode: 'open'});
     }
 
@@ -87,6 +70,17 @@ class VAppMsgs extends HTMLElement {
 	static load(_pathparams:GenericRowT, _searchparams:GenericRowT): Promise<LazyLoadFuncReturnT> {
 		return new Promise(async (res, _rej) => {
 			const d = new Map<str,GenericRowT[]>()
+			const dummydata = [
+				{ dummytext: "Chair" },
+				{ dummytext: "Table" },
+				{ dummytext: "Lamp" },
+				{ dummytext: "Sofa" },
+				{ dummytext: "Desk" },
+				{ dummytext: "Shelf" },
+				{ dummytext: "Bed" },
+				{ dummytext: "Rug" },
+			]
+			d.set("dummydata", dummydata)
 			res({ d, refreshon:[]})
 		})
 	}
@@ -94,51 +88,29 @@ class VAppMsgs extends HTMLElement {
 
 
 
-	ingest(_loadeddata: CMechLoadedDataT, _pathparams:GenericRowT, searchparams:GenericRowT) {
+	ingest(loadeddata: CMechLoadedDataT, _pathparams:GenericRowT, _searchparams:GenericRowT) {
 
-		this.s.logsubj = searchparams.logsubj || ''
-		this.s.showappupdated = searchparams.appupdate || false
-
-		if (searchparams.appupdate) {
-			this.s.showappupdated = true
-		}
-		else if (this.s.logsubj === 'ldr') { // data wipe
-			this.s.showdatawipe = true
-		}
-		else if (this.s.logsubj) { // generic
-			this.s.show_gen_logsubj = true;
-		}
+		const dummydata = loadeddata.get('dummydata') || [];
+		this.m.dummydata = dummydata;	
 	}
 
 
 
 
     render() {
-        render(this.template(this.s), this.shadow);
+        render(this.template(this.s, this.m), this.shadow);
     }
 
 
 
+    template = (_s:StateT, _m:ModelT) => { return html`{--css--}{--html--}`; }; 
 
-	show_logs() {
-
-		const l = localStorage.getItem('logs')
-		this.s.logs = l && l.includes('-') ? l.split('-') : [(l || '')]
-
-		this.s.showlogs = true
-		this.render();
-	}
-
-
-
-    template = (_s:StateT) => { return html`{--css--}{--html--}`; }; 
 
 }
 
 
 
-
-customElements.define('v-appmsgs', VAppMsgs);
+customElements.define('v-testassist', VTestAssist);
 
 
 

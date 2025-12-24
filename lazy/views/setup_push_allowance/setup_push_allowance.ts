@@ -7,8 +7,8 @@
 
 
 
-import { bool } from '../../../defs_server_symlink.js'
-import { $NT } from "../../../defs.js"
+import { bool, str } from '../../../defs_server_symlink.js'
+import { $NT, LazyLoadFuncReturnT, GenericRowT } from "../../../defs.js"
 
 
 declare var render: any;
@@ -87,32 +87,7 @@ class VSetupPushAllowance extends HTMLElement {
 
 
 
-    async connectedCallback() {   
-
-		await $N.CMech.ViewConnectedCallback(this)
-
-		try { await loadfirebase(); }
-		catch (e) { 
-			$N.Unrecoverable("Error loading subscription system", e, "Back to Home", "gen", "error loading firebase from gstatic", null);
-			return;
-		}
-
-        navigator.serviceWorker.ready
-
-			.then((registration) => {
-				return registration.pushManager.getSubscription()
-			})
-
-			.then(subscription => {
-				if (subscription) {
-					this.s.is_subscribed = true
-				} else {
-					this.s.is_subscribed = false
-				}
-				this.sc()
-				setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
-        })
-    }
+    async connectedCallback() {$N.CMech.RegisterView(this);}
 
 
 
@@ -129,12 +104,53 @@ class VSetupPushAllowance extends HTMLElement {
 
 
 
-	kd() {}
+	static load(_pathparams:GenericRowT, _searchparams:GenericRowT): Promise<LazyLoadFuncReturnT> {
+		return new Promise(async (res, _rej) => {
+			const d = new Map<str,GenericRowT[]>()
+			res({ d, refreshon:[]})
+		})
+	}
 
 
 
 
-    sc() {
+	ingest() {}
+
+
+
+
+	async hydrated() {
+		try { await loadfirebase(); }
+		catch (e) { 
+			$N.Unrecoverable("Error loading subscription system", e, "Back to Home", "gen", "error loading firebase from gstatic", null);
+			return;
+		}
+
+		navigator.serviceWorker.ready
+
+			.then((registration) => {
+				return registration.pushManager.getSubscription()
+			})
+
+			.then(subscription => {
+				if (subscription) {
+					this.s.is_subscribed = true
+				} else {
+					this.s.is_subscribed = false
+				}
+				this.render()
+				setTimeout(()=> {   this.dispatchEvent(new Event('hydrated'))   }, 100)
+			})
+			
+			.catch(err => {
+				console.error('Error during getSubscription()', err)
+			})
+	}
+
+
+
+
+    render() {
         render(this.template(this.s), this.shadow);
     }
 
@@ -180,7 +196,7 @@ class VSetupPushAllowance extends HTMLElement {
 					}	
 
 					this.s.is_subscribed = true
-					this.sc()
+					this.render()
 
 
 					await reg.showNotification('Notification with ServiceWorker', {
@@ -213,7 +229,7 @@ class VSetupPushAllowance extends HTMLElement {
                     })
 
                     this.s.is_subscribed = false
-                    this.sc()
+                    this.render()
 
 					e.detail.done()
 
@@ -279,7 +295,7 @@ class VSetupPushAllowance extends HTMLElement {
             })
 
             this.s.is_subscribed = true
-            this.sc()
+            this.render()
         })
     }
     */

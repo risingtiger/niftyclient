@@ -2,7 +2,8 @@
   "INFO": {
     "localdb_objectstores": [
       {"name": "localdbsync_pending_sync_operations"},
-      {"name": "pending_logs"}
+      {"name": "pending_logs", "auto_increment": true},
+      {"name": "__deleted_docs"}
     ]
   },
   "LAZYLOADS": [
@@ -32,6 +33,16 @@
 		  { "type": "component", "name": "btn" }
 		],
 		"auth": ["admin", "store_manager", "scanner"]
+	  },
+	  {
+		"type": "view",
+		"urlmatch": "testassist",
+		"name": "testassist",
+		"is_instance": false,
+		"dependencies": [
+		  { "type": "component", "name": "btn" }
+		],
+		"auth": ["admin"]
 	  },
 	  {
 		"type": "component",
@@ -90,6 +101,13 @@
 		  { "type": "component", "name": "dselect" },
 		  { "type": "component", "name": "animeffect" }
 		],
+		"auth": []
+	  },
+	  {
+		"type": "component",
+		"name": "form2",
+		"is_instance": false,
+		"dependencies": [],
 		"auth": []
 	  },
 	  {

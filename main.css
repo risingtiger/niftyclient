@@ -1,60 +1,18 @@
-/*
-:host {
-    --textcolor: #565656;
-    --textcolor-fade: #818181;
-    --textsize: 14px;+
-    --actioncolor: #0091e8;
-    --background: white;
-    --background-highlight: #f9f9f9;
-    --bordercolor: lightgray;
 
-    --padding-container: 10px;
-}
-*/
-
-
-
-
-div,
-span,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-button {
-    font-family: var(--fontfamily);
-    -webkit-font-smoothing: antialiased;
-    font-size: var(--textsize);
-    line-height: 1.2;
+div,span,h1,h2,h3,h4,h5,h6,p,button,td {
     margin: 0;
     padding: 0 0px 0 0;
-    color: var(--textcolor);
+	font-family: var(--fontfamily);
+	font-size: var(--textsize);
+    line-height: 1.2;
+	color: var(--textcolor);
+    -webkit-font-smoothing: antialiased;
 }
 
 a:hover {
     cursor: pointer;
 }
 
-
-
-/* TODO: remove this since wrapper took its place. search to make sure no views are still using it */
-div.content {
-    position: relative;
-    display: block;
-    width: 100vw;
-	height: 100svh;
-	box-sizing:  border-box;
-	padding-top: 20px;
-    overflow-x: hidden;
-	background-color: white;
-	/*
-    overflow-y: scroll;
-*/
-    z-index: 9;
-}
 
 div.wrapper {
     position: relative;
@@ -77,11 +35,6 @@ div.wrapper.anime_lower {
 	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
 }
 
-a:hover {
-    cursor: pointer;
-}
-
-
 header.viewheader {
     display: flex;
     position: fixed;
@@ -102,6 +55,7 @@ header.viewheader {
         box-sizing: border-box;
         padding-top: 1px;
 		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        white-space: nowrap;
 
         & span:nth-child(1) {
             display: inline-block;
@@ -119,9 +73,6 @@ header.viewheader {
             padding-left: 10px;
             transform: translateY(-2px);
         }
-
-
-        white-space: nowrap;
 
 		& i.icon-arrowleft1 {
 			display: block;
@@ -165,9 +116,8 @@ header.viewheader {
 		}
     }
 }
-header.viewheader.ol_animate {
 
-}
+
 
 ul.items {
     list-style: none;
@@ -203,31 +153,30 @@ ul.items {
             padding: 12px 0 0 12px;
         }
 
-        & > h5 {
+
+		/* h5 is only intended for title as first element */
+		/* use .aux and/or .aux > h5 for more complex column layout in row */
+        & > h5:first-child { 
             font-weight: 700;
-            padding: 18px 0 0 0;
-        }
-
-
-        & > h5:first-child {
-            padding-left: 12px;
-            padding-right: 6px;
+            padding: 18px 6px 0 12px;
+			flex-grow: 1;
             width: 125px;
             overflow: hidden;
             text-wrap: nowrap;
         }
 
+		/* p is only intended for right aligned text as last element */
+		/* use .aux and/or .aux > p for more complex column layout in row */
         & > p {
             font-weight: 400;
-            padding: 18px 0 0 0;
+            padding: 18px 0px 0 0;
             color: var(--textcolor);
             flex-grow: 1;
             text-align: right;
         }
-
-        & > p:last-child {
-            padding-right: 11px;
-        }
+		& > p:last-child {
+			padding-right: 12px;
+		}
 
 		& > .actions {
             display: flex;
@@ -240,9 +189,7 @@ ul.items {
 				width: 20px;
 				height: 20px;
 				color: #8b8b8b;
-			}
-			& > i.action:hover {
-				color: var(--actioncolor);
+				-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 			}
 		}
 
@@ -263,10 +210,12 @@ ul.items {
         & > .aux {
             flex-grow: 1;
 
+
             & > h5 {
                 font-weight: 500;
                 white-space: nowrap;
                 overflow: hidden;
+                padding: 9px 0px 0 0px;
             }
 
             & > h6 {
@@ -319,11 +268,6 @@ ul.items {
             padding-top: 9px;
         }
     }
-
-
-	& li:hover {
-		background: var(--background-highlight);
-	}
 }
 
 dl.define {
@@ -404,30 +348,7 @@ dialog::backdrop {
     background-color: rgba(0, 0, 0, 0);
 }
 
-/*
-    & select, select.form-control {
-        appearance: none;
-        font-weight: 900;
-        font-family: inherit;
-        font-size: var(--textsize);
-        color: #797979;
-        border: 1px solid #ddd;
-        height: 32px;
-        padding: 0px 40px 0px 10px;
-        box-shadow: inset 0 -1.3em 1em 0 rgba(0, 0, 0, 0.02);
-        background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAHCAYAAAD9NeaIAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA+hpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNS1jMDIxIDc5LjE1NDkxMSwgMjAxMy8xMC8yOS0xMTo0NzoxNiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgKE1hY2ludG9zaCkiIHhtcDpDcmVhdGVEYXRlPSIyMDE1LTA0LTE3VDE3OjEyOjQyKzAyOjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAxNS0wNC0yMFQxNzoxNjoyNCswMjowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAxNS0wNC0yMFQxNzoxNjoyNCswMjowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RTU4MjBDRURERjVCMTFFNEEzN0FCODBEM0I5MTExMjkiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RTU4MjBDRUVERjVCMTFFNEEzN0FCODBEM0I5MTExMjkiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo2RUVFRDJCNkREQzMxMUU0QTM3QUI4MEQzQjkxMTEyOSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpFNTgyMENFQ0RGNUIxMUU0QTM3QUI4MEQzQjkxMTEyOSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PuShL/sAAABeSURBVHjaYszOzjZnYGDYCcT8DMSBv0AcP2XKlKVEqmdgAuKTQOwOxB+JtQCIibYAZgkDkRaRZQGyJYQsItsCdEtwWUSRBdgsQbeIYgtAgAWHOMwiJSBezkAhAAgwAJSTG/DI0S9VAAAAAElFTkSuQmCC);
-        background-position: 100% 50%;
-        background-repeat: no-repeat;
-        background-size: auto 15%;
-        border-radius: 4px;
 
-        &:focus {
-            border-color : #aaaaaa;
-            outline      : 0;
-            box-shadow   : inset 0 -1.3em 1em 0 rgba(0, 0, 0, 0.02);
-        }
-    }
-*/
 
 i[class^="icon-"]:before,
 i[class*=" icon-"]:before {
@@ -442,77 +363,80 @@ i[class*=" icon-"]:before {
 }
 
 
-.icon-trash:before {
+.icon-circles:before {
     content: "\f101";
 }
-.icon-tripledot:before {
+.icon-trash:before {
     content: "\f102";
 }
-.icon-copy:before {
+.icon-tripledot:before {
     content: "\f103";
 }
-.icon-save:before {
+.icon-copy:before {
     content: "\f104";
 }
-.icon-burger:before {
+.icon-save:before {
     content: "\f105";
 }
-.icon-add:before {
+.icon-burger:before {
     content: "\f106";
 }
-.icon-list:before {
+.icon-add:before {
     content: "\f107";
 }
-.icon-piggy:before {
+.icon-list:before {
     content: "\f108";
 }
-.icon-bucket:before {
+.icon-piggy:before {
     content: "\f109";
 }
-.icon-stopwatch:before {
+.icon-bucket:before {
     content: "\f10a";
 }
-.icon-pressure:before {
+.icon-stopwatch:before {
     content: "\f10b";
 }
-.icon-meter:before {
+.icon-pressure:before {
     content: "\f10c";
 }
-.icon-info:before {
+.icon-meter:before {
     content: "\f10d";
 }
-.icon-graph:before {
+.icon-info:before {
     content: "\f10e";
 }
-.icon-location:before {
+.icon-graph:before {
     content: "\f10f";
 }
-.icon-refresh:before {
+.icon-location:before {
     content: "\f110";
 }
-.icon-search:before {
+.icon-refresh:before {
     content: "\f111";
 }
-.icon-tune:before {
+.icon-search:before {
     content: "\f112";
 }
-.icon-edit2:before {
+.icon-tune:before {
     content: "\f113";
 }
-.icon-edit1:before {
+.icon-edit2:before {
     content: "\f114";
 }
-.icon-checkcircle:before {
+.icon-edit1:before {
     content: "\f115";
 }
-.icon-arrowright2:before {
+.icon-checkcircle:before {
     content: "\f116";
 }
-.icon-arrowleft1:before {
+.icon-arrowright2:before {
     content: "\f117";
 }
-.icon-arrowright1:before {
+.icon-arrowleft1:before {
     content: "\f118";
+}
+.icon-arrowright1:before {
+    content: "\f119";
 }
 
 
@@ -527,7 +451,7 @@ i[class*=" icon-"]:before {
 @media only screen and (max-device-width: 767px) {
 
 	header.viewheader {
-		padding-top: 0px;
+		padding-top: 3px;
 		height: 26px;
 		
 		& .left {
@@ -555,6 +479,45 @@ i[class*=" icon-"]:before {
 @media only screen and (min-device-width: 768px) {
 }
 
+
+
+
+@media (hover: hover) {
+	ul.items > li:hover {
+		background: var(--background-highlight);
+	}
+
+	ul.items > li i.action:hover {
+		color: var(--actioncolor);
+	}
+}
+
+
+
+
+@keyframes shimmer {
+	0% { left: -100%; }
+	100% { left: 100%; }
+}
+
+/* @media (hover: none) and (pointer: coarse) { */
+	ul.items > li.clickity {
+		position: relative;
+		overflow: hidden;
+		background-color: #fefefe;
+	}
+
+	ul.items > li.clickity::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: -100%;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.5), transparent);
+		animation: shimmer .5s ease-in-out infinite;
+	}
+/* } */
 
 
 

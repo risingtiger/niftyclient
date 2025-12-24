@@ -28,12 +28,13 @@ export type FetchLassieHttpOptsT = {
 }
 export type FetchLassieOptsT = {
 	retries?: num,
+	is_fetchonbrowserfocus?: boolean,
 	background?: boolean,
 	animate?: boolean,
-	refreshcache?: boolean,
-	cacheit?: boolean
+	cacheit?: boolean|string
 }
 export type FetchResultT = {
+	headers: Headers,
 	status: number,
 	statusText: string,
 	ok: boolean,
@@ -51,45 +52,49 @@ export type FirestoreLoadSpecT    = Map<string, { name:string, opts?:FirestoreOp
 export type FirestoreFetchResultT = Map<string, Array<object>>|null
 */
 
+export type SSEventListenerEvents = "datasync_doc_add" | "datasync_doc_delete" | "datasync_doc_patch" | "datasync_collection"
 
+export type EngagementListenerEvents = "visible" | "hidden" | "resize" | "15interval"
+
+export type DataHodlEvents = SSEventListenerEvents | EngagementListenerEvents | 'backonline'
 
 export type EngagementListenerT = {
 	el: HTMLElement,
     name: string,
-    type: "visible" | "hidden" | "resize",
+    type: EngagementListenerEvents[],
 	priority: number,
-    callback:()=>void
+    callback:(s:EngagementListenerEvents)=>void
 }
 
+export type CMechViewLoadStateT = 'initial' | 'paramschanged' | 'postload' | 'server_state_change'
 
 export type CMechViewT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
 	subelshldr?:HTMLElement[]
-	opts?: {kdonvisibled:boolean, kdonlateloaded:boolean}
+	opts?: {}
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams:GenericRowT, searchparams:GenericRowT)=>void, // loadstate: 'initial' | 'datachanged' | 'visibled' | 'lateloaded' | 'paramschanged' | 'searchchanged'
-
-	sc:(state_changes?:any)=>void,
+	ingest:(loadeddata:CMechLoadedDataT, pathparams:GenericRowT, searchparams:GenericRowT, loadstate?:CMechViewLoadStateT)=>void, // loadstate: 'initial' | 'datachanged' | 'paramschanged' | 'searchchanged'
+	render:(state_changes?:any)=>void,
+	hydrated?:()=>void,
+	revealed?:()=>void
 }
 export type CMechViewPartT = {
 	disconnectedCallback:()=>void,
 	attributeChangedCallback:(name:string, oldval:str|boolean|number, newval:string|boolean|number)=>void,
-	hostview?:CMechViewT,
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
-	kd:(loadeddata:CMechLoadedDataT, loadstate:string, pathparams: GenericRowT, searchparams:GenericRowT)=>void, // refer to CMechViewT for loadstate values
-	sc:(state_changes?:any)=>void,
+	ingest:(loadeddata:CMechLoadedDataT, pathparams: GenericRowT, searchparams:GenericRowT, loadstate:CMechViewLoadStateT)=>void, // refer to CMechViewT for loadstate values
+	render:(state_changes?:any)=>void,
+	hydrated?:()=>void,
+	revealed?:()=>void
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
-
-
-
-
+export type ToastLevelT = 'info' | 'saved' | 'success' | 'warning' | 'error' 
 
 
 
@@ -99,7 +104,7 @@ export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
 export type $NT = {
 	SSEvents: {
-		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:string[], priority:number|null, callback_func:any) => void
+		Add_Listener: (el:HTMLElement, listener_name:string, eventnames:SSEventListenerEvents[], priority:number|null, cb:(e:any, n:SSEventListenerEvents)=>void) => void
 		Remove_Listener: (el:HTMLElement, name:string)=>void
 		HandleMessage: (data:any)=>void
 	},
@@ -110,44 +115,44 @@ export type $NT = {
 
 	EngagementListen: {
 		Init: () => void,
-		Add_Listener: (el:HTMLElement, name:string, type:"visible" | "hidden" | "resize", priority:number|null, callback:()=>void) => void
-		Remove_Listener: (name:string, type:"visible" | "hidden" | "resize") => void
+		Add_Listener: (el:HTMLElement, name:string, type:EngagementListenerEvents[], priority:number|null, callback:(s:EngagementListenerEvents)=>void) => void
+		Remove_Listener: (el:HTMLElement, name:string, type:EngagementListenerEvents[]) => void
 	}
 
-	LocalDBSync: {
-		Add:   (path:string, newdocs:any[]) => Promise<any>,
-		Patch: (path:string, data:GenericRowT) => Promise<any>,
-		Delete:(path:string, id:string) => Promise<any>,
+	DataHodl: {
+		AddLocalDB:   (path:string, newdocs:GenericRowT) => Promise<any>,
+		PatchLocalDB: (path:string, data:GenericRowT) => Promise<any>,
+		DeleteLocalDB:(path:string, id:string) => Promise<any>,
 	}
 
 	CMech: {
-		ViewConnectedCallback: (component:HTMLElement & CMechViewT, opts?: {kdonvisibled?:boolean, kdonlateloaded?:boolean}) => Promise<void>
-		ViewPartConnectedCallback: (component:HTMLElement & CMechViewPartT) => Promise<void>
+		RegisterView: (component:HTMLElement & CMechViewT) => void
+		RegisterViewPart: (component:HTMLElement & CMechViewPartT) => Promise<void>
+		PostLoadViewPart: (component:HTMLElement & CMechViewPartT) => Promise<boolean>
 		AttributeChangedCallback: (component:HTMLElement, name:string, oldval:str|boolean|number, newval:string|boolean|number, _opts?:object) => Promise<void>
 		ViewDisconnectedCallback: (component:HTMLElement) => void
 		ViewPartDisconnectedCallback: (component:HTMLElement) => void,
 	}
 
 	FetchLassie: (url:string, http_optsP?:FetchLassieHttpOptsT|undefined|null, opts?:FetchLassieOptsT|null|undefined) => Promise<FetchResultT>
-	FetchLassie_IsOffline: () => boolean
 
 	Logger: {
-		Log: (type:number, subject:string, message:str) => void, // refer to logger.ts for type and subject comments
-		Save: () => void
-		Get: () => void
+		log: (type:number, subject:string, message:str) => void, // refer to logger.ts for type and subject comments
+		get: () => void
 	}
 
 	Utils: {
-		CSV_Download: (csvstr:string, filename:string) => void,
+		CSVDownload: (csvstr:string, filename:string) => void,
 		resolve_object_references: (list: {[key: str]: any}[], object_stores: Map<string, {[key: str]: any}[]>) => {[key: str]: any}[]
 	}
 
-	ToastShow: (msg: str, level?: number|null, duration?: num|null) => void
+	ToastShow: (msg: str, level?: ToastLevelT, duration?: num|null) => void
 	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:string, logerrmsg:string, redirectionurl:string|null) => void
+	GetConnectedState: () => Promise<'online' | 'offline'>
 	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {
-		GoTo: (newPath: string) => void,
+		GoTo: (newPath: string, opts?:{replacestate?:boolean}) => void,
 		GoBack: (opts:{default:str}) => void,
 	}
 
@@ -159,6 +164,8 @@ export type $NT = {
 		ClearAll:     (objectstore_name:str) => Promise<num>,
 		AddOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
 		PutOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		PutMany:      (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
+		DeleteMany:   (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
 		DeleteOne:    (objectstore_name:str, id:str) => Promise<string>,
 		Count:        (objectstore_name:str) => Promise<number>,
 		GetOne_S:     (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
@@ -183,5 +190,10 @@ export type INSTANCE_T = {
 		localdb_objectstores: {name:str,indexes?:str[]}[],
 	},
 	LAZYLOADS: LazyLoadT[],
-	LAZYLOAD_DATA_FUNCS: { [key:string]: any }
+	// LAZYLOAD_DATA_FUNCS: { [key:string]: any }
 }
+
+
+export type PRELOAD_BASE_ASSETS_T = '/v/appmsgs' | '/v/login' | '/v/home' | '/';
+
+

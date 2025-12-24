@@ -1,7 +1,7 @@
 
 
 <header class="viewheader">
-    <a class="left" @click="${()=>$N.SwitchStation.NavigateBack({default:'home'})}"><span>‸</span></a>
+    <a class="left" @click="${()=>$N.SwitchStation.GoBack({default:'home'})}"><span>‸</span></a>
     <div class="middle"><h1>Notifications</h1></div>
     <div class="right">
         &nbsp;
@@ -9,7 +9,8 @@
 </header>
 
 
-<div class="content">
+
+<div class="wrapper">
     <div style="text-align:center; padding-top: 30px;">
 
         ${_s.is_subscribed ? html`
