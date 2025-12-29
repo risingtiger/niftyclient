@@ -26,20 +26,6 @@ header.viewheader {
     overflow-y: hidden;
     background: white;
     border-radius: 18px 18px 0 0;
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     & .left {
         display: block;
@@ -125,6 +111,7 @@ div.wrapper {
     background-color: white;
      /* for in anime lower */
     z-index: 9;
+    view-transition-name: wrapper-transition;
 }
 div.wrapper.anime_lower {
 	transform: translate3d(0, 9px, 0) scaleX(0.97);

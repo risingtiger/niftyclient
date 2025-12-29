@@ -53,7 +53,6 @@ body {
 	height: 100svh;
 	overflow: hidden;
 	isolation: isolate;
-	view-transition-name: views-transition;
 
 	& .view {
 		display: block;
@@ -221,19 +220,19 @@ body {
 
 
 
-::view-transition-old(views-transition) {
+::view-transition-old(wrapper-transition) {
 	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) previouspage-slide-out;
 }
-::view-transition-new(views-transition) {
+::view-transition-new(wrapper-transition) {
 	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) nextpage-slide-in;
 }
 
 
-:root.back-navigation::view-transition-old(views-transition) {
+:root.back-navigation::view-transition-old(wrapper-transition) {
 	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) back-currentpage-slide-out;
 	z-index: 2;
 }
-:root.back-navigation::view-transition-new(views-transition) {
+:root.back-navigation::view-transition-new(wrapper-transition) {
 	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) back-previouspage-slide-in;
 	z-index: 1;
 }
