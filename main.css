@@ -14,38 +14,32 @@ a:hover {
 }
 
 
-div.wrapper {
-    position: relative;
-    display: block;
-    box-sizing:  border-box;
-    padding-top: 0px;
-    overflow-x: hidden;
-    overflow-y: hidden;
-	width: 100vw;
-	height: 100svh;
-    background-color: white;
-    border-radius: 18px 18px 0 0; /* for in anime lower */
-    z-index: 9;
-}
-div.wrapper.anime_lower {
-	transform: translate3d(0, 9px, 0) scaleX(0.97);
-	opacity: 0.5;
-	transition-property: transform, opacity;
-	transition-duration: 0.3s;
-	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
-}
-
 header.viewheader {
     display: flex;
-    position: fixed;
     width: 100vw;
-    height: 134px;
+    height: 34px;
     z-index: 10;
     padding: 8px 0px 0 0;
-    height: var(--viewheader-height);
     box-sizing: border-box;
     justify-content: flex-start;
     overflow-x: hidden;
+    overflow-y: hidden;
+    background: white;
+    border-radius: 18px 18px 0 0;
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     & .left {
         display: block;
@@ -116,6 +110,30 @@ header.viewheader {
 		}
     }
 }
+
+
+
+div.wrapper {
+    position: relative;
+    display: block;
+    box-sizing:  border-box;
+    padding-top: 0px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    width: 100vw;
+    height: calc(100svh - 34px);
+    background-color: white;
+     /* for in anime lower */
+    z-index: 9;
+}
+div.wrapper.anime_lower {
+	transform: translate3d(0, 9px, 0) scaleX(0.97);
+	opacity: 0.5;
+	transition-property: transform, opacity;
+	transition-duration: 0.3s;
+	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
+}
+
 
 
 
@@ -442,12 +460,6 @@ i[class*=" icon-"]:before {
 
 
 
-
-
-
-
-
-
 @media only screen and (max-device-width: 767px) {
 
 	header.viewheader {
@@ -465,6 +477,10 @@ i[class*=" icon-"]:before {
 				padding-right: 15px;
 			}
 		}
+	}
+
+	header.viewheader + div.wrapper {
+		height: calc(100svh - 26px);
 	}
 }
 

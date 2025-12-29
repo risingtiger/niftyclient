@@ -50,7 +50,12 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 	const d = DataHodlGetViewData(viewname)
 
 	viewcomponent.ingest(d.loadeddata, d.pathparams, d.searchparams, 'initial')
-	viewcomponent.render(); 
+	viewcomponent.render();
+
+	const shadow = (viewcomponent as any).shadow as ShadowRoot;
+	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
+		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).maincss];
+	}
 
 	// render will cause any viewparts to register and call RegisterViewPart. This will happen before wait_for_all_render_and_hydration even gets called
 
@@ -73,7 +78,6 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 
 
 const RegisterView = (_component:HTMLElement & CMechViewT) => {
-	// nothing yet
 }
 
 
@@ -109,6 +113,11 @@ const RegisterViewPart = async (component:HTMLElement & CMechViewPartT): Promise
 	
 	component.ingest(vpd?.loadeddata || vd.loadeddata, vd.pathparams, vd.searchparams, 'initial')
 	component.render()
+
+	const shadow = (component as any).shadow as ShadowRoot;
+	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
+		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).maincss];
+	}
 
 	if(component.hydrated) component.hydrated();
 
@@ -377,6 +386,36 @@ const remove_view_aux = (viewname:str) => {
 
 	DataHodlRemoveViewData(viewname)
 }
+
+
+
+// const wait_for_stylesheets = (shadowRoot: ShadowRoot) => new Promise<void>((res) => {
+//
+// 	if ( shadowRoot.firstElementChild.tagName !== 'LINK' ) { res(); return; }  // in prod, skip this entirely
+//
+// 	const links = shadowRoot.querySelectorAll('link[rel="stylesheet"]') as NodeListOf<HTMLLinkElement>;
+//
+// 	if (links.length === 0) { res(); return; }
+//
+// 	let loaded = 0;
+// 	const total = links.length;
+//
+// 	const check_complete = () => {
+// 		loaded++;
+// 		if (loaded >= total) res();
+// 	};
+//
+// 	for (let i = 0; i < links.length; i++) {
+// 		const link = links[i];
+// 		if (link.sheet) { check_complete(); continue; }
+//
+// 		link.addEventListener('load', check_complete, { once: true });
+// 		link.addEventListener('error', check_complete, { once: true });
+// 	}
+//
+// 	setTimeout(() => res(), 3000);
+// })
+//
 
 
 

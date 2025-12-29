@@ -1,9 +1,27 @@
 
 
+export const Slide = async (previous_view: HTMLElement, next_view: HTMLElement) => {
 
-export const Slide = async (old_view: HTMLElement, new_view: HTMLElement) => {
+	// Assign unique transition names before starting
+	// old_view.style.viewTransitionName = 'previous-view';
+	// new_view.style.viewTransitionName = 'new-view';
 
-    // Set initial states and performance hints
+	const transition = (document as any).startViewTransition(() => {
+		previous_view.dataset.active   = "false";
+		previous_view.dataset.previous = "true";
+		next_view.dataset.active   = "true";
+	});
+
+	await transition.finished;
+
+	// Clean up transition names
+	// old_view.style.viewTransitionName = '';
+	// new_view.style.viewTransitionName = '';
+	document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+	return;
+
+	/*
+	// Fallback for browsers without View Transitions API
     new_view.style.opacity       = '1';
     new_view.style.transform     = 'translate3d(100vw, 0, 0)';
     new_view.style.willChange    = 'transform';
@@ -51,56 +69,70 @@ export const Slide = async (old_view: HTMLElement, new_view: HTMLElement) => {
 
 		document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
     });
+	*/
 };
 
 
 export const SlideBack = async (current_view: HTMLElement, previous_view: HTMLElement) => {
 
-    // Prepare views for animation
-    previous_view.style.visibility    = "visible";
-    previous_view.style.willChange    = 'transform';
-    current_view.style.willChange     = 'transform';
-	current_view.style.pointerEvents  = 'none';
-	previous_view.style.pointerEvents = 'none';
+	document.documentElement.classList.add('back-navigation');
 
-    const current_view_kf = [
-        { transform: 'translate3d(0, 0, 0)' },
-        { transform: 'translate3d(100vw, 0, 0)' }
-    ];
-
-    const previous_view_kf = [
-        // previous_view was left at this state by the forward animation
-        { offset: 0, transform: 'translate3d(-33vw, 0, 0)' },
-        { offset: 1, transform: 'translate3d(0, 0, 0)' }
-    ];
-
-    const animation_opts: KeyframeAnimationOptions = {
-        duration: 350,
-        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-        fill: 'forwards'
-    };
-
-    const current_animation = current_view.animate(current_view_kf, animation_opts);
-    const previous_animation = previous_view.animate(previous_view_kf, animation_opts);
-
-    Promise.all([current_animation.finished, previous_animation.finished]).then(() => {
-
-		// Commit final positions to inline styles before cancelling animations
-		current_view.style.transform      = 'translate3d(100vw, 0, 0)';
-		previous_view.style.transform     = 'translate3d(0, 0, 0)';
-		current_animation.cancel();
-		previous_animation.cancel();
-
-		
-		current_view.style.willChange     = 'auto';
-		previous_view.style.willChange    = 'auto';
-		current_view.style.pointerEvents  = 'auto';
-		previous_view.style.pointerEvents = 'auto';
-
-		current_view.dataset.active       = "false";
-		previous_view.dataset.active      = "true";
-
-		document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+	const transition = (document as any).startViewTransition(() => {
+		previous_view.dataset.active   = "true";
+		previous_view.dataset.previous = "false";
+		current_view.dataset.active    = "false";
 	});
+
+	await transition.finished;
+
+	document.documentElement.classList.remove('back-navigation');
+	document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+
+	// // Fallback for browsers without View Transitions API
+	//    previous_view.style.visibility    = "visible";
+	//    previous_view.style.willChange    = 'transform';
+	//    current_view.style.willChange     = 'transform';
+	// current_view.style.pointerEvents  = 'none';
+	// previous_view.style.pointerEvents = 'none';
+	//
+	//    const current_view_kf = [
+	//        { transform: 'translate3d(0, 0, 0)' },
+	//        { transform: 'translate3d(100vw, 0, 0)' }
+	//    ];
+	//
+	//    const previous_view_kf = [
+	//        // previous_view was left at this state by the forward animation
+	//        { offset: 0, transform: 'translate3d(-33vw, 0, 0)' },
+	//        { offset: 1, transform: 'translate3d(0, 0, 0)' }
+	//    ];
+	//
+	//    const animation_opts: KeyframeAnimationOptions = {
+	//        duration: 350,
+	//        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+	//        fill: 'forwards'
+	//    };
+	//
+	//    const current_animation = current_view.animate(current_view_kf, animation_opts);
+	//    const previous_animation = previous_view.animate(previous_view_kf, animation_opts);
+	//
+	//    Promise.all([current_animation.finished, previous_animation.finished]).then(() => {
+	//
+	// 	// Commit final positions to inline styles before cancelling animations
+	// 	current_view.style.transform      = 'translate3d(100vw, 0, 0)';
+	// 	previous_view.style.transform     = 'translate3d(0, 0, 0)';
+	// 	current_animation.cancel();
+	// 	previous_animation.cancel();
+	//
+	//
+	// 	current_view.style.willChange     = 'auto';
+	// 	previous_view.style.willChange    = 'auto';
+	// 	current_view.style.pointerEvents  = 'auto';
+	// 	previous_view.style.pointerEvents = 'auto';
+	//
+	// 	current_view.dataset.active       = "false";
+	// 	previous_view.dataset.active      = "true";
+	//
+	// 	document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+	// });
 };
 

@@ -162,9 +162,6 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 
 	} else { // First view
 		new_view.dataset.active = "true";
-		new_view.style.opacity = "1";
-		new_view.style.visibility = "visible";
-		new_view.style.transform = "translate3d(0, 0, 0)";
 		document.querySelector("#views")!.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
 		res();
 	}

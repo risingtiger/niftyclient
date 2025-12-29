@@ -11,7 +11,6 @@
 
     /* layout and spacing */
     --padding-container: 10px;
-	--viewheader-height: 34px;
 }
 
 @font-face { 
@@ -53,10 +52,8 @@ body {
 	width: 100vw;
 	height: 100svh;
 	overflow: hidden;
-	transform: translateZ(0);
-	isolation: isolate;	
-	
-	
+	isolation: isolate;
+	view-transition-name: views-transition;
 
 	& .view {
 		display: block;
@@ -65,10 +62,17 @@ body {
 		left: 0;
 		width: 100vw;
 		height: 100svh;
+		translate: 100vw 0 0;
 		overflow: hidden;
-		transform-style: preserve-3d;
-		backface-visibility: hidden;
 		contain: layout style paint;
+	}
+	& .view[data-active="true"] {
+		translate: 0 0 0;
+		z-index: 2;
+	}
+	& .view[data-previous="true"] {
+		translate: -33vw 0 0;
+		z-index: 1;
 	}
 }
 
@@ -211,3 +215,46 @@ body {
 	border-radius: 4px;
 	cursor: pointer;
 }
+
+
+
+
+
+
+::view-transition-old(views-transition) {
+	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) previouspage-slide-out;
+}
+::view-transition-new(views-transition) {
+	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) nextpage-slide-in;
+}
+
+
+:root.back-navigation::view-transition-old(views-transition) {
+	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) back-currentpage-slide-out;
+	z-index: 2;
+}
+:root.back-navigation::view-transition-new(views-transition) {
+	animation: 350ms cubic-bezier(0.2, 0.8, 0.2, 1) back-previouspage-slide-in;
+	z-index: 1;
+}
+
+
+@keyframes previouspage-slide-out {
+	from { translate: 0 0 0; }
+	to   { translate: -33vw 0 0; }
+}
+@keyframes nextpage-slide-in {
+	from { translate: 100vw 0 0; }
+	to   { translate: 0 0 0; }
+}
+@keyframes back-currentpage-slide-out {
+	from { translate: 0vw 0 0; }
+	to   { translate: 100vw 0 0; }
+}
+@keyframes back-previouspage-slide-in {
+	from { translate: -33vw 0 0; }
+	to   { translate: 0vw 0 0; }
+}
+
+
+
