@@ -1,4 +1,4 @@
-import { $NT, ToastLevelT } from "./defs.js";
+import { $NT, ToastLevelT, ViewHeaderT } from "./defs.js";
 
 
 declare var $N: $NT;
@@ -131,6 +131,43 @@ function ToastShow(msg: string, level: ToastLevelT = 'info', _duration?: number 
 	}, 10)
 }
 $N.ToastShow = ToastShow;
+
+
+
+
+function setHeader(opts: ViewHeaderT) {
+
+	const header = document.getElementById('viewheader')!;
+
+	if (!opts) {
+		header.classList.add('hidden');
+		return;
+	}
+
+	header.classList.remove('hidden');
+
+	// Title
+	const h1 = header.querySelector('.middle h1');
+	if (h1) h1.textContent = opts.title;
+
+	// Back
+	const left = header.querySelector('.left') as HTMLElement;
+	if (left) {
+		if (opts.backurl) {
+			const textpart = opts.backtext ? `<span>${opts.backtext}</span>` : '';
+			left.innerHTML = `<span>‸</span>${textpart}`;
+			left.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
+		} else {
+			left.innerHTML = '<span>&nbsp;</span>';
+			left.onclick = null;
+		}
+	}
+
+	// Actions
+	const right = header.querySelector('.right');
+	if (right) right.innerHTML = opts.actions || '';
+}
+$N.Header = { set: setHeader };
 
 
 

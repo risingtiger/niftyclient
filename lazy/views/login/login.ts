@@ -1,5 +1,5 @@
 import { bool, str } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, $NT, GenericRowT, CMechViewLoadStateT, LazyLoadFuncReturnT } from "../../../defs.js"
+import { CMechLoadedDataT, $NT, GenericRowT, CMechViewLoadStateT, LazyLoadFuncReturnT, ViewHeaderT } from "../../../defs.js"
 
 
 
@@ -46,6 +46,7 @@ class VLogin extends HTMLElement {
         errorMessage: "",
 		resetlink: ""
 	}
+	header:ViewHeaderT = { title: 'Login' }
 
     shadow:ShadowRoot
 

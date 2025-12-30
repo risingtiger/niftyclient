@@ -8,7 +8,7 @@
 
 
 import { bool, str } from '../../../defs_server_symlink.js'
-import { $NT, LazyLoadFuncReturnT, GenericRowT } from "../../../defs.js"
+import { $NT, LazyLoadFuncReturnT, GenericRowT, ViewHeaderT } from "../../../defs.js"
 
 
 declare var render: any;
@@ -68,6 +68,7 @@ class VSetupPushAllowance extends HTMLElement {
     s:StateT = {
 		is_subscribed: false,
 	}
+	header:ViewHeaderT = { title: 'Notifications', backurl: 'home' }
 
     shadow:ShadowRoot
 

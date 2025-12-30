@@ -44,6 +44,105 @@ body {
 }
 
 
+#viewheader.viewheader {
+	display: flex;
+	width: 100vw;
+	height: 34px;
+	z-index: 10;
+	padding: 8px 0px 0 0;
+	box-sizing: border-box;
+	justify-content: flex-start;
+	overflow-x: hidden;
+	overflow-y: hidden;
+	background: white;
+	border-radius: 18px 18px 0 0;
+
+	& .left {
+		display: block;
+		width: 42px;
+		padding-left: 2px;
+		overflow: hidden;
+		box-sizing: border-box;
+		padding-top: 1px;
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+		white-space: nowrap;
+		cursor: pointer;
+
+		& span:nth-child(1) {
+			display: inline-block;
+			transform: rotate(-90deg) scaleX(1.3) translateX(0px);
+			font-size: 19px;
+			font-weight: 700;
+			color: purple;
+		}
+
+		& span:nth-child(2) {
+			display: inline-block;
+			font-size: 16px;
+			font-weight: 400;
+			color: purple;
+			padding-left: 10px;
+			transform: translateY(-2px);
+		}
+
+		& i.icon-arrowleft1 {
+			display: block;
+			font-size: 16px;
+			color: #9c9b9b;
+			padding: 1px 12px 8px 8px;
+			cursor: pointer;
+		}
+	}
+
+	& .middle {
+		width: 65%;
+		box-sizing: border-box;
+
+		& h1 {
+			font-size: 18px;
+			font-weight: bold;
+			text-align: center;
+		}
+	}
+
+	& .right {
+		display: block;
+		color: var(--actioncolor);
+		width: calc(35% - 42px);
+		text-align: right;
+		box-sizing: border-box;
+		padding-top: 3px;
+
+		& > i {
+			font-size: 22px;
+			box-sizing: border-box;
+			padding: 0px 12px 8px 9px;
+			display: inline-block;
+			cursor: pointer;
+		}
+
+		& > i:hover {
+			background: var(--background-highlight);
+		}
+	}
+}
+
+#viewheader.viewheader.hidden {
+	display: none;
+}
+
+#viewheader + #views {
+	top: 34px;
+	height: calc(100svh - 34px);
+}
+
+#viewheader.hidden + #views {
+	top: 0;
+	height: 100svh;
+}
+
+
+
 
 #views {
 	position: absolute;
@@ -255,5 +354,30 @@ body {
 	to   { translate: 0vw 0 0; }
 }
 
+
+@media only screen and (max-device-width: 767px) {
+
+	#viewheader.viewheader {
+		padding-top: 3px;
+		height: 26px;
+		
+		& .left {
+			padding-top: 0px;
+		}
+
+		& .right {
+			padding-top: 0;
+
+			& > i {
+				padding-right: 15px;
+			}
+		}
+	}
+
+	#viewheader + #views {
+		top: 26px;
+		height: calc(100svh - 26px);
+	}
+}
 
 

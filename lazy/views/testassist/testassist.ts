@@ -1,7 +1,7 @@
 
 
 import { bool, str } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, $NT, GenericRowT, LazyLoadFuncReturnT } from "../../../defs.js"
+import { CMechLoadedDataT, $NT, GenericRowT, LazyLoadFuncReturnT, ViewHeaderT } from "../../../defs.js"
 
 
 declare var render: any;
@@ -33,6 +33,7 @@ class VTestAssist extends HTMLElement {
     s:StateT = {
 		propa: false
 	}
+	header:ViewHeaderT = { title: 'Test Assist' }
     shadow:ShadowRoot
 
 

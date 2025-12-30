@@ -1,6 +1,6 @@
 
 import { bool, str } from '../../../defs_server_symlink.js'
-import { CMechLoadedDataT, $NT, GenericRowT, LazyLoadFuncReturnT } from "../../../defs.js"
+import { CMechLoadedDataT, $NT, GenericRowT, LazyLoadFuncReturnT, ViewHeaderT } from "../../../defs.js"
 
 
 
@@ -47,6 +47,7 @@ class VAppMsgs extends HTMLElement {
 		logs: [],
         logsubj: ""
 	}
+	header:ViewHeaderT = { title: 'App Messages' }
 
     shadow:ShadowRoot
 

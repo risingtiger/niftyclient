@@ -52,6 +52,8 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 	viewcomponent.ingest(d.loadeddata, d.pathparams, d.searchparams, 'initial')
 	viewcomponent.render();
 
+	$N.Header.set(viewcomponent.header);
+
 	const shadow = (viewcomponent as any).shadow as ShadowRoot;
 	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
 		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).maincss];
@@ -204,6 +206,8 @@ const UpdateView = (viewname:str, pathparams:GenericRowT, searchparams:GenericRo
 
 	viewel.ingest(d.loadeddata, pathparams, searchparams, eventname)
 	viewel.render()
+
+	$N.Header.set(viewel.header);
 
 	for (const subel of _viewparts.get(viewname) ) {
 		const viewpartname = subel.tagName.toLowerCase().split("-")[1] 

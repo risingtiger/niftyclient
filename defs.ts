@@ -68,10 +68,18 @@ export type EngagementListenerT = {
 
 export type CMechViewLoadStateT = 'initial' | 'paramschanged' | 'postload' | 'server_state_change'
 
+export type ViewHeaderT = {
+	title: string,
+	backtext?: string,
+	backurl?: string,
+	actions?: string
+} | null
+
 export type CMechViewT = {
 	m: {[key:string]:any},
 	a: {[key:string]:any},
 	s: {[key:string]:any},
+	header: ViewHeaderT,
 	subelshldr?:HTMLElement[]
 	opts?: {}
 	disconnectedCallback:()=>void,
@@ -154,6 +162,10 @@ export type $NT = {
 	SwitchStation: {
 		GoTo: (newPath: string, opts?:{replacestate?:boolean}) => void,
 		GoBack: (opts:{default:str}) => void,
+	}
+
+	Header: {
+		set: (opts: ViewHeaderT) => void
 	}
 
 	IDB: {
