@@ -14,7 +14,7 @@ const MIN_SWIPE_DISTANCE = 50; // minimum distance to consider it a swipe
 
 class BackSwipeHandler {
 	private swipe_state: SwipeState;
-	private prepare_view_callback: (() => void) | null = null;
+	// private prepare_view_callback: (() => void) | null = null;
 	private is_native_swipe_callback: (() => boolean) | null = null;
 
 	constructor() {
@@ -45,7 +45,7 @@ class BackSwipeHandler {
 				this.swipe_state.swipe_start_time = Date.now();
 				this.swipe_state.touch_identifier = touch.identifier;
 				this.swipe_state.is_native_swipe = true; // Assume native swipe until proven otherwise
-				this.prepare_views_for_native_swipe();
+				// this.prepare_views_for_native_swipe();
 			}
 		}, { passive: true });
 
@@ -64,7 +64,7 @@ class BackSwipeHandler {
 				const velocity = delta_x / delta_time;
 				if (velocity > SWIPE_VELOCITY_THRESHOLD) {
 					// This is likely a native back swipe
-					this.prepare_views_for_native_swipe();
+					// this.prepare_views_for_native_swipe();
 				}
 			} else if (delta_x < -10) {
 				// Swiping left, not a back gesture
@@ -101,15 +101,15 @@ class BackSwipeHandler {
 		}, { passive: true });
 	}
 
-	private prepare_views_for_native_swipe() {
-		if (this.prepare_view_callback) {
-			this.prepare_view_callback();
-		}
-	}
+	// private prepare_views_for_native_swipe() {
+	// 	if (this.prepare_view_callback) {
+	// 		this.prepare_view_callback();
+	// 	}
+	// }
 
-	public on_prepare_view(callback: () => void) {
-		this.prepare_view_callback = callback;
-	}
+	// public on_prepare_view(callback: () => void) {
+	// 	this.prepare_view_callback = callback;
+	// }
 
 	public was_native_swipe(): boolean {
 		const was_swipe = this.swipe_state.is_native_swipe;
@@ -124,4 +124,4 @@ class BackSwipeHandler {
 }
 
 // Export singleton instance
-export const back_swipe_handler = new BackSwipeHandler();
+export const BackSwipeHandlerI = new BackSwipeHandler();

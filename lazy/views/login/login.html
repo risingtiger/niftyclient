@@ -5,19 +5,17 @@
             <h2>Enter your credentials ---</h2>
             <div class="login-form">
                 ${_s.errorMessage ? html`<div class="error-message">${_s.errorMessage}</div>` : ''}
+                ${_s.successMessage ? html`<div class="success-message">${_s.successMessage}</div>` : ''}
                 <input label="Email" id="emailinput" type="email" value="${_s.email}" @input="${(e) => _s.email = e.target.value}"></input>
                 <input label="Password" type="password" id="passwordinput" @input="${(e) => _s.password = e.target.value}"></input>
                 <button @click="${()=>this.login()}" ?disabled="${_s.isLoading}">
                     ${_s.isLoading ? 'Logging in...' : 'Login'}
                 </button>
                 <div class="forgot-password">
-                    <a href="#" @click="${()=>this.ResetPassword()}">Forgot password?</a>
-					${_s.resetlink ? html`
-						<h3>Link Successfully Generated</h3>
-						<a href="${_s.resetlink}" target="_blank">Click to Reset Password</a>
-					` : ''}
+                    <a href="#" @click="${(e)=>{e.preventDefault();this.ResetPassword()}}">${_s.isLoading ? 'Sending...' : 'Reset password'}</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+

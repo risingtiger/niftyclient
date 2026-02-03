@@ -66,6 +66,19 @@
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
+    position: relative;
+    padding-top: 18px;
+
+    & .draghandle {
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        background-color: #c5c5c5;
+        border-radius: 2px;
+    }
 
     & .left {
         display: block;

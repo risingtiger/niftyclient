@@ -15,18 +15,17 @@ a:hover {
 
 
 div.wrapper {
-    position: relative;
-    display: block;
     box-sizing:  border-box;
-    padding-top: 0px;
     overflow-x: hidden;
-    overflow-y: hidden;
+    /* overflow-y: visible; */
+    padding-top: calc(var(--windowtop) + var(--viewheader-height));
     width: 100vw;
-    height: calc(100svh - 34px);
-    background-color: white;
+
+    /* height: calc(100svh - 34px); */
+    /* height: 100vh; */
      /* for in anime lower */
+	background-color: white;
     z-index: 9;
-    view-transition-name: wrapper-transition;
 }
 div.wrapper.anime_lower {
 	transform: translate3d(0, 9px, 0) scaleX(0.97);
@@ -35,7 +34,6 @@ div.wrapper.anime_lower {
 	transition-duration: 0.3s;
 	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
 }
-
 
 
 
@@ -57,8 +55,8 @@ ul.items {
         border-bottom-width: 0.5px;
         border-bottom-style: solid;
         border-bottom-color: var(--bordercolor);
-		cursor: pointer;
-        /*transition: border 0.8s ease-in-out;*/
+        cursor: pointer;
+        background: white;
 
         & > .thumbnail {
             padding-top: 0px;
@@ -72,7 +70,6 @@ ul.items {
 
             padding: 12px 0 0 12px;
         }
-
 
 		/* h5 is only intended for title as first element */
 		/* use .aux and/or .aux > h5 for more complex column layout in row */
@@ -112,7 +109,6 @@ ul.items {
 				-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 			}
 		}
-
 
         & > i.indication {
             display: block;
@@ -188,6 +184,11 @@ ul.items {
             padding-top: 9px;
         }
     }
+	& > li:first-child {
+		border-top-width: 0.5px;
+		border-top-style: solid;
+		border-top-color: var(--bordercolor);
+	}
 }
 
 dl.define {
@@ -253,8 +254,10 @@ span.justinput.search {
     & > input {
         border-radius: 25px;
         border: none;
-        background: #e7f4f3;
-		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        background: #eefdfd;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        box-sizing: border-box;
+        border: 1px solid #dafafa;
     }
     & > i {
         color: #a1a1a1;
@@ -374,13 +377,13 @@ i[class*=" icon-"]:before {
 
 
 @media (hover: hover) {
-	ul.items > li:hover {
-		background: var(--background-highlight);
-	}
-
-	ul.items > li i.action:hover {
-		color: var(--actioncolor);
-	}
+	/* ul.items > li:hover { */
+	/* 	background: var(--background-highlight); */
+	/* } */
+	/**/
+	/* ul.items > li i.action:hover { */
+	/* 	color: var(--actioncolor); */
+	/* } */
 }
 
 

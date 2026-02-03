@@ -1,7 +1,7 @@
 
 import { str, bool } from "../../../defs_server_symlink.js";
 import { $NT, CMechViewPartT } from "../../../defs.js";
-import { animate_in, animate_out, init_animation_state, get_isanmiating, run_handle_scroll, ShapeE, FloatShapeSizeE } from "./ol2_animate.js";
+import { Ol2Animate, ShapeE, FloatShapeSizeE } from "./ol2_animate.js";
 
 declare var render: any;
 declare var html: any;
@@ -39,7 +39,6 @@ class COl2 extends HTMLElement {
 	m: ModelT = { shape: ShapeE.FILL, floatsize: FloatShapeSizeE.M, actionterm: "" };
 
 	shadow: ShadowRoot
-	viewwrapperel!: HTMLElement
 	content_el!: HTMLElement
 	wrapper_el!: HTMLElement
 	theme_color_meta!: HTMLMetaElement;
@@ -48,9 +47,10 @@ class COl2 extends HTMLElement {
 	private handle_content_click = (e: MouseEvent) => { e.stopPropagation(); }
 	private handle_scroll = (_e: Event) => { 
 		if (this.m.shape === ShapeE.FILL) {
-			run_handle_scroll(this as any, this.viewwrapperel, ()=>this.closed()); 
+			Ol2Animate.run_handle_scroll(this as any, ()=>this.closed()); 
 		}
 	}
+	private handle_viewheader_click = (_e: MouseEvent) => { this.close(); }
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -79,7 +79,6 @@ class COl2 extends HTMLElement {
 
 		this.sc()
 
-		this.viewwrapperel         = ( document.querySelector('#views > .view:last-child') as any ).shadowRoot.querySelector(':host > .wrapper')
 		this.content_el            = this.shadow.querySelector(".content") as HTMLElement
 		this.wrapper_el            = this.shadow.querySelector(".wrapper") as HTMLElement
 
@@ -87,6 +86,8 @@ class COl2 extends HTMLElement {
 		this.addEventListener("click", this.handle_click, false);
 		this.addEventListener("scroll", this.handle_scroll, false);
 		this.content_el.addEventListener("click", this.handle_content_click, false);
+		const viewheader_el = document.querySelector('#viewheader')!;
+		viewheader_el.addEventListener("click", this.handle_viewheader_click, false);
 
 
 		if (this.firstElementChild!.tagName.startsWith("VP-")) {
@@ -139,28 +140,28 @@ class COl2 extends HTMLElement {
 
 
 	async init() {
-		await init_animation_state(this as any);
+		await Ol2Animate.init(this as any);
 		this.setAttribute('readytoanimate', '');
-		await animate_in(this as any, this.viewwrapperel, this.content_el)
+		await Ol2Animate.animate_in(this as any, this.content_el)
 	}
 
 
 
 	disconnectedCallback() {
 		this.removeEventListener("click", this.handle_click);
-		if (this.content_el) {
-			this.content_el.removeEventListener("click", this.handle_content_click);
-		}
+		this.content_el.removeEventListener("click", this.handle_content_click);
 		this.removeEventListener("scroll", this.handle_scroll);
+		const viewheader_el = document.querySelector('#viewheader')!;
+		viewheader_el.removeEventListener("click", this.handle_viewheader_click);
 	}
 
 
 
 
 	async close() {
-		if ( get_isanmiating(this as any) ) return;
+		if ( Ol2Animate.get_isanimating(this as any) ) return;
 
-		await animate_out(this as any, this.viewwrapperel, this.content_el);
+		await Ol2Animate.animate_out(this as any, this.content_el);
 		this.closed()
 	}
 

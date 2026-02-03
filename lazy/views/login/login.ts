@@ -22,8 +22,8 @@ type StateT = {
     email: string,
     password: string,
     isLoading: boolean,
-    errorMessage: string
-	resetlink: string
+    errorMessage: string,
+    successMessage: string
 }
 
 
@@ -38,13 +38,13 @@ class VLogin extends HTMLElement {
 
 	m:ModelT = { propa: "" };
 	a:AttributesT = { ...ATTRIBUTES };
-    s:StateT = {
+	s:StateT = {
 		propa: false,
         email: "",
         password: "",
         isLoading: false,
         errorMessage: "",
-		resetlink: ""
+		successMessage: ""
 	}
 	header:ViewHeaderT = { title: 'Login' }
 
@@ -130,21 +130,26 @@ class VLogin extends HTMLElement {
 
 
     async login() {
+        this.s.errorMessage = "";
+        this.s.successMessage = "";
+
+        // Read current values directly from DOM inputs
+        const emailInput = this.shadow.getElementById('emailinput') as HTMLInputElement;
+        const passwordInput = this.shadow.getElementById('passwordinput') as HTMLInputElement;
+        this.s.email = emailInput?.value || "";
+        this.s.password = passwordInput?.value || "";
+
+        if (!this.validateForm()) {
+            return;
+        }
 
         this.s.isLoading = true;
-        this.s.errorMessage = "";
         this.render();
 
 		const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=` + localStorage.getItem("identity_platform_key");
 
-
 		const email = this.s.email;
 		const password = this.s.password;
-
-        if (!this.validateForm()) {
-            this.s.isLoading = false;
-            return;
-        }
 
 		const body = { email, password, returnSecureToken: true };
 
@@ -205,41 +210,61 @@ class VLogin extends HTMLElement {
 
 
 
-
     async ResetPassword() {
+        // Read current email value directly from DOM input
+        const emailInput = this.shadow.getElementById('emailinput') as HTMLInputElement;
+        this.s.email = emailInput?.value || "";
+
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter your email address to reset your password";
+            this.s.successMessage = "";
             this.render();
             return;
         }
 
         this.s.isLoading = true;
         this.s.errorMessage = "";
+        this.s.successMessage = "";
         this.render();
 
-		const r = await $N.FetchLassie(`/api/reset_password?email=${this.s.email}`);
+        const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=` + localStorage.getItem("identity_platform_key");
 
-		this.s.isLoading = false;
+        const body = {
+            requestType: "PASSWORD_RESET",
+            email: this.s.email
+        };
 
-		if (!r.ok)  {
-			// Handle error response
-			let errorMessage = "Password reset failed. Please try again.";
-			if (r.data && typeof r.data === 'object' && (r.data as any).error) {
-				errorMessage = (r.data as any).error;
-			}
-
-			this.s.errorMessage = errorMessage;
-			this.render();
-			return
-		}
+        const opts = {
+            method: 'POST',
+            body: JSON.stringify(body),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
 
 
-		this.s.errorMessage = "";
-		this.s.password = "";
-		this.s.resetlink = ( r.data as any ).link
+        try {
+            const response = await fetch(url, opts);
+            const data = await response.json();
 
-		this.render()
+            this.s.isLoading = false;
+
+            if (!response.ok) {
+                this.s.errorMessage = data.error?.message || "Password reset failed. Please try again.";
+                this.render();
+                return;
+            }
+
+            this.s.successMessage = "Done. Check your inbox (SPAM box too).";
+            this.render();
+
+        } catch (error) {
+            this.s.isLoading = false;
+            this.s.errorMessage = "Password reset failed. Please try again.";
+            this.render();
+        }
     }
+
 
 
 	template = (_s:any) => { return html`{--css--}{--html--}`; };

@@ -68,12 +68,19 @@ export type EngagementListenerT = {
 
 export type CMechViewLoadStateT = 'initial' | 'paramschanged' | 'postload' | 'server_state_change'
 
+export type ViewHeaderActionT = {
+	icon: string,
+	onClick: () => void,
+}
+
 export type ViewHeaderT = {
 	title: string,
 	backtext?: string,
 	backurl?: string,
-	actions?: string
-} | null
+	actions?: ViewHeaderActionT[],
+	disable?: boolean,
+	skip_title?: boolean,
+}
 
 export type CMechViewT = {
 	m: {[key:string]:any},
@@ -169,24 +176,25 @@ export type $NT = {
 	}
 
 	IDB: {
-		GetDB:        () => Promise<IDBDatabase>,
-		GetOne:       (objectstore_name:str, id:str, localdb_preload?:str[]|null) => Promise<GenericRowT>,
-		GetAll:       (objectstore_names:str[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
-		GetRangeAll:  (objectstore_names:str[], key:str[], lower_bound:str[]|num[], upper_bound:str[]|num[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
-		ClearAll:     (objectstore_name:str) => Promise<num>,
-		AddOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
-		PutOne:       (objectstore_name:str, data:GenericRowT) => Promise<string>,
-		PutMany:      (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
-		DeleteMany:   (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
-		DeleteOne:    (objectstore_name:str, id:str) => Promise<string>,
-		Count:        (objectstore_name:str) => Promise<number>,
-		GetOne_S:     (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
-		GetAll_S:     (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
-		GetRangeAll_S:(objectstore:IDBObjectStore, key:str[], lower_bound:str[]|num[], upper_bound:str[]|num) => Promise<GenericRowT[]>,
-		AddOne_S:     (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
-		PutOne_S:     (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
-		DeleteOne_S:  (objectstore:IDBObjectStore, id:string) => Promise<string>,
-		TXResult:     (tx:IDBTransaction) => Promise<num>,
+		GetDB:         () => Promise<IDBDatabase>,
+		GetOne:        (objectstore_name:str, id:str, localdb_preload?:str[]|null) => Promise<GenericRowT>,
+		GetAll:        (objectstore_names:str[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
+		GetRangeAll:   (objectstore_names:str[], key:str[], lower_bound:str[]|num[], upper_bound:str[]|num[], localdb_preload?:str[]|null) => Promise<Map<str,GenericRowT[]>>,
+		ClearAll:      (objectstore_name:str) => Promise<num>,
+		AddOne:        (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		PutOne:        (objectstore_name:str, data:GenericRowT) => Promise<string>,
+		PutMany:       (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
+		DeleteMany:    (store_names:str[], datas:GenericRowT[][]) => Promise<string>,
+		DeleteOne:     (objectstore_name:str, id:str) => Promise<string>,
+		Count:         (objectstore_name:str) => Promise<number>,
+		GetOne_S:      (objectstore:IDBObjectStore, id:str) => Promise<GenericRowT>,
+		GetAll_S:      (objectstore:IDBObjectStore) => Promise<GenericRowT[]>,
+		GetRangeAll_S: (objectstore:IDBObjectStore, key:str[], lower_bound:str[]|num[], upper_bound:str[]|num) => Promise<GenericRowT[]>,
+		AddOne_S:      (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		PutOne_S:      (objectstore:IDBObjectStore, data:GenericRowT) => Promise<string>,
+		DeleteOne_S:   (objectstore:IDBObjectStore, id:string) => Promise<string>,
+		TXResult:      (tx:IDBTransaction) => Promise<num>,
+		DeleteDatabase:() => Promise<num>
 	}
 }
  

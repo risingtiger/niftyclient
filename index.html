@@ -8,7 +8,7 @@
     <meta charset="utf-8">
     <meta name="description" content="App">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
     <meta name="mobile-web-app-title" content="PureWater">
 	<meta name="theme-color" content="#FFFFFF" />
 	<meta name="mobile-web-app-capable" content="yes">
@@ -17,9 +17,6 @@
 	<link rel="apple-touch-icon" href="/assets/media/pwticons/1024.png">
 	
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> -->
-    
 
     <script>
         APPVERSION=0; APPUPDATE_TS=0;
@@ -32,19 +29,41 @@
 </head>
 
 <body>
+	
+    <!-- <svg xmlns="http://www.w3.org/2000/svg" style="display:none"> -->
+    <!--     <symbol id="app-icon" viewBox="0 0 100 100"> -->
+    <!--         <circle cx="50" cy="50" r="45" fill="#0066cc"/> -->
+    <!--         <circle cx="50" cy="50" r="15" fill="white"/> -->
+    <!--     </symbol> -->
+    <!-- </svg> -->
 
-    <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
-        <symbol id="app-icon" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="#0066cc"/>
-            <circle cx="50" cy="50" r="15" fill="white"/>
-        </symbol>
-    </svg>
 
     <header id="viewheader" class="viewheader">
-        <a class="left"><span>&nbsp;</span></a>
+		<div class="left">
+			<div class="viewactions">
+				<div class="viewaction">
+					<i class="icon-arrowleft1"></i>
+				</div>
+				<span>&nbsp;</span>
+			</div>
+			<span id="viewheaderlefttextpart">&nbsp;</span>
+		</div>
         <div class="middle"><h1></h1></div>
         <div class="right"></div>
     </header>
+
+
+	<div id="actionctrl">
+		<i class="icon-add"></i>
+	</div>
+	<div id="actionctrl-menu">
+		<ul>
+			<li id="actionctrl_additem">Add Item</li>
+			<li id="actionctrl_scanitem">Scan Item</li>
+			<li id="actionctrl_settings">Settings</li>
+		</ul>
+	</div>
+
 
     <div id="views"></div>
 

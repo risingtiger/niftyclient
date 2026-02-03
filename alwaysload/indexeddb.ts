@@ -286,6 +286,35 @@ const openindexeddb = () => new Promise<IDBDatabase>(async (res,rej)=> {
 
 
 
+const DeleteDatabase = () => new Promise<void>((resolve, reject) => {
+
+	if (_db !== null) {
+		_db.close();
+		_db = null;
+	}
+
+	const request = indexedDB.deleteDatabase(_db_name);
+
+	request.onsuccess = () => {
+		localStorage.removeItem("localdbsync_collections_ts");
+		_db_name = "";
+		_db_version = 0;
+		resolve();
+	};
+
+	request.onerror = () => {
+		alert("Unable to Delete Database");
+		reject();
+	};
+
+	request.onblocked = () => {
+		alert("Database deletion blocked. Please close other tabs using this app and retry.");
+		reject();
+	};
+});
+
+
+
 async function redirect_from_error(errmsg:str) {
 	$N.Unrecoverable("Error", "Error in IndexedDB", "Reset App", "ixe", errmsg, null)
 }
@@ -299,7 +328,7 @@ export { Init  }
 
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, GetRangeAll, ClearAll, AddOne, PutOne, PutMany, DeleteMany, DeleteOne, Count, GetOne_S, GetAll_S, GetRangeAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult };
+((window as any).$N as any).IDB = { GetDB, GetOne, GetAll, GetRangeAll, ClearAll, AddOne, PutOne, PutMany, DeleteMany, DeleteOne, Count, GetOne_S, GetAll_S, GetRangeAll_S, AddOne_S, PutOne_S, DeleteOne_S, TXResult, DeleteDatabase };
 
 
 

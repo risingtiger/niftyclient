@@ -21,6 +21,8 @@
 <div class="wrapper">
   ${_s.show_header ? html`
 	<header>
+
+	  <div class="draghandle"></div>
 	  <div class="left">${_s.show_closebtn ? html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
 		<div class="middle"><h1>${_s.title}</h1></div>
 	  <div class="right">&nbsp;</div>
@@ -34,3 +36,6 @@
     <div class="topcover"></div>
     <div class="bottomcover"></div>
 </div>
+
+
+

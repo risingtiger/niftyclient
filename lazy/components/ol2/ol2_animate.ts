@@ -23,23 +23,42 @@ type ComponentElT = HTMLElement & {
 let _theme_color_meta: HTMLMetaElement | null = null
 let _current_componentel: ComponentElT | null = null
 
-const CONTENT_TRANSFORM_FILL_Y  = '20vh';
+const CONTENT_TRANSFORM_FILL_Y  = '10vh';
 const CONTENT_TRANSFORM_FLOAT_Y = '6vh';
-const VIEWWRAPPEREL_TRANSFORM_Y = '1vh';
+const VIEWWRAPPEREL_TRANSFORM_Y = '-1vh';
 const VIEWWRAPPEREL_SCALE      = 0.98;
-const VIEWWRAPPEREL_OPACITY    = 0.30;
+const VIEWWRAPPEREL_FILL_OPACITY   = 0.0;
+const VIEWWRAPPEREL_FLOAT_OPACITY  = 0.4;
 const VIEWWRAPPEREL_SCALE_DIFF = 1 - VIEWWRAPPEREL_SCALE;
-const VIEWWRAPPEREL_OPACITY_DIFF = 1 - VIEWWRAPPEREL_OPACITY;
+const VIEWWRAPPEREL_OPACITY_DIFF = 1 - VIEWWRAPPEREL_FILL_OPACITY;
+const VIEWHEADEREL_BLUR = 3;
+
+
+let _viewheaderel: HTMLElement | null = null
+let _viewwrapperel: HTMLElement | null = null
+
+
+const _main_animation_options = {
+	duration: 300,
+	//easing: 'cubic-bezier(.03,.7,.4,1)',
+	easing: 'cubic-bezier(.21,.55,.48,1)',
+	fill: 'forwards' as const,
+};
+const _viewheader_animation_options = {
+	duration: 300,
+	easing: 'cubic-bezier(.42,.1,.47,.94)',
+	fill: 'forwards' as const,
+};
 
 
 
 
+async function init_animation_state(componentel: ComponentElT ) {
 
-
-export async function init_animation_state(componentel: ComponentElT ) {
-
-	_theme_color_meta = document.head.querySelector("meta[name='theme-color']")!;
+	_theme_color_meta    = document.head.querySelector("meta[name = 'theme-color']")!;
 	_current_componentel = componentel;
+	_viewheaderel        = document.getElementById('viewheader');
+	_viewwrapperel       = ( document.querySelector('#views > .view:last-child') as any ).shadowRoot.querySelector(':host > .wrapper');
 
 	componentel.isopen = false;
 	componentel.isanimating = false;
@@ -63,7 +82,9 @@ export async function init_animation_state(componentel: ComponentElT ) {
 }
 
 
-export function run_handle_scroll(componentel: ComponentElT, viewwrapperel: HTMLElement, onclosedcb: () => void) {
+
+
+function run_handle_scroll(componentel: ComponentElT, onclosedcb: () => void) {
 
 	if (!componentel.isopen)
 		return;
@@ -76,8 +97,14 @@ export function run_handle_scroll(componentel: ComponentElT, viewwrapperel: HTML
 	// Schedule update on next animation frame
 	componentel.scroll_raf_id = requestAnimationFrame(() => {
 		if (componentel.scrollTop < 20 && componentel.isopen) {
-			set_theme_and_body_color_from_progress(0);
-			set_viewwrapperel_from_progress(viewwrapperel, 0);
+			//set_theme_and_body_color_from_progress(0);
+			set_viewwrapperel_from_progress(0);
+			if (_viewwrapperel) {
+				_viewwrapperel.style.transformOrigin = '';
+			}
+			if (_viewheaderel) {
+				_viewheaderel.style.transformOrigin = '';
+			}
 			componentel.isanimating = false;
 			onclosedcb();
 
@@ -90,8 +117,8 @@ export function run_handle_scroll(componentel: ComponentElT, viewwrapperel: HTML
 			// Only update if progress has changed
 			if (scroll_progress !== componentel.last_scroll_progress) {
 				componentel.last_scroll_progress = scroll_progress;
-				set_theme_and_body_color_from_progress(scroll_progress);
-				set_viewwrapperel_from_progress(viewwrapperel, scroll_progress);
+				// set_theme_and_body_color_from_progress(scroll_progress);
+				set_viewwrapperel_from_progress(scroll_progress);
 			}
 		}
 		componentel.scroll_raf_id = null;
@@ -101,13 +128,21 @@ export function run_handle_scroll(componentel: ComponentElT, viewwrapperel: HTML
 
 
 
-export const animate_in = (componentel: ComponentElT, viewwrapperel: HTMLElement, content_el:HTMLElement) => new Promise<void>(async (res, _rej) => {
+const animate_in = (componentel: ComponentElT, content_el:HTMLElement) => new Promise<void>(async (res, _rej) => {
 
 	componentel.isanimating = true;
 
     content_el.style.opacity = '0';
 
+	if (_viewheaderel) {
+		_viewheaderel.style.transformOrigin = 'center bottom';
+	}
+	if (_viewwrapperel) {
+		_viewwrapperel.style.transformOrigin = 'center top';
+	}
+
 	const content_transform_y = componentel.m.shape === ShapeE.FILL ? CONTENT_TRANSFORM_FILL_Y : CONTENT_TRANSFORM_FLOAT_Y;
+	const viewwrap_opacity = componentel.m.shape === ShapeE.FILL ? VIEWWRAPPEREL_FILL_OPACITY : VIEWWRAPPEREL_FLOAT_OPACITY;
     
     const content_keyframes = [
         { transform: `translate3d(0, ${content_transform_y}, 0)`, opacity: 0 },
@@ -116,32 +151,41 @@ export const animate_in = (componentel: ComponentElT, viewwrapperel: HTMLElement
     
     const viewwrapperel_keyframes = [
         { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 },
-        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`, opacity: String( VIEWWRAPPEREL_OPACITY ) }
+        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`, opacity: String( viewwrap_opacity ) }
+    ];
+    const viewheader_keyframes = [
+        { transform: 'translate3d(0, 0, 0)', opacity: 1, filter: 'blur(0px)' },
+        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`, opacity: String( viewwrap_opacity ), filter: `blur(${VIEWHEADEREL_BLUR}px)` }
     ];
     
 
-    const animation_options = {
-        duration: 560,
-        easing: 'cubic-bezier(0, 0.850, 0.250, 1)',
-        fill: 'forwards' as const,
-    };
 
-    const content_animation = content_el.animate(content_keyframes, animation_options);
-	const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
+    const content_animation = content_el.animate(content_keyframes, _main_animation_options);
+	const viewwrapperel_animation = _viewwrapperel?.animate(viewwrapperel_keyframes, _main_animation_options);
+	const viewheaderel_animation = _viewheaderel?.animate(viewheader_keyframes, _viewheader_animation_options);
     
 	if (componentel.m.shape === ShapeE.FILL) {
-		animate_theme_and_body_color(animation_options.duration, false);
+		//animate_theme_and_body_color(animation_options.duration, false);
 	}
 
-    await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
+    await Promise.all([content_animation.finished, viewwrapperel_animation?.finished, viewheaderel_animation?.finished]);
+    //await Promise.all([content_animation.finished, viewwrapperel_animation?.finished]);
 
 	content_el.style.transform = 'translate3d(0, 0, 0)';
 	content_el.style.opacity = '1';
-	viewwrapperel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`;
-	viewwrapperel.style.opacity = String(VIEWWRAPPEREL_OPACITY);
+	if (_viewwrapperel) {
+		_viewwrapperel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`;
+		_viewwrapperel.style.opacity = String(viewwrap_opacity);
+	}
+	if (_viewheaderel) {
+		_viewheaderel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`;
+		_viewheaderel.style.opacity = String(viewwrap_opacity);
+		_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR}px)`;
+	}
 
 	content_animation.cancel();
-	viewwrapperel_animation.cancel();
+	viewwrapperel_animation?.cancel();
+	viewheaderel_animation?.cancel();
     
 	componentel.isopen = true;
 	componentel.isanimating = false;
@@ -152,44 +196,53 @@ export const animate_in = (componentel: ComponentElT, viewwrapperel: HTMLElement
 
 
 
-export const animate_out = async (componentel:ComponentElT, viewwrapperel: HTMLElement, content_el: HTMLElement ) => new Promise<void>(async (res, _rej) => {
+const animate_out = async (componentel:ComponentElT, content_el: HTMLElement ) => new Promise<void>(async (res, _rej) => {
 
 	componentel.isanimating = true;
 
 	const content_transform_y = componentel.m.shape === ShapeE.FILL ? CONTENT_TRANSFORM_FILL_Y : CONTENT_TRANSFORM_FLOAT_Y;
+	const viewwrap_opacity = componentel.m.shape === ShapeE.FILL ? VIEWWRAPPEREL_FILL_OPACITY : VIEWWRAPPEREL_FLOAT_OPACITY;
 
     const content_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1 },
         { transform: `translate3d(0, ${content_transform_y}, 0)`, opacity: 0 }
     ];
-    
     const viewwrapperel_keyframes = [
-        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`, opacity: String(VIEWWRAPPEREL_OPACITY) },
+        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`, opacity: String(viewwrap_opacity) },
         { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
     ];
-    
-    const animation_options = {
-        duration: 430,
-        easing: 'cubic-bezier(.77,0,.33,1)',
-        fill: 'forwards' as const,
-    };
+    const viewheader_keyframes = [
+        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`, opacity: String( viewwrap_opacity ), filter: `blur(${VIEWHEADEREL_BLUR}px)` },
+        { transform: `translate3d(0,0,0)`, opacity: 1, filter: 'blur(0px)' }
+    ];
     
 	if (componentel.m.shape === ShapeE.FILL) {
-		animate_theme_and_body_color(animation_options.duration, true);
+		//animate_theme_and_body_color(animation_options.duration, true);
 	}
 
-	const viewwrapperel_animation = viewwrapperel.animate(viewwrapperel_keyframes, animation_options);
-    const content_animation = content_el.animate(content_keyframes, animation_options);
+	const viewwrapperel_animation = _viewwrapperel?.animate(viewwrapperel_keyframes, _main_animation_options);
+	const viewheaderel_animation = _viewheaderel?.animate(viewheader_keyframes, _viewheader_animation_options);
+    const content_animation = content_el.animate(content_keyframes, _main_animation_options);
     
-    await Promise.all([content_animation.finished, viewwrapperel_animation.finished]);
+    await Promise.all([content_animation.finished, viewwrapperel_animation?.finished, viewheaderel_animation?.finished]);
 
 	content_el.style.transform = `translate3d(0, ${content_transform_y}, 0)`;
 	content_el.style.opacity = '0';
-	viewwrapperel.style.transform = 'translate3d(0, 0, 0)';
-	viewwrapperel.style.opacity = '1';
+	if (_viewwrapperel) {
+		_viewwrapperel.style.transform = 'translate3d(0, 0, 0)';
+		_viewwrapperel.style.opacity = '1';
+		_viewwrapperel.style.transformOrigin = '';
+	}
+	if (_viewheaderel) {
+		_viewheaderel.style.transform = 'translate3d(0, 0, 0)';
+		_viewheaderel.style.opacity = '1';
+		_viewheaderel.style.transformOrigin = '';
+		_viewheaderel.style.filter = '';
+	}
 
 	content_animation.cancel();
-	viewwrapperel_animation.cancel();
+	viewwrapperel_animation?.cancel();
+	viewheaderel_animation?.cancel();
 
 	componentel.isanimating = false;
 
@@ -199,8 +252,17 @@ export const animate_out = async (componentel:ComponentElT, viewwrapperel: HTMLE
 
 
 
-export const get_isanmiating = (componentel:ComponentElT) =>  {
+const get_isanimating = (componentel:ComponentElT) =>  {
 	return componentel.isanimating;
+}
+
+
+export const Ol2Animate = {
+	init: init_animation_state,
+	run_handle_scroll,
+	animate_in,
+	animate_out,
+	get_isanimating
 }
 
 
@@ -216,15 +278,23 @@ function set_theme_and_body_color_from_progress(progress: number) {
 
 
 
-function set_viewwrapperel_from_progress(viewwrapperel:HTMLElement, progress: number) {
+
+function set_viewwrapperel_from_progress(progress: number) {
 	const scale = 1 - VIEWWRAPPEREL_SCALE_DIFF * progress;
 	const translateY = 20 * progress;
 	const opacity = 1 - VIEWWRAPPEREL_OPACITY_DIFF * progress;
 
-	viewwrapperel.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
-	viewwrapperel.style.opacity = opacity.toString();
-}
+	if (_viewwrapperel) {
+		_viewwrapperel.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
+		_viewwrapperel.style.opacity = opacity.toString();
+	}
 
+	if (_viewheaderel) {
+		_viewheaderel.style.transform = `translate3d(0, ${translateY}px, 0)`;
+		_viewheaderel.style.opacity = opacity.toString();
+		_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR * progress}px)`;
+	}
+}
 
 
 

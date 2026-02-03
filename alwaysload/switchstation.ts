@@ -1,11 +1,11 @@
-import { $NT, LazyLoadT } from  "./../defs.js" 
+import { $NT, LazyLoadT, CMechViewT } from  "./../defs.js" 
 import { str } from  "../defs_server_symlink.js" 
-import { AddView as CMechAddView, UpdateView as CMechUpdateView } from "./cmech.js"
+import { AddView as CMechAddView, UpdateView as CMechUpdateView, ReActivatePrevView as CMechReActivatePrevView } from "./cmech.js"
 import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
 import { Slide, SlideBack } from "./switchstation_animate.js"
 import { LoadView as LazyLoadLoadView } from "./lazyload_files.js"
-import { back_swipe_handler } from "./switchstation_handlebackswipe.js"
+import { BackSwipeHandlerI } from "./switchstation_handlebackswipe.js"
 
 declare var $N: $NT;
 
@@ -31,7 +31,6 @@ const Init = ()=> new Promise<void>(async (res, _rej) => {
 		return b_specificity - a_specificity
 	})
 
-
 	let path:string;
 	if (window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname === '/index.html') {
 		path = 'home'
@@ -39,23 +38,21 @@ const Init = ()=> new Promise<void>(async (res, _rej) => {
 		path = window.location.pathname.slice(3) + window.location.search // remove /v/ prefix and combine in search
 	}
 
-
 	GoTo(path)
 
-
 	// Set up callback for native swipe preparation
-	back_swipe_handler.on_prepare_view(() => {
-		const viewsel = document.getElementById("views") as HTMLElement;
-		const allviews = Array.from(viewsel.children) as HTMLElement[];
-		if (allviews.length >= 2) {
-			const previousview = allviews[allviews.length - 2] as HTMLElement;
-			// Prepare previous view for native swipe animation
-			previousview.getAnimations().forEach(anim => anim.cancel());
-			previousview.style.visibility = "visible";
-			previousview.style.opacity = "1";
-			previousview.style.transform = "none";
-		}
-	});
+	// BackSwipeHandlerI.on_prepare_view(() => {
+	// 	const viewsel = document.getElementById("views") as HTMLElement;
+	// 	const allviews = Array.from(viewsel.children) as HTMLElement[];
+	// 	if (allviews.length >= 2) {
+	// 		const previousview = allviews[allviews.length - 2] as HTMLElement;
+	// 		// Prepare previous view for native swipe animation
+	// 		previousview.getAnimations().forEach(anim => anim.cancel());
+	// 		previousview.style.visibility = "visible";
+	// 		previousview.style.opacity = "1";
+	// 		previousview.style.transform = "none";
+	// 	}
+	// });
 
 
 
@@ -148,12 +145,13 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 	}
 	catch { rej(); return; }
 
-	const new_view = viewsel.lastElementChild as HTMLElement;
+	const new_view = viewsel.lastElementChild as HTMLElement & CMechViewT;
 
 	if (old_view) {
-		Slide(old_view, new_view);
+		Slide(old_view, new_view, new_view.header?.title);
 		const animation_listener = () => {
-			viewsel.dataset.active = "true";
+			console.log("animation complete event fired");
+			// viewsel.dataset.active = "true";
 			viewsel.removeEventListener("animationcomplete", animation_listener);
 			viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
 			res();
@@ -212,24 +210,34 @@ const on_popstate = async (_event: PopStateEvent) => {
 		const viewsel = document.getElementById("views") as HTMLElement;
 		const allviews = Array.from(viewsel.children) as HTMLElement[];
 		const currentview = allviews[allviews.length - 1] as HTMLElement;
-		const previousview = allviews[allviews.length - 2] as HTMLElement;
+		const previousview = allviews[allviews.length - 2] as HTMLElement & CMechViewT;
 		
-		const was_native_swipe = back_swipe_handler.was_native_swipe();
+		const was_native_swipe = BackSwipeHandlerI.was_native_swipe();
+		const prev_title = previousview.header?.title;
 		
 		if (was_native_swipe) {
+			console.log('saying was native swipe')
 			viewsel.removeChild(currentview);
 			previousview.dataset.active = "true";
+			previousview.dataset.previous = "false";  // Remove data-previous to clear the -33vw translate CSS rule
 			previousview.getAnimations().forEach(anim => anim.cancel());
-			previousview.style.transform = "none";
+			previousview.style.translate = "0 0 0";   // Use 'translate' to match the CSS property
 			previousview.style.opacity = "1";
 			previousview.style.visibility = "visible";
+			document.documentElement.classList.remove('back-navigation');
+			// Unhandled Case: native swipe title update - need to update h1 without animation
+			const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
+			if (h1) h1.textContent = prev_title;
 		} else {
-			await SlideBack(currentview, previousview);
+			console.log('saying was NOT native swipe')
+			await SlideBack(currentview, previousview, prev_title);
 			viewsel.removeChild(currentview);
 		}
-		
+			
+		CMechReActivatePrevView(lastpathspec.route.lazyload_view.name);
 		return
 	}
+
 
 
 	// same view, but different path params

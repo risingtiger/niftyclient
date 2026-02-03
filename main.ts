@@ -104,9 +104,9 @@ function ToastShow(msg: string, level: ToastLevelT = 'info', _duration?: number 
     toast_el.setAttribute("msg", msg || "");
     toast_el.setAttribute("level", level?.toString() || '0');
     toast_el.setAttribute("duration", '2147483647'); 
-    
+
     document.body.append(toast_el);
-    
+
     toast_el.setAttribute("action", "run");
 
     toast_el.addEventListener("click", () => {
@@ -139,55 +139,65 @@ function setHeader(opts: ViewHeaderT) {
 
 	const header = document.getElementById('viewheader')!;
 
-	if (!opts) {
+	if (opts.disable) {
 		header.classList.add('hidden');
 		return;
 	}
 
 	header.classList.remove('hidden');
 
-	// Title
-	const h1 = header.querySelector('.middle h1');
-	if (h1) h1.textContent = opts.title;
-
-	// Back
-	const left = header.querySelector('.left') as HTMLElement;
-	if (left) {
-		if (opts.backurl) {
-			const textpart = opts.backtext ? `<span>${opts.backtext}</span>` : '';
-			left.innerHTML = `<span>‸</span>${textpart}`;
-			left.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
-		} else {
-			left.innerHTML = '<span>&nbsp;</span>';
-			left.onclick = null;
-		}
+	if (!opts.skip_title) {
+		const h1 = header.querySelector('.middle h1');
+		h1.textContent = opts.title;
 	}
 
-	// Actions
-	const right = header.querySelector('.right');
-	if (right) right.innerHTML = opts.actions || '';
+	const left = header.querySelector('.left') as HTMLElement;
+	const leftytextpart = left.querySelector("#viewheaderlefttextpart") as HTMLElement;
+	if (opts.backurl) {
+		left.classList.remove('hidden');
+		const textpart = opts.backtext ? `<span>${opts.backtext}</span>` : '';
+		leftytextpart.innerHTML = textpart;
+		left.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
+	} else {
+		left.classList.add('hidden');
+		left.onclick = null;
+		left.innerHTML = '<span>&nbsp;</span>';
+		left.onclick = null;
+	}
+
+	const right = header.querySelector('.right') as HTMLElement;
+	right.innerHTML = '';
+
+	if (opts.actions) {
+		for (const action of opts.actions) {
+			const iconEl = document.createElement('i');
+			iconEl.className = action.icon;
+			iconEl.onclick = action.onClick;
+			right.appendChild(iconEl);
+		}
+	}
 }
 $N.Header = { set: setHeader };
 
 
 
 
-function clickity(el:HTMLElement) {
-	el.classList.add("clickity")
-	const activeviewel = document.querySelector("#views > .view:last-child")!
-	const intrv = setInterval(() => {
-		const isactive = activeviewel.getAttribute("data-active") === "true"
-		if (!isactive) {
-			el.classList.remove("clickity")
-			clearInterval(intrv)
-		}
-	}, 100)
-	setTimeout(() => {
-		el.classList.remove("clickity")
-		clearInterval(intrv)
-	}, 8000)
-}
-$N.Clickity = clickity;
+// function clickity(el:HTMLElement) {
+// 	el.classList.add("clickity")
+// 	const activeviewel = document.querySelector("#views > .view:last-child")!
+// 	const intrv = setInterval(() => {
+// 		const isactive = activeviewel.getAttribute("data-active") === "true"
+// 		if (!isactive) {
+// 			el.classList.remove("clickity")
+// 			clearInterval(intrv)
+// 		}
+// 	}, 100)
+// 	setTimeout(() => {
+// 		el.classList.remove("clickity")
+// 		clearInterval(intrv)
+// 	}, 8000)
+// }
+// $N.Clickity = clickity;
 
 
 

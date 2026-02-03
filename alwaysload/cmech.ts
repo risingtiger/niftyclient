@@ -52,7 +52,7 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 	viewcomponent.ingest(d.loadeddata, d.pathparams, d.searchparams, 'initial')
 	viewcomponent.render();
 
-	$N.Header.set(viewcomponent.header);
+	$N.Header.set({ ...viewcomponent.header, skip_title: !!parentEl.querySelector('[data-active="true"]' )});
 
 	const shadow = (viewcomponent as any).shadow as ShadowRoot;
 	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
@@ -272,6 +272,15 @@ const GetViewParts = (viewname:str): Set<HTMLElement & CMechViewPartT> | undefin
 
 
 
+const ReActivatePrevView = (viewname:str) => {
+	const viewel = document.querySelector(`#views > v-${viewname}`) as HTMLElement & CMechViewT
+	// Title already set by SlideBack animation, skip redundant update
+	$N.Header.set({ ...viewel.header, skip_title: true });
+}
+
+
+
+
 const find_ancestor_viewname = (component: HTMLElement): str | null => {
 
 	let current: Node = component;
@@ -423,7 +432,7 @@ const remove_view_aux = (viewname:str) => {
 
 
 
-export { Init, AddView, UpdateView, GetViewParts }
+export { Init, AddView, UpdateView, GetViewParts, ReActivatePrevView,  }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = {RegisterView, RegisterViewPart, PostLoadViewPart, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
