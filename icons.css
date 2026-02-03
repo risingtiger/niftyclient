@@ -1,0 +1,67 @@
+& span.example_will_delete_after {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 20'%3E%3Cpath d='M10 1L1.5 10L10 19' fill='none' stroke='%23333333' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+
+
+
+i[class^="icon-"] {
+	width: 24px; /* default width. can be set per instance and svg will scale accordingly */
+	height: 100%; /* default height. can be set per instance and svg will scale accordingly */
+	display: inline-block;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+
+i.icon-circles {
+}
+i.icon-trash {
+}
+i.icon-tripledot {
+}
+i.icon-copy {
+}
+i.icon-save {
+}
+i.icon-burger {
+}
+i.icon-add {
+}
+i.icon-list {
+}
+i.icon-piggy {
+}
+i.icon-bucket {
+}
+i.icon-stopwatch {
+}
+i.icon-pressure {
+}
+i.icon-meter {
+}
+i.icon-info {
+}
+i.icon-graph {
+}
+i.icon-location {
+}
+i.icon-refresh {
+}
+i.icon-search {
+}
+i.icon-tune {
+}
+i.icon-edit2 {
+}
+i.icon-edit1 {
+}
+i.icon-checkcircle {
+}
+i.icon-arrowright2 {
+}
+i.icon-arrowleft1 {
+}
+i.icon-arrowright1 {
+}
