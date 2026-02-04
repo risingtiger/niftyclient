@@ -3,7 +3,7 @@ import { str } from  "../defs_server_symlink.js"
 import { AddView as CMechAddView, UpdateView as CMechUpdateView } from "./cmech.js"
 import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
-import { Slide, SlideBack } from "./switchstation_animate.js"
+import { Slide, SlideBack, SlidePhase1, SlidePhase2 } from "./switchstation_animate.js"
 import { LoadView as LazyLoadLoadView } from "./lazyload_files.js"
 import { BackSwipeHandlerI } from "./switchstation_handlebackswipe.js"
 
@@ -139,33 +139,37 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 	const viewsel = document.getElementById("views") as HTMLElement;
 	const old_view = viewsel.querySelector('[data-active="true"]') as HTMLElement | null;
 
+	// Phase 1: Immediate feedback (only if there's an existing view)
+	let spinner: HTMLElement | null = null;
+	if (old_view) {
+		spinner = SlidePhase1(old_view);
+	}
+
 	try { 
 		await LazyLoadLoadView(pathspec.route.lazyload_view); 
 		await CMechAddView(pathspec.route.lazyload_view.name, pathspec.pathparams, pathspec.searchparams, pathspec.route.lazyload_view.localdb_preload||[]); 
 	}
-	catch { rej(); return; }
+	catch { 
+		// Unhandled Case: cleanup spinner if loading fails
+		if (spinner) spinner.remove();
+		if (old_view) old_view.classList.remove('transition-phase1');
+		rej(); 
+		return; 
+	}
 
 	const new_view = viewsel.lastElementChild as HTMLElement & CMechViewT;
 
 	if (old_view) {
 
-		await Slide(old_view, new_view, new_view.header?.title);
+		// Phase 2: Slide in new view after data is loaded
+		await SlidePhase2(old_view, new_view, spinner!, new_view.header?.title);
 
-		console.log("after Slide");
+		console.log("after SlidePhase2");
 		viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
 		old_view.style.display = "none";
 		res();
 
-		// const animation_listener = () => {
-		// 	console.log("animation complete event fired");
-		// 	// viewsel.dataset.active = "true";
-		// 	viewsel.removeEventListener("animationcomplete", animation_listener);
-		// 	viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
-		// 	res();
-		// };
-		// viewsel.addEventListener("animationcomplete", animation_listener);
-
-	} else { // First view
+	} else { // First view - no spinner, just show directly
 		new_view.dataset.active = "true";
 		document.querySelector("#views")!.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
 		res();

@@ -56,7 +56,7 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 
 	const shadow = (viewcomponent as any).shadow as ShadowRoot;
 	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
-		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).maincss];
+		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).iconscss, (window as any).maincss];
 	}
 
 	// render will cause any viewparts to register and call RegisterViewPart. This will happen before wait_for_all_render_and_hydration even gets called
