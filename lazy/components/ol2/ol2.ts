@@ -50,7 +50,7 @@ class COl2 extends HTMLElement {
 			Ol2Animate.run_handle_scroll(this as any, ()=>this.closed()); 
 		}
 	}
-	private handle_viewheader_click = (_e: MouseEvent) => { this.close(); }
+	// private handle_viewheader_click = (_e: MouseEvent) => { this.close(); }
 
 	static get observedAttributes() { return Object.keys(ATTRIBUTES); }
 
@@ -87,7 +87,7 @@ class COl2 extends HTMLElement {
 		this.addEventListener("scroll", this.handle_scroll, false);
 		this.content_el.addEventListener("click", this.handle_content_click, false);
 		const viewheader_el = document.querySelector('#viewheader')!;
-		viewheader_el.addEventListener("click", this.handle_viewheader_click, false);
+		// viewheader_el.addEventListener("click", this.handle_viewheader_click, false);
 
 
 		if (this.firstElementChild!.tagName.startsWith("VP-")) {
@@ -152,7 +152,7 @@ class COl2 extends HTMLElement {
 		this.content_el.removeEventListener("click", this.handle_content_click);
 		this.removeEventListener("scroll", this.handle_scroll);
 		const viewheader_el = document.querySelector('#viewheader')!;
-		viewheader_el.removeEventListener("click", this.handle_viewheader_click);
+		// viewheader_el.removeEventListener("click", this.handle_viewheader_click);
 	}
 
 

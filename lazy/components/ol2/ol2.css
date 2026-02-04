@@ -24,7 +24,6 @@
 	display: none;
 }
 
-
 .spacer {
 	display: none;
 	height: 100vh;
@@ -39,12 +38,13 @@
 	display: block;
 }
 
+
 .wrapper {
 	position: relative;
 	height: 100vh;
 	scroll-snap-align: start;
 	overflow-y: hidden;
-	padding-top: 0px;
+	padding-top: 18px;
 	box-sizing: border-box;
 }
 
@@ -123,6 +123,7 @@
         slot[name="headerright"]::slotted(*) {
             color: blue;
         }
+        text-align: right;
     }
 }
 
@@ -148,6 +149,14 @@
 	}
 }
 
+
+
+
+@media (max-width: 767px) {
+	.wrapper {
+		padding-top: 0px;
+	}
+}
 
 
 

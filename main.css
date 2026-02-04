@@ -14,17 +14,15 @@ a:hover {
 }
 
 
-div.wrapper {
-    box-sizing:  border-box;
-    overflow-x: hidden;
-    /* overflow-y: visible; */
-    padding-top: calc(var(--windowtop) + var(--viewheader-height));
-    width: 100vw;
 
-    /* height: calc(100svh - 34px); */
-    /* height: 100vh; */
-     /* for in anime lower */
-	background-color: white;
+div.wrapper {
+    box-sizing: border-box;
+    overflow: visible;
+    overscroll-behavior: none;
+    padding-top: calc(var(--windowtop) + var(--viewheader-desktopheight));
+    width: 100vw;
+    min-height: 100vh;
+    background-color: var(--background);
     z-index: 9;
 }
 div.wrapper.anime_lower {
@@ -34,7 +32,6 @@ div.wrapper.anime_lower {
 	transition-duration: 0.3s;
 	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
 }
-
 
 
 ul.items {
@@ -60,8 +57,7 @@ ul.items {
 
         & > .thumbnail {
             padding-top: 0px;
-            width: 48px;
-            min-width: 48px;
+            flex: 0 0 49px;
             box-sizing: border-box;
 
             & img {
@@ -95,12 +91,14 @@ ul.items {
 			padding-right: 12px;
 		}
 
+
 		& > .actions {
             display: flex;
+			flex: 0 0 auto;
 
 			& > i.action {
 				display: block;
-				padding: 16px 8px 14px 13px;
+				padding: 16px 10px 14px 5px;
 				color: #c1c1c1;
 				font-size: 18px;
 				width: 20px;
@@ -124,7 +122,7 @@ ul.items {
         }
 
         & > .aux {
-            flex-grow: 1;
+            flex: 1 1 auto;
 
 
             & > h5 {
@@ -149,7 +147,8 @@ ul.items {
 					display: block;
 					white-space: nowrap;
 					overflow: hidden;
-					text-overflow:clip;
+					text-overflow: ellipsis;
+					width: 100%;
 				}
             }
 
@@ -254,10 +253,10 @@ span.justinput.search {
     & > input {
         border-radius: 25px;
         border: none;
-        background: #eefdfd;
+        background: #ffffff;
         -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
         box-sizing: border-box;
-        border: 1px solid #dafafa;
+        border: 1px solid #e8e7e7;
     }
     & > i {
         color: #a1a1a1;
@@ -270,6 +269,9 @@ span.justinput.search {
 dialog::backdrop {
     background-color: rgba(0, 0, 0, 0);
 }
+
+
+
 
 
 
@@ -370,7 +372,10 @@ i[class*=" icon-"]:before {
 
 
 
-@media only screen and (min-device-width: 768px) {
+@media (max-width: 767px) {
+	div.wrapper {
+		padding-top: calc(var(--windowtop) + var(--viewheader-mobileheight));
+	}
 }
 
 

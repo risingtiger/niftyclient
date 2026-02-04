@@ -32,6 +32,7 @@ let _serviceworker_reg: ServiceWorkerRegistration|null;
 
 
 
+
 window.addEventListener("load", async (_e) => {
 
 	const lazyloads = [...SETTINGS.MAIN.LAZYLOADS, ...SETTINGS.INSTANCE.LAZYLOADS]
@@ -152,28 +153,29 @@ function setHeader(opts: ViewHeaderT) {
 	}
 
 	const left = header.querySelector('.left') as HTMLElement;
-	const leftytextpart = left.querySelector("#viewheaderlefttextpart") as HTMLElement;
 	if (opts.backurl) {
 		left.classList.remove('hidden');
-		const textpart = opts.backtext ? `<span>${opts.backtext}</span>` : '';
-		leftytextpart.innerHTML = textpart;
 		left.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
 	} else {
 		left.classList.add('hidden');
 		left.onclick = null;
-		left.innerHTML = '<span>&nbsp;</span>';
-		left.onclick = null;
 	}
 
-	const right = header.querySelector('.right') as HTMLElement;
-	right.innerHTML = '';
+
+	const actionctrls = header.querySelector('.right .actionctrls') as HTMLElement;
+	actionctrls.innerHTML = ''; // clear existing
+	actionctrls.style.width = "";
 
 	if (opts.actions) {
 		for (const action of opts.actions) {
+			const divEl = document.createElement('div');
+			divEl.className = 'actionctrl';
 			const iconEl = document.createElement('i');
-			iconEl.className = action.icon;
-			iconEl.onclick = action.onClick;
-			right.appendChild(iconEl);
+			iconEl.className = `icon-${action.icon}`;
+			divEl.onclick = action.onClick;
+			// actionctrls.style.width = `${opts.actions.length * 28}px`;
+			divEl.appendChild(iconEl);
+			actionctrls.appendChild(divEl);
 		}
 	}
 }

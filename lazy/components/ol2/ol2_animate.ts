@@ -25,7 +25,7 @@ let _current_componentel: ComponentElT | null = null
 
 const CONTENT_TRANSFORM_FILL_Y  = '10vh';
 const CONTENT_TRANSFORM_FLOAT_Y = '6vh';
-const VIEWWRAPPEREL_TRANSFORM_Y = '-1vh';
+const VIEWWRAPPEREL_TRANSFORM_Y = '1vh';
 const VIEWWRAPPEREL_SCALE      = 0.98;
 const VIEWWRAPPEREL_FILL_OPACITY   = 0.0;
 const VIEWWRAPPEREL_FLOAT_OPACITY  = 0.4;
@@ -93,10 +93,13 @@ function run_handle_scroll(componentel: ComponentElT, onclosedcb: () => void) {
 	if (componentel.scroll_raf_id !== null) {
 		cancelAnimationFrame(componentel.scroll_raf_id);
 	}
+
+	_viewheaderel!.style.display = '';
+	_viewheaderel!.offsetWidth; // Force reflow
 	
 	// Schedule update on next animation frame
 	componentel.scroll_raf_id = requestAnimationFrame(() => {
-		if (componentel.scrollTop < 20 && componentel.isopen) {
+		if (componentel.scrollTop < 20 && componentel.isopen && !componentel.isanimating) {
 			//set_theme_and_body_color_from_progress(0);
 			set_viewwrapperel_from_progress(0);
 			if (_viewwrapperel) {
@@ -134,15 +137,12 @@ const animate_in = (componentel: ComponentElT, content_el:HTMLElement) => new Pr
 
     content_el.style.opacity = '0';
 
-	if (_viewheaderel) {
-		_viewheaderel.style.transformOrigin = 'center bottom';
-	}
-	if (_viewwrapperel) {
-		_viewwrapperel.style.transformOrigin = 'center top';
-	}
+	_viewheaderel.style.transformOrigin = 'center bottom';
+	_viewwrapperel.style.transformOrigin = 'center top';
 
 	const content_transform_y = componentel.m.shape === ShapeE.FILL ? CONTENT_TRANSFORM_FILL_Y : CONTENT_TRANSFORM_FLOAT_Y;
 	const viewwrap_opacity = componentel.m.shape === ShapeE.FILL ? VIEWWRAPPEREL_FILL_OPACITY : VIEWWRAPPEREL_FLOAT_OPACITY;
+	const viewheader_opacity = componentel.m.shape === ShapeE.FILL ? VIEWWRAPPEREL_FILL_OPACITY : 0.01;
     
     const content_keyframes = [
         { transform: `translate3d(0, ${content_transform_y}, 0)`, opacity: 0 },
@@ -155,7 +155,7 @@ const animate_in = (componentel: ComponentElT, content_el:HTMLElement) => new Pr
     ];
     const viewheader_keyframes = [
         { transform: 'translate3d(0, 0, 0)', opacity: 1, filter: 'blur(0px)' },
-        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`, opacity: String( viewwrap_opacity ), filter: `blur(${VIEWHEADEREL_BLUR}px)` }
+        { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`, opacity: String( viewheader_opacity ), filter: `blur(${VIEWHEADEREL_BLUR}px)` }
     ];
     
 
@@ -173,15 +173,15 @@ const animate_in = (componentel: ComponentElT, content_el:HTMLElement) => new Pr
 
 	content_el.style.transform = 'translate3d(0, 0, 0)';
 	content_el.style.opacity = '1';
-	if (_viewwrapperel) {
-		_viewwrapperel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`;
-		_viewwrapperel.style.opacity = String(viewwrap_opacity);
-	}
-	if (_viewheaderel) {
-		_viewheaderel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`;
-		_viewheaderel.style.opacity = String(viewwrap_opacity);
-		_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR}px)`;
-	}
+
+	_viewwrapperel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0) scale(${VIEWWRAPPEREL_SCALE})`;
+	_viewwrapperel.style.opacity = String(viewwrap_opacity);
+
+	_viewheaderel.style.transform = `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`;
+	_viewheaderel.style.opacity = String(viewwrap_opacity);
+	_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR}px)`;
+	_viewheaderel.style.display = `none`;
+
 
 	content_animation.cancel();
 	viewwrapperel_animation?.cancel();
@@ -219,6 +219,9 @@ const animate_out = async (componentel:ComponentElT, content_el: HTMLElement ) =
 	if (componentel.m.shape === ShapeE.FILL) {
 		//animate_theme_and_body_color(animation_options.duration, true);
 	}
+
+	_viewheaderel.style.display = '';
+	_viewheaderel.offsetWidth;
 
 	const viewwrapperel_animation = _viewwrapperel?.animate(viewwrapperel_keyframes, _main_animation_options);
 	const viewheaderel_animation = _viewheaderel?.animate(viewheader_keyframes, _viewheader_animation_options);

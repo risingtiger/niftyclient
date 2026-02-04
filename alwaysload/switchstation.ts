@@ -1,6 +1,6 @@
 import { $NT, LazyLoadT, CMechViewT } from  "./../defs.js" 
 import { str } from  "../defs_server_symlink.js" 
-import { AddView as CMechAddView, UpdateView as CMechUpdateView, ReActivatePrevView as CMechReActivatePrevView } from "./cmech.js"
+import { AddView as CMechAddView, UpdateView as CMechUpdateView } from "./cmech.js"
 import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
 import { Slide, SlideBack } from "./switchstation_animate.js"
@@ -148,15 +148,22 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 	const new_view = viewsel.lastElementChild as HTMLElement & CMechViewT;
 
 	if (old_view) {
-		Slide(old_view, new_view, new_view.header?.title);
-		const animation_listener = () => {
-			console.log("animation complete event fired");
-			// viewsel.dataset.active = "true";
-			viewsel.removeEventListener("animationcomplete", animation_listener);
-			viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
-			res();
-		};
-		viewsel.addEventListener("animationcomplete", animation_listener);
+
+		await Slide(old_view, new_view, new_view.header?.title);
+
+		console.log("after Slide");
+		viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
+		old_view.style.display = "none";
+		res();
+
+		// const animation_listener = () => {
+		// 	console.log("animation complete event fired");
+		// 	// viewsel.dataset.active = "true";
+		// 	viewsel.removeEventListener("animationcomplete", animation_listener);
+		// 	viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
+		// 	res();
+		// };
+		// viewsel.addEventListener("animationcomplete", animation_listener);
 
 	} else { // First view
 		new_view.dataset.active = "true";
@@ -215,8 +222,13 @@ const on_popstate = async (_event: PopStateEvent) => {
 		const was_native_swipe = BackSwipeHandlerI.was_native_swipe();
 		const prev_title = previousview.header?.title;
 		
+		const viewel = document.querySelector(`#views > v-${lastpathspec.route.lazyload_view.name}`) as HTMLElement & CMechViewT
+		$N.Header.set({ ...viewel.header, skip_title: true });
+
+		previousview.style.display = "block";
+		previousview.offsetHeight; // force reflow
+
 		if (was_native_swipe) {
-			console.log('saying was native swipe')
 			viewsel.removeChild(currentview);
 			previousview.dataset.active = "true";
 			previousview.dataset.previous = "false";  // Remove data-previous to clear the -33vw translate CSS rule
@@ -229,16 +241,12 @@ const on_popstate = async (_event: PopStateEvent) => {
 			const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
 			if (h1) h1.textContent = prev_title;
 		} else {
-			console.log('saying was NOT native swipe')
 			await SlideBack(currentview, previousview, prev_title);
 			viewsel.removeChild(currentview);
 		}
 			
-		CMechReActivatePrevView(lastpathspec.route.lazyload_view.name);
 		return
 	}
-
-
 
 	// same view, but different path params
 

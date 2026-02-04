@@ -272,15 +272,6 @@ const GetViewParts = (viewname:str): Set<HTMLElement & CMechViewPartT> | undefin
 
 
 
-const ReActivatePrevView = (viewname:str) => {
-	const viewel = document.querySelector(`#views > v-${viewname}`) as HTMLElement & CMechViewT
-	// Title already set by SlideBack animation, skip redundant update
-	$N.Header.set({ ...viewel.header, skip_title: true });
-}
-
-
-
-
 const find_ancestor_viewname = (component: HTMLElement): str | null => {
 
 	let current: Node = component;
@@ -432,7 +423,7 @@ const remove_view_aux = (viewname:str) => {
 
 
 
-export { Init, AddView, UpdateView, GetViewParts, ReActivatePrevView,  }
+export { Init, AddView, UpdateView, GetViewParts,  }
 
 if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).CMech = {RegisterView, RegisterViewPart, PostLoadViewPart, AttributeChangedCallback, ViewDisconnectedCallback, ViewPartDisconnectedCallback };
