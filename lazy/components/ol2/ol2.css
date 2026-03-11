@@ -1,12 +1,11 @@
 
 
-
 :host {
 	position: fixed;
 	top: 0;
 	left: 0;
 	width: 100vw;
-	height: 100vh;
+	height: calc(100vh - var(--windowtop));
 	overflow-y: scroll;
 	scroll-snap-type: none;
 	scrollbar-width: none;
@@ -58,7 +57,7 @@
 	border-radius: 0 0 0 0;
 	z-index: 1001;
 	opacity: 0;
-	/* overflow-y: hidden; */
+	overflow-y: hidden;
 }
 
 
@@ -73,7 +72,8 @@
 .wrapper[shape="fill"] .content {
 	width: 100vw;
 	height: calc(100vh - 17px);
-	box-shadow: 0 -1px 0px rgb(0 0 0 / 16%);
+	/* box-shadow: 0 -1px 0px rgb(0 0 0 / 16%); */
+	border-top: 1px solid #d7d7d7;
 	border-radius: 25px 25px 0 0;
 }
 .wrapper[shape="float"] .content.floatsize-s { /* all the same for now */
@@ -87,48 +87,61 @@
 }
 
 .content > header {
+    position: absolute;
+    top: 10px;
     display: flex;
-    width: 100%;
+    width: 200px;
     box-sizing: border-box;
-    padding: 10px 12px;
-	font-size: 16px;
-	color: var(--actioncolor);
-	cursor: pointer;
+    padding: 0px 10px 0px 10px;
+    font-size: 16px;
+    color: var(--actioncolor);
 
-	.left, .right { width: 20%; }
+	.left {flex: 0 0 auto;z-index: 2;}
 
 	a {
 		-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 		cursor: pointer;
 	}
-	
 
-    & .middle {
-        width: 60%;
+
+	.closebtn {
+		display: block;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background-color: white;
+		border: 1px solid #ccc;
+		padding: 6px;
+		box-sizing: border-box;
+	}
+	
+    & .titlearea {
+        flex: 0 0 auto;
+        padding-top: 4.0px;
+        padding-left: 0;
+        z-index: 1;
 
         & h1 {
 			/* font-family: var(--fontfamily); */
 			/* -webkit-font-smoothing: antialiased; */
 			color: var(--textcolor);
-			font-size: 18px;
+			font-size: 15px;
+			text-transform: uppercase;
 			font-weight: bold;
-			text-align: center;
+			text-transform: uppercase;
+			background: white;
+			box-shadow: 0 0 6px 6px white;
+			text-align: left;
 			padding: 0;
+			padding-left: 9px;
 			margin: 0;
 			}
     }
-
-
-    & .right {
-        slot[name="headerright"]::slotted(*) {
-            color: blue;
-        }
-        text-align: right;
-    }
 }
 
+
 .content > slot {
-    /* display: block; */
+    /* padding-top: 27px; */
     /* overflow-y: hidden; */
 }
 
@@ -137,8 +150,9 @@
 .wrapper[shape="fill"] .swipe-indicator {
 	margin: 4px auto;
 	padding-top: 4px;
+	position: absolute;
+	width: 100%;
 	
-
 	> span {
 		display: block;
 		width: 35px;
@@ -155,6 +169,19 @@
 @media (max-width: 767px) {
 	.wrapper {
 		padding-top: 0px;
+	}
+
+	.content > header {
+
+		.closebtn {
+			width: 30px;
+			height: 30px;
+		}
+		
+
+		& .titlearea {
+			padding-top: 6.5px;
+		}
 	}
 }
 

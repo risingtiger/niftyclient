@@ -95,41 +95,18 @@ document.addEventListener('visibilitychange', () => {
 
 
 
-let toast_id_counter = 0;
-function ToastShow(msg: string, level: ToastLevelT = 'info', _duration?: number | null) { // _duration argument is no longer used
 
-    const toast_id = `maintoast-${toast_id_counter}`;
-    const toast_el = document.createElement('c-toast') as any; // Cast to any for custom element properties
-    toast_el.id = toast_id;
+async function ToastShow(msg: string|{title:string,sub:string}, level: ToastLevelT = 'info', duration: number = 4000) { 
 
-    toast_el.setAttribute("msg", msg || "");
-    toast_el.setAttribute("level", level?.toString() || '0');
-    toast_el.setAttribute("duration", '2147483647'); 
+	let toastel = document.querySelector('body > c-toast') as HTMLElement & {addtoast:any} | null;
 
-    document.body.append(toast_el);
+	if (!toastel) { // c-toast requires component to be loaded which should happen after initial load
+		document.body.insertAdjacentHTML('beforeend', '<c-toast></c-toast>');
+		toastel = document.querySelector('body > c-toast');
+	}
 
-    toast_el.setAttribute("action", "run");
-
-    toast_el.addEventListener("click", () => {
-        if (toast_el.parentElement) { // Check if the element is still in the DOM
-            toast_el.remove();
-        }
-    });
-
-    toast_el.addEventListener("done", () => {
-        if (toast_el.parentElement) { // Check if the element is still in the DOM
-            toast_el.remove();
-        }
-    });
-
-	setTimeout(() => {
-		const toast_els = Array.from( document.querySelectorAll("c-toast") )
-		let   bottom_position = 20;
-		for (const el of toast_els) {
-			( el as HTMLElement).style.bottom = `${bottom_position}px`;
-			bottom_position += 60;
-		}
-	}, 10)
+	await new Promise(resolve => setTimeout(resolve, 100)) // wait for c-toast to be ready, can make this more robust if needed
+	toastel.addtoast(msg, level, duration);
 }
 $N.ToastShow = ToastShow;
 
@@ -153,23 +130,24 @@ function setHeader(opts: ViewHeaderT) {
 	}
 
 	const left = header.querySelector('.left') as HTMLElement;
+	const leftbackbtnel = left.querySelector('.backbtn') as HTMLElement;
 	if (opts.backurl) {
 		left.classList.remove('hidden');
-		left.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
+		leftbackbtnel.onclick = () => $N.SwitchStation.GoBack({ default: opts.backurl! });
 	} else {
 		left.classList.add('hidden');
-		left.onclick = null;
+		leftbackbtnel.onclick = null;
 	}
 
 
-	const actionctrls = header.querySelector('.right .actionctrls') as HTMLElement;
+	const actionctrls = header.querySelector('.right .icobtns') as HTMLElement;
 	actionctrls.innerHTML = ''; // clear existing
 	actionctrls.style.width = "";
 
 	if (opts.actions) {
 		for (const action of opts.actions) {
 			const divEl = document.createElement('div');
-			divEl.className = 'actionctrl';
+			divEl.className = 'icobtn';
 			const iconEl = document.createElement('i');
 			iconEl.className = `icon-${action.icon}`;
 			divEl.onclick = action.onClick;

@@ -94,7 +94,7 @@ self.addEventListener('fetch', (e:FetchEvent) => {
 
 	const pathname = ( new URL(e.request.url) ).pathname;
 
-	if (pathname.startsWith("sse_add_listener")) {   return;   }
+	if (pathname.startsWith("/sse_add_listener")) {   return;   }
 
 
 	if (pathname.startsWith('/v/') || pathname === '/') {

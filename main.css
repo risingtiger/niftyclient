@@ -1,11 +1,13 @@
 
+
+
 div,span,h1,h2,h3,h4,h5,h6,p,button,td {
     margin: 0;
     padding: 0 0px 0 0;
-	font-family: var(--fontfamily);
-	font-size: var(--textsize);
+    font-family: var(--fontfamily);
+    font-size: var(--textsize);
     line-height: 1.2;
-	color: var(--textcolor);
+    color: #7c7c7c;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -15,7 +17,8 @@ a:hover {
 
 
 
-div.wrapper {
+:host > .wrapper {
+	position:relative;
     box-sizing: border-box;
     overflow: visible;
     overscroll-behavior: none;
@@ -25,12 +28,20 @@ div.wrapper {
     background-color: var(--background);
     z-index: 9;
 }
-div.wrapper.anime_lower {
+:host > .wrapper.anime_lower {
 	transform: translate3d(0, 9px, 0) scaleX(0.97);
 	opacity: 0.5;
 	transition-property: transform, opacity;
 	transition-duration: 0.3s;
 	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
+}
+
+:host > .backdrop {
+	position: absolute;
+	top: 0; left: 0;
+	z-index: 8;
+    width: 100vw;
+    background-color: var(--background);
 }
 
 
@@ -47,13 +58,17 @@ ul.items {
         box-sizing: border-box;
         display: flex;
         flex-wrap: nowrap;
-        justify-content: space-between;
         padding: 0;
         border-bottom-width: 0.5px;
         border-bottom-style: solid;
         border-bottom-color: var(--bordercolor);
         cursor: pointer;
         background: white;
+        -webkit-tap-highlight-color: transparent;
+
+        &.active {
+            background: var(--background-highlight);
+        }
 
         & > .thumbnail {
             padding-top: 0px;
@@ -67,120 +82,95 @@ ul.items {
             padding: 12px 0 0 12px;
         }
 
-		/* h5 is only intended for title as first element */
-		/* use .aux and/or .aux > h5 for more complex column layout in row */
-        & > h5:first-child { 
+
+        & > h4 { /* should only be one per li */
             font-weight: 700;
-            padding: 18px 6px 0 12px;
-			flex-grow: 1;
-            width: 125px;
+            padding: 18px 10px 0 10px;
             overflow: hidden;
             text-wrap: nowrap;
-        }
-
-		/* p is only intended for right aligned text as last element */
-		/* use .aux and/or .aux > p for more complex column layout in row */
-        & > p {
-            font-weight: 400;
-            padding: 18px 0px 0 0;
-            color: var(--textcolor);
             flex-grow: 1;
-            text-align: right;
         }
-		& > p:last-child {
-			padding-right: 12px;
+        & > h4:has(+ p, + h5) {
+            flex-grow: 0;
+        }
+        & > .thumbnail + h4 { 
+			padding-left: 0;
 		}
 
+        & > h5 { /* can have multiple per li */
+            font-weight: 500;
+            padding: 18px 6px 0 0px;
+            overflow: hidden;
+            text-wrap: nowrap;
+            flex: 1 0 auto;
+        }
 
-		& > .actions {
+        & > p { /* only meant to have one p per li */
+            font-weight: 400;
+            padding: 18px 12px 0 0;
+            color: var(--textcolor);
+            flex: 1 0 auto;
+			text-align: right;
+        }
+		& > p:last-of-type:has(+ .actions) {
+			padding-right: 0;
+		}
+
+		& > .actions { /* only one per li */
             display: flex;
-			flex: 0 0 auto;
+            flex: 0 0 auto;
+            padding-right: 3px;
 
 			& > i.action {
 				display: block;
-				padding: 16px 10px 14px 5px;
+				padding: 0;
 				color: #c1c1c1;
-				font-size: 18px;
-				width: 20px;
-				height: 20px;
+				mask-size: 16px 16px;
+				width: 32px;
+				height: 100%;
 				color: #8b8b8b;
 				-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 			}
 		}
 
-        & > i.indication {
-            display: block;
-            padding: 17px 8px 14px 13px;
-            color: #c1c1c1;
-            font-size: 18px;
-            width: 20px;
-            height: 20px;
-        }
+        /* & > i.indication { */
+        /*     display: block; */
+        /*     padding: 17px 8px 14px 13px; */
+        /*     color: #c1c1c1; */
+        /*     font-size: 18px; */
+        /*     width: 20px; */
+        /*     height: 20px; */
+        /* } */
+        /**/
+        /* & > i.indication.actioncolor { */
+        /*     color: var(--actioncolor); */
+        /* } */
 
-        & > i.indication.actioncolor {
-            color: var(--actioncolor);
-        }
+        & > .multiline {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
 
-        & > .aux {
-            flex: 1 1 auto;
-
-
-            & > h5 {
-                font-weight: 500;
-                white-space: nowrap;
-                overflow: hidden;
-                padding: 9px 0px 0 0px;
-            }
-
-            & > h6 {
-                font-weight: 500;
-            }
-            & > h6.bits {
-				display: flex;
+            & > h5, & > h6 {
 				white-space: nowrap;
 				overflow: hidden;
 				text-overflow:clip;
-				margin-bottom: 0px;
-				
-
-				& > span.bit {
-					display: block;
-					white-space: nowrap;
-					overflow: hidden;
-					text-overflow: ellipsis;
-					width: 100%;
-				}
+				margin: 0;
+                padding: 0px;
             }
 
-            & > h6 + p {
-                font-weight: 300;
-            }
-            & > h6 + p.bitslegend {
-				display: flex;
+            & > h5 {   font-weight: 700;   }
+            & > h6 {   font-weight: 500;   }
 
-				&> span.bit {
-					color: var(--textcolor-fade);
-					display: block;
-					font-size: 11px;
-					white-space: nowrap;
-					overflow: hidden;
-					text-overflow:clip;
-				}
-            }
-
-            & > i[class*=" icon-"].action {
-                display: block;
-                font-size: 18px;
-                padding: 17px 0 0 0;
-                color: rgb(189, 189, 189);
-            }
-
-            & i.icon-edit1.action {
-                font-size: 20px;
-                color: var(--actioncolor);
-            }
-
-            padding-top: 9px;
+			& > small {
+				display: block;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: clip;
+				color: var(--textcolor-fade);
+				font-size: 13px;
+			}
         }
     }
 	& > li:first-child {
@@ -189,6 +179,7 @@ ul.items {
 		border-top-color: var(--bordercolor);
 	}
 }
+
 
 dl.define {
     & dt {
@@ -275,94 +266,94 @@ dialog::backdrop {
 
 
 
-i[class^="icon-"]:before,
-i[class*=" icon-"]:before {
-    font-family: icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    vertical-align: top;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-
-.icon-circles:before {
-    content: "\f101";
-}
-.icon-trash:before {
-    content: "\f102";
-}
-.icon-tripledot:before {
-    content: "\f103";
-}
-.icon-copy:before {
-    content: "\f104";
-}
-.icon-save:before {
-    content: "\f105";
-}
-.icon-burger:before {
-    content: "\f106";
-}
-.icon-add:before {
-    content: "\f107";
-}
-.icon-list:before {
-    content: "\f108";
-}
-.icon-piggy:before {
-    content: "\f109";
-}
-.icon-bucket:before {
-    content: "\f10a";
-}
-.icon-stopwatch:before {
-    content: "\f10b";
-}
-.icon-pressure:before {
-    content: "\f10c";
-}
-.icon-meter:before {
-    content: "\f10d";
-}
-.icon-info:before {
-    content: "\f10e";
-}
-.icon-graph:before {
-    content: "\f10f";
-}
-.icon-location:before {
-    content: "\f110";
-}
-.icon-refresh:before {
-    content: "\f111";
-}
-.icon-search:before {
-    content: "\f112";
-}
-.icon-tune:before {
-    content: "\f113";
-}
-.icon-edit2:before {
-    content: "\f114";
-}
-.icon-edit1:before {
-    content: "\f115";
-}
-.icon-checkcircle:before {
-    content: "\f116";
-}
-.icon-arrowright2:before {
-    content: "\f117";
-}
-.icon-arrowleft1:before {
-    content: "\f118";
-}
-.icon-arrowright1:before {
-    content: "\f119";
-}
+/* i[class^="icon-"]:before, */
+/* i[class*=" icon-"]:before { */
+/*     font-family: icons !important; */
+/*     font-style: normal; */
+/*     font-weight: normal !important; */
+/*     font-variant: normal; */
+/*     text-transform: none; */
+/*     vertical-align: top; */
+/*     -webkit-font-smoothing: antialiased; */
+/*     -moz-osx-font-smoothing: grayscale; */
+/* } */
+/**/
+/**/
+/* .icon-circles:before { */
+/*     content: "\f101"; */
+/* } */
+/* .icon-trash:before { */
+/*     content: "\f102"; */
+/* } */
+/* .icon-tripledot:before { */
+/*     content: "\f103"; */
+/* } */
+/* .icon-copy:before { */
+/*     content: "\f104"; */
+/* } */
+/* .icon-save:before { */
+/*     content: "\f105"; */
+/* } */
+/* .icon-burger:before { */
+/*     content: "\f106"; */
+/* } */
+/* .icon-add:before { */
+/*     content: "\f107"; */
+/* } */
+/* .icon-list:before { */
+/*     content: "\f108"; */
+/* } */
+/* .icon-piggy:before { */
+/*     content: "\f109"; */
+/* } */
+/* .icon-bucket:before { */
+/*     content: "\f10a"; */
+/* } */
+/* .icon-stopwatch:before { */
+/*     content: "\f10b"; */
+/* } */
+/* .icon-pressure:before { */
+/*     content: "\f10c"; */
+/* } */
+/* .icon-meter:before { */
+/*     content: "\f10d"; */
+/* } */
+/* .icon-info:before { */
+/*     content: "\f10e"; */
+/* } */
+/* .icon-graph:before { */
+/*     content: "\f10f"; */
+/* } */
+/* .icon-location:before { */
+/*     content: "\f110"; */
+/* } */
+/* .icon-refresh:before { */
+/*     content: "\f111"; */
+/* } */
+/* .icon-search:before { */
+/*     content: "\f112"; */
+/* } */
+/* .icon-tune:before { */
+/*     content: "\f113"; */
+/* } */
+/* .icon-edit2:before { */
+/*     content: "\f114"; */
+/* } */
+/* .icon-edit1:before { */
+/*     content: "\f115"; */
+/* } */
+/* .icon-checkcircle:before { */
+/*     content: "\f116"; */
+/* } */
+/* .icon-arrowright2:before { */
+/*     content: "\f117"; */
+/* } */
+/* .icon-arrowleft1:before { */
+/*     content: "\f118"; */
+/* } */
+/* .icon-arrowright1:before { */
+/*     content: "\f119"; */
+/* } */
 
 
 
@@ -373,7 +364,7 @@ i[class*=" icon-"]:before {
 
 
 @media (max-width: 767px) {
-	div.wrapper {
+	:host > .wrapper {
 		padding-top: calc(var(--windowtop) + var(--viewheader-mobileheight));
 	}
 }
@@ -400,22 +391,22 @@ i[class*=" icon-"]:before {
 }
 
 /* @media (hover: none) and (pointer: coarse) { */
-	ul.items > li.clickity {
-		position: relative;
-		overflow: hidden;
-		background-color: #fefefe;
-	}
-
-	ul.items > li.clickity::after {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: -100%;
-		width: 100%;
-		height: 100%;
-		background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.5), transparent);
-		animation: shimmer .5s ease-in-out infinite;
-	}
+/* 	ul.items > li.clickity { */
+/* 		position: relative; */
+/* 		overflow: hidden; */
+/* 		background-color: #fefefe; */
+/* 	} */
+/**/
+/* 	ul.items > li.clickity::after { */
+/* 		content: ''; */
+/* 		position: absolute; */
+/* 		top: 0; */
+/* 		left: -100%; */
+/* 		width: 100%; */
+/* 		height: 100%; */
+/* 		background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.5), transparent); */
+/* 		animation: shimmer .5s ease-in-out infinite; */
+/* 	} */
 /* } */
 
 

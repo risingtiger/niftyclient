@@ -1,63 +1,58 @@
 
 
-export const SlidePhase1 = (current_view: HTMLElement): HTMLElement => {
+export const SlidePhase1 = (current_view: HTMLElement) => new Promise<void>((res) => {
 
-	// Create and append spinner to body
-	const spinner = document.createElement('div');
-	spinner.className = 'view-transition-spinner phase1';
-	document.body.appendChild(spinner);
 
-	// Trigger Phase 1 shrink animation on current view
+	const originY = window.scrollY + window.innerHeight / 2;
+	current_view.style.transformOrigin = `0px ${originY}px`;
+
 	current_view.classList.add('transition-phase1');
 
-	return spinner;
-};
+	current_view.onanimationend = () => {
+		current_view.onanimationend = null;
+		res();
+	}
+});
 
 
-export const SlidePhase2 = async (old_view: HTMLElement, new_view: HTMLElement, spinner: HTMLElement, new_title?: string) => new Promise<void>(async (res) => {
+export const SlidePhase2 = async (old_view: HTMLElement, new_view: HTMLElement, new_title?: string) => new Promise<void>(async (res) => {
 
 	const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
 
-	// Transition spinner to fade-out
-	spinner.classList.remove('phase1');
-	spinner.classList.add('phase2');
-
-	// Start Phase 2 view transition
 	const transition = (document as any).startViewTransition({update:() => {
 		if (h1) h1.textContent = new_title;
 		old_view.dataset.active = "false";
 		new_view.dataset.active = "true";
+		window.scrollTo(0, 0);
 	}, types: [ 'phase2-forwards' ]});
 
 	await transition.finished;
 
-	// Cleanup
-	old_view.classList.remove('transition-phase1');
-	spinner.remove();
-
 	res();
 });
 
 
-export const Slide = async (previous_view: HTMLElement, next_view: HTMLElement, new_title?: string) => new Promise<void>(async (res) => {
 
-	const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
+// export const Slide = async (previous_view: HTMLElement, next_view: HTMLElement, new_title?: string) => new Promise<void>(async (res) => {
+//
+// 	const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
+//
+// 	const transition = (document as any).startViewTransition({update:() => {
+// 		h1.textContent = new_title;
+// 		previous_view.dataset.active       = "false";
+// 		next_view.dataset.active           = "true";
+// 	}, types: [ 'forwards' ]});
+//
+// 	await transition.finished;
+//
+// 	// document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
+//
+// 	res();
+// });
 
-	const transition = (document as any).startViewTransition({update:() => {
-		h1.textContent = new_title;
-		previous_view.dataset.active       = "false";
-		next_view.dataset.active           = "true";
-	}, types: [ 'forwards' ]});
-
-	await transition.finished;
-
-	// document.querySelector("#views")!.dispatchEvent(new Event("animationcomplete"));
-
-	res();
-});
 
 
-export const SlideBack = async (current_view: HTMLElement, previous_view: HTMLElement, prev_title?: string) => new Promise<void>(async (res) => {
+export const SlideBack = async (current_view: HTMLElement, previous_view: HTMLElement, prev_title?: string, scrollY?: number) => new Promise<void>(async (res) => {
 
 	const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
 
@@ -65,6 +60,7 @@ export const SlideBack = async (current_view: HTMLElement, previous_view: HTMLEl
 		h1.textContent = prev_title;
 		previous_view.dataset.active   = "true";
 		current_view.dataset.active    = "false";
+		window.scrollTo(0, scrollY ?? 0);
 	}, types: [ 'backwards' ]});
 
 	await transition.finished;

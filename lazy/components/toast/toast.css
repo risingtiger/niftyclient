@@ -1,50 +1,118 @@
 
 
 :host {
-    display: none;
-    position: absolute;
+    display: block;
+    position: fixed;
     left: 50%;
     margin-left: -175px;
     box-sizing: border-box;
     width: 350px;
-    height: 40px;
-    bottom: 20px;
-    padding: var(--padding-container);
+    bottom: 120px;
     z-index: 10000;
-    background-color: #333;
-    border-radius: 8px;
-    box-shadow: 0 0 20px 7px rgb(0 0 0 / 16%);
-    opacity: 0;
-    transform: translate3d(0, 30px, 14px) perspective(300px) rotateX(72deg);
-    transition-duration: 0.5s;
-    transition-property: transform opacity;
-    transition-timing-function: cubic-bezier(0.75, 0, 0.52, 1.51);
 }
 :host(.active) {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) perspective(300px) rotateX(0deg);
+	display: block;
 }
-:host(.level_info) {
+
+
+
+
+#wrapper {
+	display: block;
+	width: 100%;
+}
+
+
+.atoast {
+	display: none;
+	box-sizing: border-box;
+	position: relative;
+	width: 100%;
+	height: 50px;
+	margin-bottom: 8px;
+	padding: 0 var(--padding-container);
+	background-color: #333;
+	border-radius: 8px;
+	box-shadow: 0 0 20px 7px rgb(0 0 0 / 16%);
+	transition-duration: 0.5s;
+	transition-property: transform, opacity, height, margin-bottom, padding;
+	transition-timing-function: cubic-bezier(0.75, 0, 0.52, 1.51);
+	transform: translate3d(0, 30px, 0px) perspective(300px) rotateX(68deg);
+}
+.atoast.active {
+	display: block;
+	opacity: 1;
+	transform: translate3d(0, 0, 0) perspective(300px) rotateX(0deg);
+	@starting-style {
+		opacity: 0;
+		transform: translate3d(0, 30px, 0px) perspective(300px) rotateX(68deg);
+	}
+}
+
+.atoast.closing {
+	display: block;
+	height: 0;
+	margin-bottom: 0;
+	padding: 0;
+	opacity: 0;
+	transform: translate3d(0, 0, 0) perspective(300px) rotateX(0deg);
+	transition-timing-function: ease-in;
+}
+.atoast.level_info {
     background-color: #007bff;
 }
-:host(.level_warning) {
+.atoast.level_warning {
     background-color: #ffc107;
 }
-:host(.level_error) {
+.atoast.level_error {
     background-color: #dc3545;
 }
-:host(.level_success) {
+.atoast.level_success {
     background-color: #28a745;
 }
-:host(.level_saved) {
+.atoast.level_saved {
     background-color: #0eb8ab;
 }
 
-:host > #msg {
+.atoast > .messaging_wrapper {
+	flex: 1 0 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	height: 100%;
+}
+
+.atoast .title {
     color: white;
     font-size: 14px;
     FONT-WEIGHT: 700;
     text-align: center;
+    padding-top: 0;
+    padding-bottom: 3px;
 }
 
+.atoast .sub {
+    color: white;
+    font-size: 13px;
+    FONT-WEIGHT: 300;
+    text-align: center;
+}
 
+.atoast .close-btn {
+	position: absolute;
+	top: -3px;
+	right: -4px;
+	color: #4d4d4d;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1;
+	z-index: 1;
+	width: 16px;
+	height: 16px;
+	border-radius: 8px;
+	background: white;
+	box-sizing: border-box;
+	padding-left: 3.5px;
+	box-shadow: 0 0 7px 2px rgb(0 0 0 / 4%);
+}

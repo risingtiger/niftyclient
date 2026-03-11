@@ -1,7 +1,8 @@
 import { bool, str } from "../defs_server_symlink.js";
-import { LazyLoadT } from "../defs.js";
+import { $NT, LazyLoadT } from "../defs.js";
 
 
+declare var $N: $NT;
 
 
 let _lazyloads:LazyLoadT[] = [];
@@ -36,7 +37,7 @@ function Init(lazyloads_:LazyLoadT[]) {
 function LoadView(lazyloadview:LazyLoadT) {   return new Promise<number|null>(async (res, rej)=> {
 
 	setBackgroundOverlay(true)
-	timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
+	timeoutWaitingAnimateId = setTimeout(() => {   $N.Utils.setWaitingAnimate(true, 'lazyloadfiles');   }, 1000); 
 
     const loadque:LazyLoadT[] = []
 
@@ -46,7 +47,7 @@ function LoadView(lazyloadview:LazyLoadT) {   return new Promise<number|null>(as
 
 	clearTimeout(timeoutWaitingAnimateId)
 	setBackgroundOverlay(false)
-	setWaitingAnimate(false)
+	$N.Utils.setWaitingAnimate(false, 'lazyloadfiles')
 
 	if (r === null) { rej(); return; }
 
@@ -144,14 +145,6 @@ function get_filepath(type:str, name:str, is_instance:bool|null) {
 
 function setBackgroundOverlay(ison:boolean) {
     const xel = document.querySelector("#lazyload_overlay")!
-    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
-}
-
-
-
-
-function setWaitingAnimate(ison:boolean) {
-    const xel = document.querySelector("#lazyload_overlay .waiting_animate")!
     if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
 }
 

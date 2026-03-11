@@ -40,6 +40,7 @@ class COl2 extends HTMLElement {
 
 	shadow: ShadowRoot
 	content_el!: HTMLElement
+	backdrop_el!: HTMLElement
 	wrapper_el!: HTMLElement
 	theme_color_meta!: HTMLMetaElement;
 
@@ -82,11 +83,10 @@ class COl2 extends HTMLElement {
 		this.content_el            = this.shadow.querySelector(".content") as HTMLElement
 		this.wrapper_el            = this.shadow.querySelector(".wrapper") as HTMLElement
 
-
 		this.addEventListener("click", this.handle_click, false);
 		this.addEventListener("scroll", this.handle_scroll, false);
 		this.content_el.addEventListener("click", this.handle_content_click, false);
-		const viewheader_el = document.querySelector('#viewheader')!;
+		// const viewheader_el = document.querySelector('#viewheader')!;
 		// viewheader_el.addEventListener("click", this.handle_viewheader_click, false);
 
 
@@ -140,18 +140,31 @@ class COl2 extends HTMLElement {
 
 
 	async init() {
+		const computedstyle = getComputedStyle(document.documentElement);
+		const safetop = computedstyle.getPropertyValue('--safetop')
+		const safetopplusesome = computedstyle.getPropertyValue('--safetopplusesome')
+		const windowtop = parseFloat(safetop.slice(0, -2)) + parseFloat(safetopplusesome.slice(0, -2));
+		this.style.top = `${window.scrollY + windowtop}px`;
 		await Ol2Animate.init(this as any);
 		this.setAttribute('readytoanimate', '');
+
+		const thisviewshadow       = document.querySelector('#views > .view:last-child')!.shadowRoot
+		this.backdrop_el           = document.createElement('div')
+		this.backdrop_el.classList.add('backdrop')
+		this.backdrop_el.style.height = '10000px'
+		thisviewshadow.appendChild(this.backdrop_el)
+
 		await Ol2Animate.animate_in(this as any, this.content_el)
 	}
 
 
 
 	disconnectedCallback() {
+		this.backdrop_el.remove();
 		this.removeEventListener("click", this.handle_click);
 		this.content_el.removeEventListener("click", this.handle_content_click);
 		this.removeEventListener("scroll", this.handle_scroll);
-		const viewheader_el = document.querySelector('#viewheader')!;
+		// const viewheader_el = document.querySelector('#viewheader')!;
 		// viewheader_el.removeEventListener("click", this.handle_viewheader_click);
 	}
 
@@ -173,15 +186,6 @@ class COl2 extends HTMLElement {
 	}
 
 
-
-
-	// scrolled(_e: Event) {
-	// 	if (this.scrollTop <= 1 && this.hasAttribute("opened")) this.closed();
-	// }
-
-	actiontermclicked() {
-		if (( this.firstElementChild as any ).actiontermclicked) { ( this.firstElementChild as any ).actiontermclicked(); }
-	}
 
 
 	template = (_s: StateT, _m: ModelT) => { return html`{--css--}{--html--}`; };

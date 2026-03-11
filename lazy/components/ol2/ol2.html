@@ -2,18 +2,18 @@
 
 <div class="spacer" shape="${_m.shape}">&nbsp;</div>
 <div class="wrapper" shape="${_m.shape}">
+	<div class="backdrop"></div>
 	<div class="content floatsize-${_m.floatsize}" >
-
 
 		<div class="swipe-indicator"><span></span></div>
 
 		${_s.show_header ? html`
 		<header>
-			<div class="left">${_s.show_closebtn ? html`<a @click="${()=>this.close()}">close</a>` : ''} <slot name="headerleft"></slot></div>
-			<div class="middle"><h1>${_s.title}</h1></div>
-			<div class="right"><a @click="${()=>this.actiontermclicked()}">${_m.actionterm}</a></div>
+			<div class="left">${_s.show_closebtn ? html`<a @click="${()=>this.close()}"><img class="closebtn" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round'%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3C/svg%3E"></a>` : ''} <slot name="headerleft"></slot></div>
+			<div class="titlearea"><h1>${_s.title}</h1></div>
 		</header>
 		` : ''}
 		<slot></slot>
 	</div>
 </div>
+

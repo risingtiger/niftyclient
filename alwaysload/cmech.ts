@@ -55,7 +55,8 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 	$N.Header.set({ ...viewcomponent.header, skip_title: !!parentEl.querySelector('[data-active="true"]' )});
 
 	const shadow = (viewcomponent as any).shadow as ShadowRoot;
-	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
+
+	if(shadow.firstElementChild.tagName !== 'LINK') {  
 		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).iconscss, (window as any).maincss];
 	}
 

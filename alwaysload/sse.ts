@@ -25,21 +25,22 @@ function Init() {
         localStorage.setItem('sse_id', sse_id)
     }
 
-    const is_localhost = self.location.hostname === 'localhost'
+    const hostname = self.location.hostname
+    const port = self.location.port
     
     let event_source_url = ''
     
-    if (is_localhost) 
+    if (hostname === 'localhost' && (port === '3003' || port === '3004')) 
         event_source_url = "/sse_add_listener?id=" + sse_id
     
-    else if (location.hostname.includes('purewater')) 
+    else if (hostname.includes('purewater') || hostname.includes('805737116651')) 
         event_source_url = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + sse_id
     
-    else if (location.hostname.includes('purewater')) 
-        event_source_url = "https://webapp-805737116651.us-central1.run.app/sse_add_listener?id=" + sse_id
-    
-    else 
+    else if (hostname.includes('962422772741')) 
         event_source_url = "https://xenwebapp-962422772741.us-central1.run.app/sse_add_listener?id=" + sse_id
+    
+
+    // Unhandled Case: no matching hostname/port — event_source_url will be empty
     
     _sse_event_source = new EventSource(event_source_url)
     

@@ -8,19 +8,24 @@ declare var html: any;
 
 
 
-enum ModeT { INERT = 0, SAVING = 1, SAVED = 2 }
+enum ModeT { INERT = 0, PROCESSING = 1, PROCESSED = 2 }
 
 
 type StateT = {
-    mode: ModeT,
+	mode: ModeT,
+	itemindex: number,      // currently active btnitem index
+	clicked_index: number,  // which btnitem was just clicked (pending done())
 }
 
 type ModelT = {
 	show_anime_on_click: bool,
+	show_pulse_on_click: bool,
 }
 
 type ElsT = {
-    animeffect:HTMLElement|null,
+	animeffect: HTMLElement | null,
+	clicked_btnitem: CBtnItem | null,  // the btnitem that was clicked and is processing
+	highlight: HTMLElement | null,
 }
 
 
@@ -28,116 +33,206 @@ type ElsT = {
 
 class CBtn extends HTMLElement {
 
-    s:StateT
-    m:ModelT
-    els:ElsT
-    
-    shadow:ShadowRoot
+	s: StateT
+	m: ModelT
+	els: ElsT
+	shadow: ShadowRoot
 
 
 
 
+	constructor() {
+
+		super();
+
+		this.shadow = this.attachShadow({mode: 'open'});
+
+		this.s = { mode: ModeT.INERT, itemindex: 0, clicked_index: 0 }
+		this.m = { show_anime_on_click: true, show_pulse_on_click: true }
+		this.els = { animeffect: null, clicked_btnitem: null, highlight: null }
+	}
 
 
 
 
-    constructor() {   
-
-        super(); 
-
-        this.shadow = this.attachShadow({mode: 'open'});
-
-        this.s = { mode: ModeT.INERT}
-        this.m = { show_anime_on_click: true }
-        this.els = { animeffect: null}
-    }
-
-
-
-
-    connectedCallback() {   
+	connectedCallback() {
 
 		this.m.show_anime_on_click = this.hasAttribute("noanime") ? false : true
+		this.m.show_pulse_on_click = this.hasAttribute("nopulse") ? false : true
 
 		this.sc()
 
-		this.addEventListener("click", () => { this.is_clicked() })
-    }
+		this.els.highlight = this.shadow.getElementById('highlight')
+
+		const existing_btnitems = Array.from(this.querySelectorAll(':scope > c-btnitem')) as CBtnItem[]
+
+		if (existing_btnitems.length === 0) {
+			const btnitem = document.createElement('c-btnitem') as CBtnItem
+			while (this.childNodes.length > 0) btnitem.appendChild(this.childNodes[0])
+			this.appendChild(btnitem)
+		}
+
+		const btnitems = Array.from(this.querySelectorAll(':scope > c-btnitem')) as CBtnItem[]
+
+		if (btnitems.length > 1) this.setAttribute('btngroup', '')
+
+		const active_idx = btnitems.findIndex(item => item.hasAttribute('isactive'))
+		this.s.itemindex = active_idx >= 0 ? active_idx : 0
+
+		requestAnimationFrame(() => { this.init_highlight(btnitems) })
+
+		this.addEventListener("click", (e) => { this.is_clicked(e) })
+	}
 
 
 
 
-    async attributeChangedCallback(_name:str, _oldval:str, _newval:str) {
-    }
+	async attributeChangedCallback(_name: str, _oldval: str, _newval: str) {
+	}
 
 
 
 
-    done()         {   this.to_stop_anime();            }
+	async done() {
+		this.s.mode = ModeT.PROCESSED
+		await this.set_to_processing_done();
+
+		const btnitems = Array.from(this.querySelectorAll(':scope > c-btnitem')) as CBtnItem[]
+
+		if (btnitems.length > 1 && this.s.clicked_index !== this.s.itemindex) {
+			btnitems[this.s.itemindex].removeAttribute('isactive')
+			btnitems[this.s.clicked_index].setAttribute('isactive', '')
+			this.s.itemindex = this.s.clicked_index
+			this.slide_highlight(btnitems)
+		}
+
+		this.s.mode = ModeT.INERT
+	}
 
 
 
 
-    is_clicked() {
-        if (this.s.mode == ModeT.INERT) {
-            if (this.m.show_anime_on_click) this.to_start_anime()
-			this.dispatchEvent(new CustomEvent("btnclick", {detail: {done: this.done.bind(this)}}))
+	is_clicked(e: Event) {
 
-			setTimeout(() => {if (this.s.mode === ModeT.SAVING) this.done();}, 5000)
-        }
-    }
+		if (this.s.mode !== ModeT.INERT) return
 
+		const path = e.composedPath()
+		const clicked_btnitem = path.find(el => el instanceof CBtnItem) as CBtnItem | undefined
 
+		if (!clicked_btnitem) return
 
+		const btnitems = Array.from(this.querySelectorAll(':scope > c-btnitem')) as CBtnItem[]
+		const clicked_index = btnitems.indexOf(clicked_btnitem)
 
-    to_start_anime() {   
+		if (clicked_index < 0) return
 
-        if (this.s.mode === ModeT.INERT) {
-            
-            this.s.mode = ModeT.SAVING
+		this.s.clicked_index = clicked_index
+		this.els.clicked_btnitem = clicked_btnitem
 
-            this.els.animeffect = document.createElement("c-animeffect")
-            this.els.animeffect.setAttribute("active", "")
+		this.dispatchEvent(new CustomEvent("btnclick", {detail: {done: this.done.bind(this), index: clicked_index}}))
+		this.s.mode = ModeT.PROCESSING
+		setTimeout(() => { if (this.s.mode === ModeT.PROCESSING) this.done() }, 5000)
 
-            this.shadow.appendChild(this.els.animeffect)
-
-            this.els.animeffect.offsetWidth
-            this.els.animeffect.className = "active"
-
-            this.shadow.getElementById("slotwrap")!.classList.add("subdued")
-        }
-    }
-
-
-
-    to_stop_anime() {   
-
-        if (this.s.mode === ModeT.SAVING) {
-            
-            this.s.mode = ModeT.SAVED
-
-            this.els.animeffect!.className = "";
-
-            setTimeout(() => {
-
-                this.els.animeffect!.remove()
-                this.shadow.querySelector("#slotwrap")!.classList.remove("subdued")
-
-                this.s.mode = ModeT.INERT
-
-            }, 100)
-        }
-    }
+		if (this.m.show_pulse_on_click) {
+			clicked_btnitem.classList.remove("click-enlarge")
+			clicked_btnitem.offsetWidth
+			clicked_btnitem.classList.add("click-enlarge")
+			clicked_btnitem.addEventListener("animationend", () => {
+				clicked_btnitem.classList.remove("click-enlarge")
+				if (this.m.show_anime_on_click && this.s.mode === ModeT.PROCESSING) this.set_to_processing_mode()
+			}, { once: true })
+		} else {
+			if (this.m.show_anime_on_click) this.set_to_processing_mode()
+		}
+	}
 
 
 
 
-    sc() {   render(this.template(), this.shadow);   }
+	set_to_processing_mode() {
+
+		if (!this.els.clicked_btnitem) return
+
+		const animeffect = document.createElement("c-animeffect")
+		animeffect.setAttribute("active", "")
+
+		this.els.clicked_btnitem.shadow.appendChild(animeffect)
+		this.els.animeffect = animeffect
+
+		animeffect.offsetWidth
+		animeffect.className = "active"
+	}
 
 
 
 
-    template = () => { return html`{--css--}{--html--}`; }; 
+	set_to_processing_done = () => new Promise<void>((res) => {
+
+		if (this.els.animeffect) this.els.animeffect.className = ""
+
+		setTimeout(() => {
+
+			if (this.els.animeffect) {
+				this.els.animeffect.remove()
+				this.els.animeffect = null
+			}
+			res()
+
+		}, 100)
+	})
+
+
+
+
+	init_highlight(btnitems: CBtnItem[]) {
+
+		if (btnitems.length <= 1) {
+			if (this.els.highlight) this.els.highlight.classList.add('hidden')
+			return
+		}
+
+		const target = btnitems[this.s.itemindex]
+		if (!this.els.highlight || !target) return
+
+		const pad = 0
+
+		// set position without transition for initial placement
+		this.els.highlight.style.transition = 'none'
+		this.els.highlight.style.transform = `translateX(${target.offsetLeft + pad}px)`
+		this.els.highlight.style.width = `${target.offsetWidth}px`
+
+		// re-enable transition on next frame
+		requestAnimationFrame(() => {
+			if (this.els.highlight) this.els.highlight.style.transition = ''
+		})
+	}
+
+
+
+
+	slide_highlight(btnitems: CBtnItem[]) {
+
+		if (btnitems.length <= 1) return
+		if (!this.els.highlight) return
+
+		const target = btnitems[this.s.itemindex]
+		if (!target) return
+
+		const pad = 0
+
+		this.els.highlight.style.transform = `translateX(${target.offsetLeft + pad}px)`
+		this.els.highlight.style.width = `${target.offsetWidth}px`
+	}
+
+
+
+
+	sc() { render(this.template(), this.shadow); }
+
+
+
+
+	template = () => { return html`{--css--}{--html--}`; };
 }
 
 
@@ -148,12 +243,66 @@ customElements.define('c-btn', CBtn);
 
 
 
+const BTNITEM_STYLES = `
+	:host {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		padding: 0 8px;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		z-index: 1;
+	}
+	:host([isactive]) {
+		font-weight: bold;
+		color: white;
+	}
+
+	:host c-animeffect {
+		position: absolute;
+		top: 7px;
+		left: calc(50% - 10px);
+		width: 20px;
+		height: 20px;
+	}
+
+	@keyframes breathe-click {
+		0%   { transform: scale(1); }
+		40%  { transform: scale(1.22); }
+		70%  { transform: scale(0.95); }
+		100% { transform: scale(1); }
+	}
+
+	:host(.click-enlarge) {
+		animation: breathe-click 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+	}
+`
 
 
 
 
+class CBtnItem extends HTMLElement {
 
-export {  }
+	shadow: ShadowRoot
 
+	constructor() {
+		super()
+		this.shadow = this.attachShadow({mode: 'open'})
+	}
+
+	connectedCallback() {
+		this.shadow.innerHTML = `<style>${BTNITEM_STYLES}</style><slot></slot>`
+	}
+}
+
+
+
+
+customElements.define('c-btnitem', CBtnItem);
+
+
+
+
+export { }
 
 

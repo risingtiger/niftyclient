@@ -70,6 +70,7 @@ export type CMechViewLoadStateT = 'initial' | 'paramschanged' | 'postload' | 'se
 
 export type ViewHeaderActionT = {
 	icon: string,
+	width?: string, height?: string
 	onClick: () => void,
 }
 
@@ -158,10 +159,13 @@ export type $NT = {
 
 	Utils: {
 		CSVDownload: (csvstr:string, filename:string) => void,
-		resolve_object_references: (list: {[key: str]: any}[], object_stores: Map<string, {[key: str]: any}[]>) => {[key: str]: any}[]
+		resolve_object_references: (list: {[key: str]: any}[], object_stores: Map<string, {[key: str]: any}[]>) => {[key: str]: any}[],
+		setULItemsRowActive: (liel:HTMLElement, autoremove?:boolean) => void,
+		setWaitingAnimate: (ison:boolean, source_id:string) => void,
 	}
 
-	ToastShow: (msg: str, level?: ToastLevelT, duration?: num|null) => void
+
+	ToastShow: (msg: str|{title:string,sub:string}, level?: ToastLevelT, duration?: num|null ) => void
 	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:string, logerrmsg:string, redirectionurl:string|null) => void
 	GetConnectedState: () => Promise<'online' | 'offline'>
 	//GetSharedWorkerPort:() => MessagePort

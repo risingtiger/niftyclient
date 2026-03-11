@@ -64,5 +64,41 @@ function resolve_object_references(list: {[key: str]: any}[],  object_stores: Ma
 
 
 
+function setULItemsRowActive(liel:HTMLElement, autoremove?:boolean) {
+
+	autoremove = autoremove === undefined ? true : autoremove;
+
+	liel.classList.add("active");
+
+	if (autoremove) {
+		setTimeout(() => {
+			liel.classList.remove("active");
+		}, 1000);
+	}
+}
+
+
+
+
+const    _waitingSources = new Set<string>();
+function setWaitingAnimate(ison:boolean, sourceId:string) {
+
+	const xel = document.querySelector("#waiting_animate") as HTMLElement;
+
+	if (ison) {
+		_waitingSources.add(sourceId);
+		xel.classList.add("active");
+		return;
+	}
+
+	_waitingSources.delete(sourceId);
+	if (_waitingSources.size === 0) {
+		xel.classList.remove("active");
+	}
+}
+
+
+
+
 if (!(window as any).$N) {   (window as any).$N = {};   }
-((window as any).$N as any).Utils = { CSVDownload, resolve_object_references };
+((window as any).$N as any).Utils = { CSVDownload, resolve_object_references, setULItemsRowActive, setWaitingAnimate };

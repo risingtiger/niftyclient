@@ -23,10 +23,10 @@ type SeriesT = {
 }
 
 type StateT = {
-    bucket: str, // what influxdb  measurement. ex. PSI
+    bucket: str, // what influxdb  bucket. ex. PWT
     msr: str, // what influxdb  measurement. ex. PSI
     fields: str, // what influxdb fields in specified measurement to show. ex. City psi and/or After Filter Psi
-    tags: str, // what influxdb tags , Chip Id , etc
+    tags: str, // what influxdb tags , machine_id etc
     type: str, // line or bar  
     intrv: number, // interval -- how many seconds per point. ex. For 5 minute interval set to 300 (300 seconds in 5 minutes) 
     ppf: number, // points Per Frame. ex. For One Day with 5 minute increments it will be 288 points
@@ -161,6 +161,7 @@ class CGraphing extends HTMLElement {
 
 
 	setit = () => new Promise<void>(async (res, rej) => {
+		debugger
 		this.s.bucket = this.getAttribute("bucket") as str
 		this.s.msr = this.getAttribute("measurement") as str
 		this.s.fields = this.getAttribute("fields")!

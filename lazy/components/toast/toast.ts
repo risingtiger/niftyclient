@@ -64,70 +64,94 @@ class CToast extends HTMLElement {
         this.s = { mode: ModeT.CLOSED, level: LevelT.INFO, isanimating: false, msg: "", level_class:""}
         this.m = { c: "" }
         this.els = { msg: DUMMYEL, /*wrap: DUMMYEL*/ }
-
-
     }
 
 
 
 
     connectedCallback() {   
-
         this.sc()
+		// const level = this.getAttribute("level") || "info"
+		// const msg = this.getAttribute("msg") || ""
+		// const duration = this.getAttribute("duration") || DEFAULT_DURATION
     }
 
 
 
 
-    async attributeChangedCallback(name:str, oldval:str, newval:str) {
+    async attributeChangedCallback(_name:str, _oldval:str, _newval:str) {
 
-        if (name == "action" && newval === 'run' && (oldval === '' || oldval === null)) {
-
-            const level = this.getAttribute("level") || "info"
-
-            const msg = this.getAttribute("msg") || ""
-            const duration = this.getAttribute("duration") || DEFAULT_DURATION
-
-            await this.action(msg, level, Number(duration))
-
-            this.setAttribute("action", "")
-        }
+        // if (name == "action" && newval === 'run' && (oldval === '' || oldval === null)) {
+        //
+        //     const level = this.getAttribute("level") || "info"
+        //
+        //     const msg = this.getAttribute("msg") || ""
+        //     const duration = this.getAttribute("duration") || DEFAULT_DURATION
+        //
+        //     await this.action(msg, level, Number(duration))
+        //
+        //     this.setAttribute("action", "")
+        // }
     }
 
 
 
 
-    action(msg:str, levelstr:string, duration:num|null) { 
+    addtoast(msg:str|{title:string,sub:string}, levelstr:string, duration:num|null ) { 
 
-        return new Promise((res) => { 
+		const toast_container_el = this.shadow.querySelector("#wrapper") as HTMLElement
 
-            duration = duration || DEFAULT_DURATION
+		duration = duration || DEFAULT_DURATION
 
-            this.els.msg = this.shadow.getElementById("msg") as HTMLElement
-            this.els.msg.textContent = msg
+		const title = typeof msg === "string" ? msg : msg.title
+		const sub = typeof msg === "string" ? "" : msg.sub
 
-			this.setlevelfromstr(levelstr)
+		const htmlstr = `
+			<div class="atoast ${this.getlevelfromstr(levelstr)}">
+				<div class="close-btn"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="1" y1="1" x2="9" y2="9"></line><line x1="9" y1="1" x2="1" y2="9"></line></svg></div>
+				<div class="messaging_wrapper">
+					<div class="title">${title}</div>
+					<div class="sub">${sub}</div>
+				</div>
+			</div>`
 
-			this.classList.remove("level_info", "level_saved", "level_success", "level_warning", "level_error")
-			this.classList.add(this.s.level_class)
+		toast_container_el.insertAdjacentHTML("afterbegin", htmlstr)
 
-            this.style.display = "block"
-            this.offsetHeight
-            this.classList.add("active")
+		const new_toast_el = toast_container_el.firstElementChild as HTMLElement
 
-            setTimeout(() => {
-                this.classList.remove("active")
-                this.addEventListener("transitionend", transitionend)
-            }, duration)
+		new_toast_el.classList.add("active")
+
+		const close_btn = new_toast_el.querySelector(".close-btn") as HTMLElement
+		close_btn.addEventListener("click", () => this.closetoast(new_toast_el))
+
+		const timeout_id = setTimeout(() => {
+			this.closetoast(new_toast_el)
+		}, duration)
+
+		// Store timeout so closetoast can clear it if manually closed early
+		new_toast_el.dataset.timeoutId = String(timeout_id)
+    }
 
 
-            function transitionend() {
-                this.removeEventListener("transitionend", transitionend)
-                this.style.display = "none"
-                this.dispatchEvent(new CustomEvent('done'))
-                res(1)
-            }
-    })}
+
+
+    closetoast(toast_el:HTMLElement) {
+
+		// Prevent double-close
+		if (toast_el.classList.contains("closing")) return
+
+		// Clear the auto-remove timeout if still pending
+		const timeout_id = toast_el.dataset.timeoutId
+		if (timeout_id) clearTimeout(Number(timeout_id))
+
+		toast_el.classList.remove("active")
+		toast_el.classList.add("closing")
+
+		toast_el.addEventListener("transitionend", function onend() {
+			toast_el.removeEventListener("transitionend", onend)
+			toast_el.remove()
+		})
+    }
 
 
 
@@ -137,14 +161,14 @@ class CToast extends HTMLElement {
 
 
 
-	setlevelfromstr(levelstr:str) {
+	getlevelfromstr(levelstr:str) {
 		switch (levelstr.toLowerCase()) {
-			case "info":    this.s.level = LevelT.INFO;    this.s.level_class = "level_info";    break;
-			case "saved":   this.s.level = LevelT.SAVED;   this.s.level_class = "level_saved";   break;
-			case "success": this.s.level = LevelT.SUCCESS; this.s.level_class = "level_success"; break;
-			case "warning": this.s.level = LevelT.WARNING; this.s.level_class = "level_warning"; break;
-			case "error":   this.s.level = LevelT.ERROR;   this.s.level_class = "level_error";   break;
-			default:        this.s.level = LevelT.INFO;    this.s.level_class = "level_info";    break;
+			case "info":    return "level_info";    
+			case "saved":   return "level_saved";   
+			case "success": return "level_success"; 
+			case "warning": return "level_warning"; 
+			case "error":   return "level_error";   
+			default:        return "level_info";    
 		}
 	}
 

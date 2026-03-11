@@ -3,9 +3,10 @@ import { str } from  "../defs_server_symlink.js"
 import { AddView as CMechAddView, UpdateView as CMechUpdateView } from "./cmech.js"
 import { RegExParams } from "./switchstation_uri.js"
 import { Route, PathSpecT, ParsePath } from "./switchstation_parsepath.js"
-import { Slide, SlideBack, SlidePhase1, SlidePhase2 } from "./switchstation_animate.js"
+import { SlideBack, SlidePhase1, SlidePhase2 } from "./switchstation_animate.js"
 import { LoadView as LazyLoadLoadView } from "./lazyload_files.js"
-import { BackSwipeHandlerI } from "./switchstation_handlebackswipe.js"
+import { WasNativeSwipe, HandleBackSwipeInitListeners } from "./switchstation_handlebackswipe.js"
+
 
 declare var $N: $NT;
 
@@ -38,23 +39,13 @@ const Init = ()=> new Promise<void>(async (res, _rej) => {
 		path = window.location.pathname.slice(3) + window.location.search // remove /v/ prefix and combine in search
 	}
 
+	HandleBackSwipeInitListeners(
+		()=>{ /* backswipe_detected - no action needed, previous view is already rendered */ }
+	);
+
+	history.scrollRestoration = 'manual';
+
 	GoTo(path)
-
-	// Set up callback for native swipe preparation
-	// BackSwipeHandlerI.on_prepare_view(() => {
-	// 	const viewsel = document.getElementById("views") as HTMLElement;
-	// 	const allviews = Array.from(viewsel.children) as HTMLElement[];
-	// 	if (allviews.length >= 2) {
-	// 		const previousview = allviews[allviews.length - 2] as HTMLElement;
-	// 		// Prepare previous view for native swipe animation
-	// 		previousview.getAnimations().forEach(anim => anim.cancel());
-	// 		previousview.style.visibility = "visible";
-	// 		previousview.style.opacity = "1";
-	// 		previousview.style.transform = "none";
-	// 	}
-	// });
-
-
 
 	window.addEventListener("popstate", on_popstate)
 
@@ -138,21 +129,27 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 
 	const viewsel = document.getElementById("views") as HTMLElement;
 	const old_view = viewsel.querySelector('[data-active="true"]') as HTMLElement | null;
+	let   phase1promise:Promise<void>|null = null;
 
-	// Phase 1: Immediate feedback (only if there's an existing view)
-	let spinner: HTMLElement | null = null;
 	if (old_view) {
-		spinner = SlidePhase1(old_view);
+		// Hide all already-inactive views so they don't bleed through when old_view fades in opacity.
+		// old_view itself must stay visible for Safari swipe-back.
+		const inactive_views = viewsel.querySelectorAll('.view[data-active="false"]');
+		for (const v of inactive_views) (v as HTMLElement).style.visibility = 'hidden';
+
+		phase1promise = SlidePhase1(old_view);
 	}
 
 	try { 
 		await LazyLoadLoadView(pathspec.route.lazyload_view); 
 		await CMechAddView(pathspec.route.lazyload_view.name, pathspec.pathparams, pathspec.searchparams, pathspec.route.lazyload_view.localdb_preload||[]); 
+		await phase1promise;
 	}
 	catch { 
-		// Unhandled Case: cleanup spinner if loading fails
-		if (spinner) spinner.remove();
-		if (old_view) old_view.classList.remove('transition-phase1');
+		if (old_view) {
+			old_view.classList.remove('transition-phase1');
+			old_view.style.transformOrigin = '';
+		}
 		rej(); 
 		return; 
 	}
@@ -161,12 +158,14 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 
 	if (old_view) {
 
-		// Phase 2: Slide in new view after data is loaded
-		await SlidePhase2(old_view, new_view, spinner!, new_view.header?.title);
+		_navstack[_navstack.length - 2].scrollY = window.scrollY;
+		await SlidePhase2(old_view, new_view, new_view.header?.title);
 
-		console.log("after SlidePhase2");
+		old_view.classList.remove('transition-phase1');
+		old_view.style.transformOrigin     = '';
+
 		viewsel.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
-		old_view.style.display = "none";
+
 		res();
 
 	} else { // First view - no spinner, just show directly
@@ -218,35 +217,34 @@ const on_popstate = async (_event: PopStateEvent) => {
 
 	if (currentpathspec.route.lazyload_view.name !== lastpathspec.route.lazyload_view.name) { // going back to different view
 
-		const viewsel = document.getElementById("views") as HTMLElement;
-		const allviews = Array.from(viewsel.children) as HTMLElement[];
-		const currentview = allviews[allviews.length - 1] as HTMLElement;
-		const previousview = allviews[allviews.length - 2] as HTMLElement & CMechViewT;
+		const viewsel          = document.getElementById("views")	as HTMLElement;
+		const allviews         = Array.from(viewsel.children)		as HTMLElement[];
+		const currentview      = allviews[allviews.length - 1]		as HTMLElement;
+		const previousview     = allviews[allviews.length - 2]		as HTMLElement & CMechViewT;
 		
-		const was_native_swipe = BackSwipeHandlerI.was_native_swipe();
-		const prev_title = previousview.header?.title;
+		const prev_title       = previousview.header?.title;
 		
-		const viewel = document.querySelector(`#views > v-${lastpathspec.route.lazyload_view.name}`) as HTMLElement & CMechViewT
+		const viewel   = document.querySelector(`#views > v-${lastpathspec.route.lazyload_view.name}`) as HTMLElement & CMechViewT
+		const headerel = document.querySelector('header#viewheader') as HTMLElement;
 		$N.Header.set({ ...viewel.header, skip_title: true });
 
-		previousview.style.display = "block";
-		previousview.offsetHeight; // force reflow
+		headerel.style = ""; // because ol2 (overlay) could have an overlay open which subdues or invisibles the header while open
 
-		if (was_native_swipe) {
+		if (WasNativeSwipe()) {
 			viewsel.removeChild(currentview);
-			previousview.dataset.active = "true";
-			previousview.dataset.previous = "false";  // Remove data-previous to clear the -33vw translate CSS rule
-			previousview.getAnimations().forEach(anim => anim.cancel());
-			previousview.style.translate = "0 0 0";   // Use 'translate' to match the CSS property
-			previousview.style.opacity = "1";
-			previousview.style.visibility = "visible";
-			document.documentElement.classList.remove('back-navigation');
-			// Unhandled Case: native swipe title update - need to update h1 without animation
+			previousview.dataset.active   = "true";
 			const h1 = document.querySelector('#viewheader .middle h1') as HTMLElement | null;
 			if (h1) h1.textContent = prev_title;
 		} else {
-			await SlideBack(currentview, previousview, prev_title);
+			previousview.classList.remove('readyforswipeback');
+			await SlideBack(currentview, previousview, prev_title, lastpathspec.scrollY);
 			viewsel.removeChild(currentview);
+		}
+
+		// Un-hide the view behind the now-active view so it's ready for swipe-back
+		const remaining_views = Array.from(viewsel.children) as HTMLElement[];
+		if (remaining_views.length >= 2) {
+			remaining_views[remaining_views.length - 2].style.visibility = '';
 		}
 			
 		return

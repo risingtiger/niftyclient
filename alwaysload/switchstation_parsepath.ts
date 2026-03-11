@@ -14,7 +14,8 @@ export type PathSpecT = {
 	route:Route, 
 	pathparams: GenericRowT, 
 	searchparams: GenericRowT, 
-	sub?: { loadfunc:str|null } 
+	sub?: { loadfunc:str|null },
+	scrollY?: number
 }
 
 

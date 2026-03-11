@@ -2,27 +2,41 @@
 
 
 
+
 :host {
     position: relative;
     font-weight: 600;
-    display: inline-block;
-    padding: 8px 15px 0px 15px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0px 0px;
     border-radius: 22px;
     box-sizing: border-box;
     height: 36px;
     color: gray;
-    background-color: white;
-    border-color: var(--actioncolor);
-    border-width: 1px;
-    border-style: solid;
+    background: linear-gradient(to bottom, white, #f7f7f7);
+    border: none;
     cursor: pointer;
-    transition-property: background-color;
-    transition-duration: 0.1s;
-    transition-timing-function: ease-in-out;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
 }
-:host(:hover) {
-    background-color: #f2f5f6;
+
+:host([btngroup]) {
+    background: #e5e5e5;
+    padding: 3px;
+    gap: 0;
 }
+
+:host([btngroup]) #highlight {
+    top: 3px;
+    height: calc(100% - 6px);
+    border-radius: 16px;
+}
+
+:host([btngroup]) #slotwrap {
+    width: 100%;
+}
+
+
 
 :host([primary]) {
     border-color: white;
@@ -36,23 +50,41 @@
 
 
 :host([small]) {
-    padding: 3px 8px 0px 8px;
+    padding: 0px 8px;
     height: 24px;
     font-weight: normal;
     font-size: 13px;
 }
 
-:host #slotwrap.subdued {
-    opacity: 0.4;
+
+#slotwrap {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 
-:host c-animeffect {
+
+
+
+#highlight {
     position: absolute;
-    top: 7px;
-    left: calc(50% - 10px);
-    width: 20px;
-    height: 20px;
+    top: 0px;
+    left: 0;
+    height: 100%;
+    background: var(--actioncolor);
+    border-radius: 19px;
+    box-sizing: border-box;
+    /* box-shadow: 0 1px 3px rgba(0,0,0,0.12); */
+    transition: transform 0.3s ease, width 0.3s ease;
+    z-index: 0;
+    pointer-events: none;
+}
+
+
+#highlight.hidden {
+    display: none;
 }
 
 

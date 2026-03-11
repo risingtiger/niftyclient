@@ -1,7 +1,11 @@
 
 
 import { str } from "../defs_server_symlink.js"
-import { FetchResultT, FetchLassieHttpOptsT, FetchLassieOptsT } from "../defs.js"
+import { FetchResultT, FetchLassieHttpOptsT, FetchLassieOptsT, $NT } from "../defs.js"
+
+
+
+declare var $N: $NT;
 
 
 let _timeoutWaitingAnimateId:any = null
@@ -41,7 +45,7 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
     
     // Only start animation timer if it's not already running
 	if (opts.background && opts.animate && _timeoutWaitingAnimateId === null) { 
-		_timeoutWaitingAnimateId = setTimeout(() => {   setWaitingAnimate(true);   }, 1000);
+		_timeoutWaitingAnimateId = setTimeout(() => {   $N.Utils.setWaitingAnimate(true, 'fetchlassie');   }, 1000);
 	}
 
     if(!http_opts.headers["Content-Type"]) http_opts.headers["Content-Type"] = "application/json"
@@ -73,7 +77,7 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
             _timeoutWaitingAnimateId = null;
         }
         setBackgroundOverlay(false);
-        setWaitingAnimate(false);
+        $N.Utils.setWaitingAnimate(false, 'fetchlassie');
     }
 	/* ---------------------------------------------- */
 
@@ -119,16 +123,15 @@ const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Resp
 
 
 function setBackgroundOverlay(ison:boolean) {
+
     const xel = document.querySelector("#fetchlassy_overlay")!
-    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
-}
 
-
-
-
-function setWaitingAnimate(ison:boolean) {
-    const xel = document.querySelector("#fetchlassy_overlay .waiting_animate")!
-    if (ison) {   xel.classList.add("active");   } else {   xel.classList.remove("active");   }
+	if (!ison) {
+		xel.classList.remove('active');
+	}
+	else {
+		xel.classList.add("active");
+	}
 }
 
 

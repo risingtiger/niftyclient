@@ -23,7 +23,7 @@ type ComponentElT = HTMLElement & {
 let _theme_color_meta: HTMLMetaElement | null = null
 let _current_componentel: ComponentElT | null = null
 
-const CONTENT_TRANSFORM_FILL_Y  = '10vh';
+const CONTENT_TRANSFORM_FILL_Y  = '30vh';
 const CONTENT_TRANSFORM_FLOAT_Y = '6vh';
 const VIEWWRAPPEREL_TRANSFORM_Y = '1vh';
 const VIEWWRAPPEREL_SCALE      = 0.98;
@@ -41,7 +41,8 @@ let _viewwrapperel: HTMLElement | null = null
 const _main_animation_options = {
 	duration: 300,
 	//easing: 'cubic-bezier(.03,.7,.4,1)',
-	easing: 'cubic-bezier(.21,.55,.48,1)',
+	// easing: 'cubic-bezier(.21,.55,.48,1)',
+	easing: 'cubic-bezier(.27,.28,.48,1)',
 	fill: 'forwards' as const,
 };
 const _viewheader_animation_options = {
@@ -120,7 +121,6 @@ function run_handle_scroll(componentel: ComponentElT, onclosedcb: () => void) {
 			// Only update if progress has changed
 			if (scroll_progress !== componentel.last_scroll_progress) {
 				componentel.last_scroll_progress = scroll_progress;
-				// set_theme_and_body_color_from_progress(scroll_progress);
 				set_viewwrapperel_from_progress(scroll_progress);
 			}
 		}
@@ -157,8 +157,6 @@ const animate_in = (componentel: ComponentElT, content_el:HTMLElement) => new Pr
         { transform: 'translate3d(0, 0, 0)', opacity: 1, filter: 'blur(0px)' },
         { transform: `translate3d(0, ${VIEWWRAPPEREL_TRANSFORM_Y}, 0)`, opacity: String( viewheader_opacity ), filter: `blur(${VIEWHEADEREL_BLUR}px)` }
     ];
-    
-
 
     const content_animation = content_el.animate(content_keyframes, _main_animation_options);
 	const viewwrapperel_animation = _viewwrapperel?.animate(viewwrapperel_keyframes, _main_animation_options);
@@ -281,54 +279,49 @@ function set_theme_and_body_color_from_progress(progress: number) {
 
 
 
-
 function set_viewwrapperel_from_progress(progress: number) {
 	const scale = 1 - VIEWWRAPPEREL_SCALE_DIFF * progress;
 	const translateY = 20 * progress;
 	const opacity = 1 - VIEWWRAPPEREL_OPACITY_DIFF * progress;
 
-	if (_viewwrapperel) {
-		_viewwrapperel.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
-		_viewwrapperel.style.opacity = opacity.toString();
-	}
+	_viewwrapperel.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
+	_viewwrapperel.style.opacity = opacity.toString();
 
-	if (_viewheaderel) {
-		_viewheaderel.style.transform = `translate3d(0, ${translateY}px, 0)`;
-		_viewheaderel.style.opacity = opacity.toString();
-		_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR * progress}px)`;
-	}
+	_viewheaderel.style.transform = `translate3d(0, ${translateY}px, 0)`;
+	_viewheaderel.style.opacity = opacity.toString();
+	_viewheaderel.style.filter = `blur(${VIEWHEADEREL_BLUR * progress}px)`;
 }
 
 
 
-function animate_theme_and_body_color(duration: number, is_out: bool = false) {
-	_current_componentel.animation_theme_state.duration = duration;
-	_current_componentel.animation_theme_state.start_time = null;
-
-    _current_componentel.animation_theme_state.start_color = is_out ? 155 : 255;
-    const end_color = is_out ? 255 : 155;
-    _current_componentel.animation_theme_state.color_range = end_color - _current_componentel.animation_theme_state.start_color;
-
-    requestAnimationFrame(animate_theme_and_body_color__frame);
-}
-
-
+// function animate_theme_and_body_color(duration: number, is_out: bool = false) {
+// 	_current_componentel.animation_theme_state.duration = duration;
+// 	_current_componentel.animation_theme_state.start_time = null;
+//
+//     _current_componentel.animation_theme_state.start_color = is_out ? 155 : 255;
+//     const end_color = is_out ? 255 : 155;
+//     _current_componentel.animation_theme_state.color_range = end_color - _current_componentel.animation_theme_state.start_color;
+//
+//     requestAnimationFrame(animate_theme_and_body_color__frame);
+// }
 
 
 
-function animate_theme_and_body_color__frame(current_time: number) {
-	if (_current_componentel.animation_theme_state.start_time === null) {
-		_current_componentel.animation_theme_state.start_time = current_time;
-	}
-	const elapsed = current_time - _current_componentel.animation_theme_state.start_time;
-	const progress = Math.min(elapsed / _current_componentel.animation_theme_state.duration, 1);
 
-	set_theme_and_body_color_from_progress(progress);
 
-	if (progress < 1) {
-		requestAnimationFrame(animate_theme_and_body_color__frame);
-	}
-}
+// function animate_theme_and_body_color__frame(current_time: number) {
+// 	if (_current_componentel.animation_theme_state.start_time === null) {
+// 		_current_componentel.animation_theme_state.start_time = current_time;
+// 	}
+// 	const elapsed = current_time - _current_componentel.animation_theme_state.start_time;
+// 	const progress = Math.min(elapsed / _current_componentel.animation_theme_state.duration, 1);
+//
+// 	set_theme_and_body_color_from_progress(progress);
+//
+// 	if (progress < 1) {
+// 		requestAnimationFrame(animate_theme_and_body_color__frame);
+// 	}
+// }
 
 
 
