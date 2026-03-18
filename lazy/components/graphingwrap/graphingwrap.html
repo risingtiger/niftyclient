@@ -1,0 +1,56 @@
+
+
+<div id="configs">
+	<div>
+		<c-btn @btnclick="${(e)=>this.measurementClicked(e)}">
+			${_s.measurements.map(m => html`
+				<c-btnitem ?isactive="${m.selected}">${m.name}</c-btnitem>
+			`)}
+		</c-btn>
+	</div>
+
+	<div class="datecontrols">
+		<c-btn class="back" @btnclick="${(e)=>this.datePrev(e)}">&#9664;</c-btn>
+		<input type="date" .value="${_s.datestr}" @change="${(e) => this.dateChanged(e)}">
+		<c-btn class="forward" @btnclick="${(e)=>this.dateNext(e)}">&#9654;</c-btn>
+	</div>
+
+	<div>
+		<select .value="${_s.timezonecity}" @change="${(e) => this.timezoneChanged(e)}">
+			<option value="New_York"     ?selected="${_s.timezonecity === 'New_York'}">New York (Eastern)</option>
+			<option value="Chicago"      ?selected="${_s.timezonecity === 'Chicago'}">Chicago (Central)</option>
+			<option value="Denver"       ?selected="${_s.timezonecity === 'Denver'}">Salt Lake (Mountain)</option>
+			<option value="Phoenix"      ?selected="${_s.timezonecity === 'Phoenix'}">Phoenix (MST)</option>
+			<option value="Los_Angeles"  ?selected="${_s.timezonecity === 'Los_Angeles'}">Los Angeles (Pacific)</option>
+			<option value="Anchorage"    ?selected="${_s.timezonecity === 'Anchorage'}">Anchorage (Alaska)</option>
+		</select>
+	</div>
+</div>
+
+
+<div class="graphholder">
+
+	<c-graphing
+		bucket        = "${_a.bucket}"
+		measurement   = "${_s.measurement}"
+		fields        = "${_s.fields}"
+		tags          = "${_a.tags}"
+		type          = "${_s.type}"
+		unixtimestamp = "${_s.final_unixtimestamp}"
+		intrv         = "${_a.intrv}"
+		ppf           = "${_a.ppf}"
+		lowhigh       = "${_a.lowhigh}"
+		unitterms     = "${_a.unitterms}"
+		timezonecity  = "${_s.timezonecity}"
+		colors        = "${_s.colors}">
+	</c-graphing>
+
+	<div class="fields">
+		${_s.measurements.find(m => m.selected).fields.map((f, i) => html`
+			<span class="field-item ${f.selected ? 'selected' : ''}" @click="${() => this.fieldClicked(i)}"><span class="field-dot" style="background-color:${COLORS[i] || '#999'}"></span>${f.name}</span>
+		`)}
+	</div>
+</div>
+
+
+

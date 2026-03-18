@@ -28,13 +28,12 @@
 
 
 html {
-  width:  100vw;
 }
 
 
 
 body {
-	width: 100vw;
+	width: 100%;
 	margin: 0;
 	padding: 0;
 	background-color: var(--background);
@@ -63,7 +62,7 @@ body {
 	position: fixed;
 	top: var(--windowtop);
 	left: 0;
-	width: 100vw;
+	right: 0;
 	height: var(--viewheader-desktopheight);
 	z-index: 10;
 	padding: 0 0 0 0;
@@ -148,14 +147,14 @@ body {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 100vw;
+	width: 100%;
 	/* view-transition-name:  view-slide; */
 
 	& .view {
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 100vw;
+		width: 100%;
 		/* height: 100vh; */
 		/* overflow: hidden; */
 		translate: 100vw 0 0; /* otherwise when view is added while navigating to next it flickers before its put off screen to be animated in */

@@ -79,7 +79,7 @@ class CBtn extends HTMLElement {
 		const active_idx = btnitems.findIndex(item => item.hasAttribute('isactive'))
 		this.s.itemindex = active_idx >= 0 ? active_idx : 0
 
-		requestAnimationFrame(() => { this.init_highlight(btnitems) })
+		this.update_highlight(btnitems)
 
 		this.addEventListener("click", (e) => { this.is_clicked(e) })
 	}
@@ -103,7 +103,7 @@ class CBtn extends HTMLElement {
 			btnitems[this.s.itemindex].removeAttribute('isactive')
 			btnitems[this.s.clicked_index].setAttribute('isactive', '')
 			this.s.itemindex = this.s.clicked_index
-			this.slide_highlight(btnitems)
+			this.update_highlight(btnitems)
 		}
 
 		this.s.mode = ModeT.INERT
@@ -184,44 +184,30 @@ class CBtn extends HTMLElement {
 
 
 
-	init_highlight(btnitems: CBtnItem[]) {
+	async update_highlight(btnitems: CBtnItem[]) {
 
 		if (btnitems.length <= 1) {
 			if (this.els.highlight) this.els.highlight.classList.add('hidden')
 			return
 		}
 
+		await new Promise(r => setTimeout(r, 20))
+
 		const target = btnitems[this.s.itemindex]
 		if (!this.els.highlight || !target) return
 
-		const pad = 0
+		const firstRect = btnitems[0].getBoundingClientRect()
+		const targetRect = target.getBoundingClientRect()
 
-		// set position without transition for initial placement
-		this.els.highlight.style.transition = 'none'
-		this.els.highlight.style.transform = `translateX(${target.offsetLeft + pad}px)`
-		this.els.highlight.style.width = `${target.offsetWidth}px`
+		let offset = targetRect.left - firstRect.left
+		let width = targetRect.width
 
-		// re-enable transition on next frame
-		requestAnimationFrame(() => {
-			if (this.els.highlight) this.els.highlight.style.transition = ''
-		})
-	}
+		if (this.s.itemindex === 0)						 {   offset = offset + 3;   }
+		else if (this.s.itemindex === btnitems.length-1) {   offset = offset + 4; width = width - 1;   }
+		else											 {   offset = offset + 3.5;  }
 
-
-
-
-	slide_highlight(btnitems: CBtnItem[]) {
-
-		if (btnitems.length <= 1) return
-		if (!this.els.highlight) return
-
-		const target = btnitems[this.s.itemindex]
-		if (!target) return
-
-		const pad = 0
-
-		this.els.highlight.style.transform = `translateX(${target.offsetLeft + pad}px)`
-		this.els.highlight.style.width = `${target.offsetWidth}px`
+		this.els.highlight.style.transform = `translateX(${offset}px)`
+		this.els.highlight.style.width = `${width}px`
 	}
 
 
@@ -245,17 +231,15 @@ customElements.define('c-btn', CBtn);
 
 const BTNITEM_STYLES = `
 	:host {
-		position: relative;
-		display: inline-flex;
-		align-items: center;
+		display: block;
 		padding: 0 8px;
 		cursor: pointer;
+		box-sizing: border-box;
 		-webkit-tap-highlight-color: transparent;
 		z-index: 1;
 	}
 	:host([isactive]) {
 		font-weight: bold;
-		color: white;
 	}
 
 	:host c-animeffect {

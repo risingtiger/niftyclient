@@ -124,7 +124,7 @@ function setHeader(opts: ViewHeaderT) {
 
 	header.classList.remove('hidden');
 
-	if (!opts.skip_title) {
+	if (!opts.preserve_title) {
 		const h1 = header.querySelector('.middle h1');
 		h1.textContent = opts.title;
 	}

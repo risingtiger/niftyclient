@@ -2,16 +2,13 @@
 
 
 
-
 :host {
     position: relative;
     font-weight: 600;
-    display: inline-flex;
-    align-items: center;
     padding: 0px 0px;
-    border-radius: 22px;
+    border-radius: 20px;
     box-sizing: border-box;
-    height: 36px;
+    height: 30px;
     color: gray;
     background: linear-gradient(to bottom, white, #f7f7f7);
     border: none;
@@ -20,16 +17,23 @@
     overflow: hidden;
 }
 
+
+
 :host([btngroup]) {
-    background: #e5e5e5;
+    background: white;
+    border: none;
     padding: 3px;
-    gap: 0;
+    display: flex;
+    gap: 20px;
+    justify-content: flex-start;
+    box-shadow: 0 2px 9px 2px rgb(0 0 0 / 7%), inset 0 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px 0px rgba(255, 255, 255, 0.6);
 }
 
 :host([btngroup]) #highlight {
     top: 3px;
     height: calc(100% - 6px);
-    border-radius: 16px;
+    border-radius: 12px;
+    background: #e8e8e8;
 }
 
 :host([btngroup]) #slotwrap {
@@ -74,9 +78,8 @@
     left: 0;
     height: 100%;
     background: var(--actioncolor);
-    border-radius: 19px;
+    border-radius: 15px;
     box-sizing: border-box;
-    /* box-shadow: 0 1px 3px rgba(0,0,0,0.12); */
     transition: transform 0.3s ease, width 0.3s ease;
     z-index: 0;
     pointer-events: none;

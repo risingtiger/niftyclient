@@ -4,7 +4,7 @@
 	position: fixed;
 	top: 0;
 	left: 0;
-	width: 100vw;
+	right: 0;
 	height: calc(100vh - var(--windowtop));
 	overflow-y: scroll;
 	scroll-snap-type: none;
@@ -26,7 +26,7 @@
 .spacer {
 	display: none;
 	height: 100vh;
-	width: 100vw;
+	width: 100%;
 	scroll-snap-align: start;
 }
 .spacer[shape="fill"] {
@@ -70,7 +70,7 @@
 	box-sizing: border-box;
 }
 .wrapper[shape="fill"] .content {
-	width: 100vw;
+	width: 100%;
 	height: calc(100vh - 17px);
 	/* box-shadow: 0 -1px 0px rgb(0 0 0 / 16%); */
 	border-top: 1px solid #d7d7d7;

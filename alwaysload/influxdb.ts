@@ -6,9 +6,9 @@ import { $NT, FetchResultT } from "../defs.js";
 declare var $N: $NT;
 
 
-function Retrieve_Series(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[], intrv:num[], priors:str[]) {   
+function Retrieve_Series(bucket:str, begins:num[], ends:num[], msrs:str[], fields:str[], tags:str[], intrv:num[]) {   
     return new Promise<any>(async (res, rej)=> { 
-        const body = { bucket, begins, ends, msrs, fields, tags, intrv, priors } 
+        const body = { bucket, begins, ends, msrs, fields, tags, intrv } 
 
         const r = await influx_fetch_paths("retrieve_series", body)
 		if (!r.ok) {   rej(); return;   }

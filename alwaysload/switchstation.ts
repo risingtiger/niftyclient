@@ -159,6 +159,7 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 	if (old_view) {
 
 		_navstack[_navstack.length - 2].scrollY = window.scrollY;
+		$N.Header.set({ ...new_view.header, preserve_title: true });
 		await SlidePhase2(old_view, new_view, new_view.header?.title);
 
 		old_view.classList.remove('transition-phase1');
@@ -169,6 +170,7 @@ const activate_view = (pathspec: PathSpecT) => new Promise<void>(async (res, rej
 		res();
 
 	} else { // First view - no spinner, just show directly
+		$N.Header.set(new_view.header);
 		new_view.dataset.active = "true";
 		document.querySelector("#views")!.dispatchEvent(new CustomEvent("revealed", {detail: { viewname : pathspec.route.lazyload_view.name }}));
 		res();
@@ -226,7 +228,7 @@ const on_popstate = async (_event: PopStateEvent) => {
 		
 		const viewel   = document.querySelector(`#views > v-${lastpathspec.route.lazyload_view.name}`) as HTMLElement & CMechViewT
 		const headerel = document.querySelector('header#viewheader') as HTMLElement;
-		$N.Header.set({ ...viewel.header, skip_title: true });
+		$N.Header.set({ ...viewel.header, preserve_title: true });
 
 		headerel.style = ""; // because ol2 (overlay) could have an overlay open which subdues or invisibles the header while open
 

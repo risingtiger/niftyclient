@@ -23,7 +23,7 @@ a:hover {
     overflow: visible;
     overscroll-behavior: none;
     padding-top: calc(var(--windowtop) + var(--viewheader-desktopheight));
-    width: 100vw;
+    width: 100%;
     min-height: 100vh;
     background-color: var(--background);
     z-index: 9;
@@ -40,7 +40,7 @@ a:hover {
 	position: absolute;
 	top: 0; left: 0;
 	z-index: 8;
-    width: 100vw;
+    width: 100%;
     background-color: var(--background);
 }
 
@@ -259,6 +259,20 @@ span.justinput.search {
 
 dialog::backdrop {
     background-color: rgba(0, 0, 0, 0);
+}
+
+
+select {
+	appearance: none;
+	font-family: var(--fontfamily);
+	font-size: var(--textsize);
+	color: #6d6d6d;
+	padding: 10px 14px;
+	border-radius: 10px;
+	border: 1px solid #dcdcdc;
+	outline: none;
+	background: white;
+	box-sizing: border-box;
 }
 
 

@@ -52,8 +52,6 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 	viewcomponent.ingest(d.loadeddata, d.pathparams, d.searchparams, 'initial')
 	viewcomponent.render();
 
-	$N.Header.set({ ...viewcomponent.header, skip_title: !!parentEl.querySelector('[data-active="true"]' )});
-
 	const shadow = (viewcomponent as any).shadow as ShadowRoot;
 
 	if(shadow.firstElementChild.tagName !== 'LINK') {  

@@ -53,6 +53,13 @@
 	  },
 	  {
 		"type": "component",
+		"name": "graphingwrap",
+		"is_instance": false,
+		"dependencies": [{ "type": "component", "name": "btn" }],
+		"auth": []
+	  },
+	  {
+		"type": "component",
 		"name": "ol2",
 		"is_instance": false,
 		"dependencies": [],

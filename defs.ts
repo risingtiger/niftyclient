@@ -80,7 +80,7 @@ export type ViewHeaderT = {
 	backurl?: string,
 	actions?: ViewHeaderActionT[],
 	disable?: boolean,
-	skip_title?: boolean,
+	preserve_title?: boolean,
 }
 
 export type CMechViewT = {
@@ -126,7 +126,7 @@ export type $NT = {
 	},
 
 	InfluxDB: {
-		Retrieve_Series: (bucket:str, begins:number[], ends:number[], msrs:str[], fields:str[], tags:str[], intrv:number[], priors:str[]) => Promise<any>
+		Retrieve_Series: (bucket:str, begins:number[], ends:number[], msrs:str[], fields:str[], tags:str[], intrv:number[]) => Promise<any>
 	}
 
 	EngagementListen: {
