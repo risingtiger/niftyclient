@@ -89,14 +89,15 @@ class COl2 extends HTMLElement {
 		// const viewheader_el = document.querySelector('#viewheader')!;
 		// viewheader_el.addEventListener("click", this.handle_viewheader_click, false);
 
+		const viewpart = this.firstElementChild!.tagName.startsWith("VP-") ? this.firstElementChild as HTMLElement & CMechViewPartT : null;
 
-		if (this.firstElementChild!.tagName.startsWith("VP-")) {
+		if (viewpart) {
 			const viewparthydrated = async () => {
-				this.firstElementChild!.removeEventListener('viewparthydrated', viewparthydrated)
-				this.firstElementChild!.removeEventListener('viewpartconnectfailed', viewpartconnectfailed)
+				viewpart.removeEventListener('viewparthydrated', viewparthydrated)
+				viewpart.removeEventListener('viewpartconnectfailed', viewpartconnectfailed)
 
 				// Start postload but don't await - let init() run in parallel
-				const postload_promise = $N.CMech.PostLoadViewPart(this.firstElementChild as HTMLElement & CMechViewPartT)
+				const postload_promise = $N.CMech.PostLoadViewPart(viewpart as HTMLElement & CMechViewPartT)
 
 				// Begin transition animation immediately
 				await this.init()
@@ -104,16 +105,16 @@ class COl2 extends HTMLElement {
 				// Now that overlay is fully transitioned in, await the postload
 				await postload_promise;
 
-				// we dont really need to await this.init or even the postload_promise because PostLoadViewPart calls ingest, render and revealed on the viewpart
+				if (viewpart.revealed) viewpart.revealed();
 			}
 			const viewpartconnectfailed = () => {
-				this.firstElementChild!.removeEventListener('viewparthydrated', viewparthydrated)
-				this.firstElementChild!.removeEventListener('viewpartconnectfailed', viewpartconnectfailed)
+				viewpart.removeEventListener('viewparthydrated', viewparthydrated)
+				viewpart.removeEventListener('viewpartconnectfailed', viewpartconnectfailed)
 				$N.Unrecoverable("Unable to Load Page", 'View part failed to connect.', "Back to Home", "srf", `vp component: ${this.firstElementChild!.tagName}`, null) // switch_station_route_load_fail
 			}
 
-			this.firstElementChild!.addEventListener('viewparthydrated', viewparthydrated)
-			this.firstElementChild!.addEventListener('viewpartconnectfailed', viewpartconnectfailed)
+			viewpart.addEventListener('viewparthydrated', viewparthydrated)
+			viewpart.addEventListener('viewpartconnectfailed', viewpartconnectfailed)
 		
 		} else {
 			// is not a component or view part, so we can continue immediately instead of waiting for the hydration, in other words, the DOM is already ready  

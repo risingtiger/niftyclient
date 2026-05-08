@@ -1,4 +1,5 @@
 
+
 :host {
     -webkit-font-smoothing: antialiased;
     display: flex;
@@ -10,11 +11,12 @@
     text-indent: 0;
     padding-left: 0;
     height: 52px;
-    border-bottom-width: 0.5px;
+    border-bottom-width: 1px;
     border-bottom-style: solid;
     border-bottom-color: var(--bordercolor);
     padding-right: 0;
 }
+
 
 
 
@@ -67,7 +69,7 @@
 	& > i.icon.icon-type0::before { /* input */
 		content: "\f114";
 	}
-	& > i.icon.icon-type1::before { /* dselect */
+	& > i.icon.icon-type1::before { /* select */
 		content: "\f114";
 	}
 	& > i.icon.icon-type2 { /* toggle switch */
@@ -78,8 +80,6 @@ section.saving > i.icon {
 	opacity: 0;
 	transform: translate3d(0, 9px, 0);
 }
-
-
 
 input {
 	font-size: var(--textsize);
@@ -100,6 +100,23 @@ input {
 	transition: 0.3s ease-out;
 	transition-property: filter;
 }
+select {
+	font-size: var(--textsize);
+	font-family: var(--fontfamily);
+	height: 34px;
+	box-sizing: border-box;
+	outline: none;
+	border: 1px solid #dad4d4;
+	border-radius: 4px;
+	padding: 7px 4px 8px 8px;
+	color: #6d6d6d;
+	background-color: white;
+	display: inline-block;
+	width: auto;
+	cursor: pointer;
+	background-position: right 15px center;
+	margin-top: 2px;
+}
 input::placeholder {
 	color: #b0b0b0;
 }
@@ -111,16 +128,6 @@ input[type="date"] {
 input[type="date"]::-webkit-calendar-picker-indicator {
 	cursor: pointer;
 	filter: invert(0.5);
-}
-
-
-
-c-dselect {
-    padding: 10px 0 0 0;
-}
-c-dselect::part(instigator) {
-}
-section.saving c-dselect::part(instigator) {
 }
 
 span.switch {
@@ -174,12 +181,6 @@ c-animeffect {
 c-animeffect.active {
 	opacity: 1;
 }
-
-c-dselect + c-animeffect {
-	top: 8px;
-	right: 5px;
-}
-
 
 span.switch + c-animeffect {
 	top: 7px;

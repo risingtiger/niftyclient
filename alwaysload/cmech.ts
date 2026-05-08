@@ -45,7 +45,7 @@ const AddView = (viewname:	 str, pathparams:	 GenericRowT, searchparams:GenericR
 
 	const parentEl      = document.querySelector("#views")!;
 	parentEl.insertAdjacentHTML("beforeend", `<v-${viewname} class='view'></v-${viewname}>`);
-	const viewcomponent = document.querySelector(`#views > v-${viewname}`) as HTMLElement & CMechViewT
+	const viewcomponent = parentEl.lastElementChild as HTMLElement & CMechViewT
 
 	const d = DataHodlGetViewData(viewname)
 
@@ -117,7 +117,7 @@ const RegisterViewPart = async (component:HTMLElement & CMechViewPartT): Promise
 
 	const shadow = (component as any).shadow as ShadowRoot;
 	if(shadow.firstElementChild.tagName !== 'LINK') { // only do this when main css is NOT linked 
-		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).maincss];
+		shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, (window as any).iconscss, (window as any).maincss];
 	}
 
 	if(component.hydrated) component.hydrated();
@@ -126,6 +126,7 @@ const RegisterViewPart = async (component:HTMLElement & CMechViewPartT): Promise
 	// wait_for_all_render_and_hydration a chance to attach its event listeners before this event is dispatched
 	component.dispatchEvent(new Event('viewparthydrated'));
 }
+
 
 
 
@@ -152,7 +153,6 @@ const PostLoadViewPart = async (component: HTMLElement & CMechViewPartT): Promis
 
 	component.ingest(vp_merged?.loadeddata || d.loadeddata, d.pathparams, d.searchparams, 'postload')
 	component.render()
-	if (component.revealed) component.revealed()	
 
 	return true
 }
@@ -196,7 +196,7 @@ const ViewPartDisconnectedCallback = (component:HTMLElement & CMechViewPartT) =>
 
 const UpdateView = (viewname:str, pathparams:GenericRowT, searchparams:GenericRowT, eventname:CMechViewLoadStateT) => new Promise<void>(async (res, rej) => {
 
-	const viewel = document.querySelector(`#views > v-${viewname}`) as HTMLElement & CMechViewT
+	const viewel = (document.querySelector(`#views > v-${viewname}[data-active="true"]`) || document.querySelector(`#views > v-${viewname}`)) as HTMLElement & CMechViewT
 
 	try   { await DataHodlReloadAllViewData(viewname, pathparams, searchparams) }
 	catch { remove_view_aux(viewname); rej(); return }
@@ -206,7 +206,7 @@ const UpdateView = (viewname:str, pathparams:GenericRowT, searchparams:GenericRo
 	viewel.ingest(d.loadeddata, pathparams, searchparams, eventname)
 	viewel.render()
 
-	$N.Header.set(viewel.header);
+	if (viewel.dataset.active === "true") $N.Header.set(viewel.header);
 
 	for (const subel of _viewparts.get(viewname) ) {
 		const viewpartname = subel.tagName.toLowerCase().split("-")[1] 

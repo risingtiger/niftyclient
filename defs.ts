@@ -136,9 +136,9 @@ export type $NT = {
 	}
 
 	DataHodl: {
-		AddLocalDB:   (path:string, newdocs:GenericRowT) => Promise<any>,
-		PatchLocalDB: (path:string, data:GenericRowT) => Promise<any>,
-		DeleteLocalDB:(path:string, id:string) => Promise<any>,
+		AddLocalDB:   (pathstr:string, newdocs:GenericRowT) => Promise<any>,
+		PatchLocalDB: (pathstr:string, data:GenericRowT) => Promise<any>,
+		DeleteLocalDB:(pathstr:string) => Promise<any>,
 	}
 
 	CMech: {

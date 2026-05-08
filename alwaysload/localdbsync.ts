@@ -182,7 +182,7 @@ const PreloadObjectStores = (names:str[]) => new Promise<num|null>(async (res,re
 const Add = async (pathstr:str, data:GenericRowT) => { 
 
 	const pathspec = parse_into_pathspec(pathstr)
-	if (!pathspec || !pathspec.docid || !pathspec.syncobjectstore) { console.error('Add: invalid pathspec'); return; }
+	if (!pathspec || !pathspec.syncobjectstore) { console.error('Add: invalid pathspec'); return; }
 
 	data.ts = Math.floor(Date.now() / 1000)
 	data.id = crypto.randomUUID();

@@ -1,6 +1,8 @@
 
 
 
+
+
 div,span,h1,h2,h3,h4,h5,h6,p,button,td {
     margin: 0;
     padding: 0 0px 0 0;
@@ -35,7 +37,6 @@ a:hover {
 	transition-duration: 0.3s;
 	transition-timing-function:  cubic-bezier(0.1, 0.44, 0.52, 0.96);
 }
-
 :host > .backdrop {
 	position: absolute;
 	top: 0; left: 0;
@@ -43,7 +44,6 @@ a:hover {
     width: 100%;
     background-color: var(--background);
 }
-
 
 ul.items {
     list-style: none;
@@ -85,7 +85,7 @@ ul.items {
 
         & > h4 { /* should only be one per li */
             font-weight: 700;
-            padding: 18px 10px 0 10px;
+            padding: 17px 10px 0 10px;
             overflow: hidden;
             text-wrap: nowrap;
             flex-grow: 1;
@@ -107,10 +107,10 @@ ul.items {
 
         & > p { /* only meant to have one p per li */
             font-weight: 400;
-            padding: 18px 12px 0 0;
+            padding: 17px 12px 0 0;
             color: var(--textcolor);
             flex: 1 0 auto;
-			text-align: right;
+            text-align: right;
         }
 		& > p:last-of-type:has(+ .actions) {
 			padding-right: 0;
@@ -119,11 +119,14 @@ ul.items {
 		& > .actions { /* only one per li */
             display: flex;
             flex: 0 0 auto;
-            padding-right: 3px;
+            padding-right: 2px;
+            
+            
+            
 
 			& > i.action {
 				display: block;
-				padding: 0;
+				padding: 1px 0 0 0;
 				color: #c1c1c1;
 				mask-size: 16px 16px;
 				width: 32px;
@@ -174,9 +177,13 @@ ul.items {
         }
     }
 	& > li:first-child {
-		border-top-width: 0.5px;
+		border-top-width: 1px;
 		border-top-style: solid;
 		border-top-color: var(--bordercolor);
+	}
+
+	& > li:hover {
+		background: var(--background-highlight);
 	}
 }
 
@@ -231,8 +238,8 @@ span.justinput {
         color: #bdbdbd;
         font-size: 20px;
         position: absolute;
-        top: 7px;
-        left: 9px;
+        top: 11px;
+        left: 10px;
     }
 
     & > i + input {
@@ -262,17 +269,39 @@ dialog::backdrop {
 }
 
 
+
 select {
-	appearance: none;
-	font-family: var(--fontfamily);
-	font-size: var(--textsize);
-	color: #6d6d6d;
-	padding: 10px 14px;
-	border-radius: 10px;
-	border: 1px solid #dcdcdc;
+	padding: 6px 5px 6px 11px;
+	font-size: 13px;
+	border-radius: 24px;
+	border-width: 0;
 	outline: none;
-	background: white;
+	color: #4a4a4a;
 	box-sizing: border-box;
+	height: 30px;
+	box-shadow: 0 2px 9px 2px rgb(0 0 0 / 7%), inset 0 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px 0px rgba(255, 255, 255, 0.6);
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 8px center;
+	padding-right: 24px;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+	color: #777777;
+}
+
+input[type="date"], select {
+	padding: 6px 5px 6px 11px;
+	font-size: 13px;
+	border-radius: 24px;
+	border-width: 0;
+	box-sizing: border-box;
+	outline: none;
+	color: #4a4a4a;
+	box-sizing: border-box;
+	height: 30px;
+	box-shadow: 0 2px 9px 2px rgb(0 0 0 / 7%), inset 0 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px 0px rgba(255, 255, 255, 0.6);
 }
 
 
@@ -380,6 +409,9 @@ select {
 @media (max-width: 767px) {
 	:host > .wrapper {
 		padding-top: calc(var(--windowtop) + var(--viewheader-mobileheight));
+	}
+	ul.items > li:hover {
+		background: none;
 	}
 }
 

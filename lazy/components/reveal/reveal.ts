@@ -131,11 +131,11 @@ class CReveal extends HTMLElement {
         this.style.display = "block"
         this.style.top = this.s.parent_height + "px"
 
-        const lih5_el = this.s.parent.querySelector("h5")
-        lih5_el!.style.transitionProperty = "transform"
-        lih5_el!.style.transitionDuration = "0.9s"
-        lih5_el!.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
-        lih5_el!.style.transformOrigin = "13px 31px"
+        const lih4_el = this.s.parent.querySelector("h4")
+        lih4_el!.style.transitionProperty = "transform"
+        lih4_el!.style.transitionDuration = "0.9s"
+        lih4_el!.style.transitionTimingFunction = "cubic-bezier(0.91, 0, 0.19, 1)"
+        lih4_el!.style.transformOrigin = "13px 31px"
 
         for(const a of this.s.grandparent_children) {
             a.style.transitionProperty = "transform"
@@ -148,7 +148,7 @@ class CReveal extends HTMLElement {
 
         const height = this.offsetHeight
 
-        lih5_el!.style.transform = "scale(1.3) translateY(1px)"
+        lih4_el!.style.transform = "scale(1.3) translateY(1px)"
 
         this.s.parent.style.boxShadow = "rgba(236, 236, 236,1) 0px 1px 0px inset"
         this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0.10)"
@@ -190,8 +190,8 @@ class CReveal extends HTMLElement {
         this.s.wrap.style.transform = `translateY(-20px)`
         this.s.wrap.style.opacity = `0`
 
-        const lih5_el = this.s.parent.querySelector("h5")
-        lih5_el!.style.transform = "scale(1.0)"
+        const lih4_el = this.s.parent.querySelector("h4")
+        lih4_el!.style.transform = "scale(1.0)"
 
         this.s.parent.style.boxShadow = "rgba(236, 234, 234, 0) 0px 1px 0px inset"
         this.s.parent.style.backgroundColor = "rgba(200, 200, 200, 0)"
@@ -231,6 +231,7 @@ class CReveal extends HTMLElement {
 				a.style.transitionTimingFunction = ""
 			}
 			*/
+
 
             this.removeEventListener("transitionend", close_end)
         }

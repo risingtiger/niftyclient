@@ -320,7 +320,24 @@ const setup_service_worker = (lazyload_view_urlpatterns:any[]) => new Promise<vo
 
 		navigator.serviceWorker.addEventListener('message', (event:any) => {
 
-			if (event.data.action === 'update_auth_info') {
+			if (event.data.action === 'request_auth_info') {
+				// Chrome can terminate an idle service worker while this page remains loaded.
+				// When the restarted worker wakes for an API fetch, it asks the page to re-send
+				// the auth values that only the page can read from localStorage.
+				if (!event.ports?.[0]) {
+					// Unhandled Case: service-worker auth rehydration currently expects a MessageChannel response port.
+					return
+				}
+
+				event.ports[0].postMessage({
+					action: 'auth_info_response',
+					id_token: localStorage.getItem("id_token"),
+					token_expires_at: localStorage.getItem("token_expires_at"),
+					refresh_token: localStorage.getItem("refresh_token"),
+				})
+			}
+
+			else if (event.data.action === 'update_auth_info') {
 				localStorage.setItem("id_token", event.data.id_token)
 				localStorage.setItem("token_expires_at", event.data.token_expires_at.toString())
 				localStorage.setItem("refresh_token", event.data.refresh_token)

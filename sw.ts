@@ -9,12 +9,7 @@ const enum RequestURLType { INTERNAL_API, FILE, VIEW_URL}
 
 const enum ConnectStateE { ONLINE, OFFLINE }
 
-const PRELOAD_BASE_ASSETS:PRELOAD_BASE_ASSETS_T[] = [
-	"/v/appmsgs",
-	"/v/login",
-	"/v/home",
-	"/",
-]
+const PRELOAD_BASE_ASSETS:PRELOAD_BASE_ASSETS_T[] = ["/v/appmsgs", "/v/login", "/v/home", "/",]
 
 //const INITIAL_CHECK_CONNECTIVITY_INTERVAL = 5000;
 const CONNECTEDSTATE_CHECK_TIMEOUT             = 5000
@@ -23,12 +18,14 @@ const INITIAL_PERIODIC_MAINTENANCE_INTERVAL    = 15 * 1000
 const DELAY_PRELOAD_BASE_ASSETS                = 10 * 1000;
 const EXITDELAY                                = 9000 // just the default. can be overridden in the fetch request
 const BACKOFF_MAX                              = 24; // max 120s (5s * 24)
+const AUTH_INFO_REQUEST_TIMEOUT                = 5000
 
 let _cache_name                                = 'cacheV__0__';
 let _cache_version                             = Number(_cache_name.split("__")[1])
 let _id_token                                  = ""
 let _token_expires_at                          = 0
 let _refresh_token                             = ""
+let _auth_refresh_inflight:Promise<void>|null  = null
 let _lazyload_view_urlpatterns:Array<string[]> = []
 let _connectedstate                            = ConnectStateE.ONLINE; // assume online at start
 let _connectedcheck_timeout:any                = 0;
@@ -139,9 +136,9 @@ self.addEventListener('message', async (e:any) => {
 	}
 
 	else if (e.data.action === "initial_data_pass") {
-		_id_token = e.data.id_token;
-		_token_expires_at = Number(e.data.token_expires_at);
-		_refresh_token = e.data.refresh_token;
+		// Page-load auth hydration. Chrome can later terminate and restart this service worker while
+		// the page stays open, so authrequest() also has an on-demand rehydrate path below.
+		set_auth_info(e.data)
 		_lazyload_view_urlpatterns = e.data.lazyload_view_urlpatterns;
 		clearTimeout(_connectedcheck_timeout) // probably not needed since this should be the first call 	
 		setTimeout(()=>periodicmaintenance(), INITIAL_PERIODIC_MAINTENANCE_INTERVAL);
@@ -280,10 +277,10 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 	if (should_cache && cache_api) {
 		const cached_response = await cache_api!.match(r);
 		if (cached_response) {
-			const keys = await cache_api!.keys();
-			const req = keys.find(k => k.url === r.url && k.method === r.method && k.headers.has('Nifty-Cache'));
-			const cache_ts = req?.headers.get('Nifty-Cache') || null;	
-			const ts = cache_ts ? Number(cache_ts) : null;
+			const keys     = await cache_api!.keys();
+			const req      = keys.find(k => k.url === r.url && k.method === r.method && k.headers.has('Nifty-Cache'));
+			const cache_ts = req?.headers.get('Nifty-Cache') || null;
+			const ts       = cache_ts ? Number(cache_ts) : null;
 			if (ts && !isNaN(ts)) { 
 				const nowts = Math.round(Date.now() / 1000)
 
@@ -349,7 +346,7 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 		return
 	}
 
-	if (server_response.headers.get('updatedrequired')) {
+	if (server_response.headers.get('updaterequired')) {
 		(self as any).clients.matchAll().then((clients:any) => {
 			clients.forEach((client: any) => {
 				client.postMessage({ action: 'update_init' });
@@ -544,61 +541,177 @@ function should_url_be_cached(pathname:string) {
 
 
 
+type AuthInfoT = {
+	id_token?: string|null
+	refresh_token?: string|null
+	token_expires_at?: string|number|null
+}
+
+
+
+
+const set_auth_info = (auth_info:AuthInfoT) => {
+	_id_token = auth_info.id_token || ""
+	_refresh_token = auth_info.refresh_token || ""
+	_token_expires_at = Number(auth_info.token_expires_at) || 0
+}
+
+
+
+
+const request_auth_from_client = () => new Promise<void>(async (res, rej) => {
+
+	// Chrome regularly terminates idle service workers. When it wakes this script for the next
+	// fetch, all module-level auth vars are reset even though the page's localStorage is still
+	// authenticated. Ask the controlled window to re-send its current auth state before declaring
+	// the user unauthenticated.
+	const clientlist = await (self as any).clients.matchAll({ includeUncontrolled: true, type: 'window' })
+	if (!clientlist.length) {
+		// Unhandled Case: background-only authenticated work would need persisted auth storage, like IndexedDB.
+		rej("No client available for auth info")
+		return
+	}
+
+	const client = clientlist.find((c:any) => c.focused) || clientlist.find((c:any) => c.visibilityState === 'visible') || clientlist[0]
+	const channel = new MessageChannel()
+	const timeout = setTimeout(() => {
+		channel.port1.onmessage = null
+		channel.port1.close()
+		rej("Auth info request timed out")
+	}, AUTH_INFO_REQUEST_TIMEOUT)
+
+	channel.port1.onmessage = (event:MessageEvent) => {
+		clearTimeout(timeout)
+		channel.port1.close()
+		set_auth_info(event.data)
+		res()
+	}
+	channel.port1.start()
+
+	try {
+		client.postMessage({ action: 'request_auth_info' }, [channel.port2])
+	}
+	catch {
+		clearTimeout(timeout)
+		channel.port1.close()
+		channel.port2.close()
+		rej("Unable to request auth info from client")
+		return
+	}
+})
+
+
+
+
 const authrequest = () => new Promise<string>(async (res,rej)=> { 
 
-    if (!_id_token) {
+	let attempted_auth_rehydrate = false
+
+	// On a Chrome service-worker restart these values begin as "", "", and 0. Rehydrate
+	// from the page before treating that blank worker memory as a real logged-out state.
+	if (!_id_token || !has_valid_token_expiration()) {
+		attempted_auth_rehydrate = true
+		await request_auth_from_client().catch(() => null)
+	}
+
+	if (!_id_token) {
 		await error_out("sw4", "authrequest no token in browser storage")
 		rej("No token in browser storage")
-        return
-    }
+		return
+	}
 
+	if (!is_token_expiring_soon()) {
+		res("ok")
+		return
+	}
 
-    if (Date.now()/1000 > _token_expires_at-30) {
+	if (!_refresh_token && !attempted_auth_rehydrate) {
+		await request_auth_from_client().catch(() => null)
+	}
 
-        const body = { refresh_token: _refresh_token }
+	// _token_expires_at defaults to 0 on script startup, which makes every token look
+	// expired. Never call /api/refresh_auth unless we have a real refresh token too.
+	if (!_refresh_token) {
+		await error_out("sw4", "authrequest no refresh token in browser storage")
+		rej("No refresh token in browser storage")
+		return
+	}
 
-        fetch('/api/refresh_auth', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json',},
-            body: JSON.stringify(body),
-            signal: AbortSignal.timeout(EXITDELAY)
+	if (!_auth_refresh_inflight) {
+		_auth_refresh_inflight = run_auth_refresh()
+			.finally(() => {
+				_auth_refresh_inflight = null
+			})
+	}
 
-        }).then(async r=> {
+	try {
+		await _auth_refresh_inflight
+	}
+	catch (err) {
+		rej(err)
+		return
+	}
 
-            let data = await r.json() as any
+	if (!_id_token || is_token_expiring_soon()) {
+		rej("Refresh failed")
+		return
+	}
 
-            if (data.error) {
-				await error_out("sw4", "authrequest refresh failed - " + data.error.message)
-				rej("Refresh failed")
-            }
-
-            else {
-                _id_token = data.id_token
-                _refresh_token = data.refresh_token
-                _token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in);
-
-				(self as any).clients.matchAll().then((clients:any) => {
-					clients.forEach((client: any) => {
-						client.postMessage({
-							action: 'update_auth_info',
-							id_token: _id_token,
-							refresh_token: _refresh_token,
-							token_expires_at: _token_expires_at
-						})
-					})
-				})
-
-                res("ok")
-            }
-
-        }).catch(async _err=> {
-			rej("Network error") 
-        })
-    }
-    else {
-        res("ok")
-    }
+	res("ok")
 })
+
+
+
+
+const has_valid_token_expiration = () => Number.isFinite(_token_expires_at) && _token_expires_at > 0
+const is_token_expiring_soon = () => !has_valid_token_expiration() || Date.now()/1000 > _token_expires_at-30
+
+
+
+
+const run_auth_refresh = async () => {
+
+	if (!_refresh_token) {
+		throw "No refresh token in browser storage"
+	}
+
+	const body = { refresh_token: _refresh_token }
+
+	let r:Response
+	try {
+		r = await fetch('/api/refresh_auth', {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json',},
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(EXITDELAY)
+		})
+	}
+	catch {
+		throw "Network error"
+	}
+
+	const data = await r.json() as any
+
+	if (data.error) {
+		await error_out("sw4", "authrequest refresh failed - " + data.error.message)
+		throw "Refresh failed"
+	}
+
+	_id_token = data.id_token
+	_refresh_token = data.refresh_token
+	_token_expires_at = Math.floor(Date.now()/1000) + Number(data.expires_in)
+
+	;(self as any).clients.matchAll().then((clients:any) => {
+		clients.forEach((client: any) => {
+			client.postMessage({
+				action: 'update_auth_info',
+				id_token: _id_token,
+				refresh_token: _refresh_token,
+				token_expires_at: _token_expires_at
+			})
+		})
+	})
+}
 
 
 
@@ -802,7 +915,6 @@ function for_testing_log(msg:string, secondarymsg:string="") {
 
 	if (!secondarymsg) { console.debug(msg); } else { console.debug(msg, secondarymsg);  }
 }
-
 
 
 

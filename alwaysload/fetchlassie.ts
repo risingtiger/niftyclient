@@ -151,9 +151,11 @@ function get_cache_future_epoch_seconds_from_str(cache_time_amount:string):strin
 	const unit = match[2]
 	let multiplier = 1
 
-	if (unit === "m") multiplier = 60
-	if (unit === "h") multiplier = 3600
-	if (unit === "d") multiplier = 86400
+	if (unit === "s")		multiplier = 1
+	else if (unit === "m")	multiplier = 60
+	else if (unit === "h")	multiplier = 3600
+	else if (unit === "d")	multiplier = 86400
+	else throw new Error("Invalid time unit in get_cache_future_epoch_seconds_from_str")
 
 	const nowInSeconds = Math.floor(Date.now() / 1000)
 	return ( nowInSeconds + amount * multiplier ).toString()

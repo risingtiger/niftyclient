@@ -12,8 +12,10 @@ declare var html: any;
 
 
 
-enum TypeT { INPUT = 0, DSELECT = 1, TOGGLE = 2 }
+enum TypeT { INPUT = 0, SELECT = 1, TOGGLE = 2 }
+type TypeStrT = "toggle" | "input" | "select"
 type InputStrT = "none" | "text" | "phone" | "email" | "password" | "number" | "url" | "date" | "time" | "datetime" | "month" | "week" | "color" | "search" | "file" | "range"
+type OptionT = { label: str, val: str }
 
 type AttributesT = {
     val: str,
@@ -80,7 +82,7 @@ class CIn2 extends Lit_Element {
 
     connectedCallback() {   
 
-        const attr_typestr = this.getAttribute("type") || "text"
+        const attr_typestr = (this.getAttribute("type") || "input") as TypeStrT
 
         this.m.label       = this.getAttribute("label") || ""
         this.m.labelwidth  = parseInt(this.getAttribute("labelwidth") || "125")
@@ -98,13 +100,17 @@ class CIn2 extends Lit_Element {
             this.m.type = TypeT.TOGGLE
             this.m.inputtype = "none"
 
-        } else if (attr_typestr === "dselect") {
-            this.m.type = TypeT.DSELECT
+        } else if (attr_typestr === "select") {
+            this.m.type = TypeT.SELECT
             this.m.inputtype = "none"
 
-        } else { 
+        } else if (attr_typestr === "input") { 
             this.m.type = TypeT.INPUT
-            this.m.inputtype = attr_typestr as InputStrT;
+            this.m.inputtype = (this.getAttribute("inputtype") || "text") as InputStrT;
+        } else {
+			// Unhandled Case: type should only be "toggle", "input", or "select".
+            this.m.type = TypeT.INPUT
+            this.m.inputtype = "text"
         }
 
         this.addEventListener("click", (e:any) => this.clicked(e), true)
@@ -252,12 +258,15 @@ class CIn2 extends Lit_Element {
 							@keydown="${(e:any)=>this.toggle_keydown(e)}"
 							class="controlel"><span class="inner"></span></span>`;
 
-		} else if (this.m.type === TypeT.DSELECT) {
+		} else if (this.m.type === TypeT.SELECT) {
 
-			return html`<c-dselect 
-							options="${this.getAttribute('options') || ''}" 
-							@update="${(e:any)=>{this.valchanged(e.detail.newval)}}" 
-							val="${this.s.val || 'none'}"></c-dselect>`;
+			return html`<select
+							@change="${(e:any)=>this.valchanged(e.currentTarget.value)}"
+							class="controlel"
+							name="${this.m.name}"
+							value="${this.s.val}">
+							${parse_options(this.s.options).map((option:OptionT) => html`<option value="${option.val}" ?selected="${option.val === this.s.val}">${option.label}</option>`)}
+						</select>`;
 
 		} else if (this.m.type === TypeT.INPUT) {
 
@@ -316,6 +325,21 @@ class CIn2 extends Lit_Element {
 }
 
 
+
+
+function parse_options(options_str: str): OptionT[] {
+
+	if (!options_str) return []
+
+	return options_str.split(",").map((x) => {
+		const parts = x.trim().split(":")
+
+		return {
+			label: parts[0],
+			val: parts[1] ?? parts[0],
+		}
+	})
+}
 
 
 //@ts-ignore
