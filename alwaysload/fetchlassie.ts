@@ -10,6 +10,7 @@ declare var $N: $NT;
 
 let _timeoutWaitingAnimateId:any = null
 let _activeRequestCount = 0 // Track number of active requests
+let _forceReloadCacheContextCount = 0
 
 
 
@@ -25,18 +26,24 @@ function FetchLassie(url:str, http_optsP:FetchLassieHttpOptsT|undefined|null, op
     http_opts.headers   = typeof http_opts.headers !== "undefined" ? http_opts.headers : {}
     http_opts.body      = typeof http_opts.body !== "undefined" ? http_opts.body : null
 
-	if (!opts) { opts   = { retries: 0, background: true, animate: true, cacheit: false }; }
+	if (!opts) { opts   = { retries: 0, background: true, animate: true, cacheit: false, force_reload_cache: false }; }
 
 	opts.retries                = opts.retries || 0
 	opts.background             = opts.background || true
 	opts.animate                = opts.animate || true
 	opts.cacheit                = opts.cacheit || false
+	opts.force_reload_cache     = opts.force_reload_cache || false
 
 
     if (opts.cacheit) {
 		const future_epoch_seconds = get_cache_future_epoch_seconds_from_str(opts.cacheit === true ? "5m" : opts.cacheit as string)
         http_opts.headers = http_opts.headers || {};
         http_opts.headers['Nifty-Cache'] = future_epoch_seconds.toString();
+	}
+
+	if (opts.force_reload_cache || _forceReloadCacheContextCount > 0) {
+		http_opts.headers = http_opts.headers || {};
+		http_opts.headers['Nifty-Cache-Force-Reload'] = 'true';
 	}
 
     _activeRequestCount++;
@@ -122,6 +129,16 @@ const fetchit = (url:string, http_opts:FetchLassieHttpOptsT) => new Promise<Resp
 
 
 
+const RunWithForceReloadCache = async <T>(callback:()=>Promise<T>): Promise<T> => {
+	_forceReloadCacheContextCount += 1
+
+	try { return await callback() }
+	finally { _forceReloadCacheContextCount -= 1 }
+}
+
+
+
+
 function setBackgroundOverlay(ison:boolean) {
 
     const xel = document.querySelector("#fetchlassy_overlay")!
@@ -168,4 +185,5 @@ if (!(window as any).$N) {   (window as any).$N = {};   }
 ((window as any).$N as any).FetchLassie = FetchLassie;
 
 
+export { RunWithForceReloadCache }
 

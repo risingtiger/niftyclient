@@ -269,12 +269,17 @@ async function check_update_polling() {
 
 const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) => { 
 
-	const base_headers  = new Headers(r.headers);
-	const should_cache  = base_headers.has('Nifty-Cache')
-	const cache_api     = should_cache ? await caches.open(_cache_name) : null
+	const base_headers               = new Headers(r.headers);
+	const cache_headers              = new Headers(r.headers);
+	const should_force_reload_cache  = base_headers.has('Nifty-Cache-Force-Reload')
+	const should_cache               = base_headers.has('Nifty-Cache')
+	const cache_api                  = should_cache ? await caches.open(_cache_name) : null
+
+	base_headers.delete('Nifty-Cache-Force-Reload')
+	cache_headers.delete('Nifty-Cache-Force-Reload')
 
 	// Check cache first before checking offline state
-	if (should_cache && cache_api) {
+	if (should_cache && cache_api && !should_force_reload_cache) {
 		const cached_response = await cache_api!.match(r);
 		if (cached_response) {
 			const keys     = await cache_api!.keys();
@@ -358,12 +363,23 @@ const handle_data_call = (r:Request) => new Promise<Response>(async (res, _rej) 
 
 	}
 
-	if (server_response.status === 200 && should_cache && cache_api) {   
-		cache_api!.put(network_request!, server_response.clone());   
+	if (server_response.status === 200 && should_cache && cache_api) {
+		const cache_request = new Request(r, { headers: cache_headers })
+		await replace_api_cache_response(cache_api, r, cache_request, server_response.clone())
 	}
 
 	res(server_response) 
 })
+
+
+
+
+const replace_api_cache_response = async (cache_api: Cache, original_request: Request, cache_request: Request, response: Response) => {
+	const keys = await cache_api.keys()
+	const matching_keys = keys.filter(k => k.url === original_request.url && k.method === original_request.method)
+	await Promise.all(matching_keys.map(k => cache_api.delete(k)))
+	await cache_api.put(cache_request, response)
+}
 
 
 

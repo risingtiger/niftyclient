@@ -13,6 +13,7 @@ import {
 	RemoveViewPartData   as DataHodlRemoveViewPartData,
 	ReloadAllViewData    as DataHodlReloadAllViewData
 } from './datahodl.js'
+import { RunWithForceReloadCache as FetchLassieRunWithForceReloadCache } from './fetchlassie.js'
 
 
 declare var $N: $NT;
@@ -110,7 +111,7 @@ const RegisterViewPart = async (component:HTMLElement & CMechViewPartT): Promise
 	}
 
 	const vd  = DataHodlGetViewData(ancestor_viewname)
-	const vpd = DataHodlGetViewPartData(ancestor_viewname, `vp-${viewpartname}`)
+	const vpd = DataHodlGetViewPartData(ancestor_viewname, viewpartname)
 	
 	component.ingest(vpd?.loadeddata || vd.loadeddata, vd.pathparams, vd.searchparams, 'initial')
 	component.render()
@@ -198,7 +199,8 @@ const UpdateView = (viewname:str, pathparams:GenericRowT, searchparams:GenericRo
 
 	const viewel = (document.querySelector(`#views > v-${viewname}[data-active="true"]`) || document.querySelector(`#views > v-${viewname}`)) as HTMLElement & CMechViewT
 
-	try   { await DataHodlReloadAllViewData(viewname, pathparams, searchparams) }
+	// Refresh events should reload API cache; resize does not use UpdateView.
+	try   { await FetchLassieRunWithForceReloadCache(()=>DataHodlReloadAllViewData(viewname, pathparams, searchparams)) }
 	catch { remove_view_aux(viewname); rej(); return }
 
 	const d = DataHodlGetViewData(viewname)
@@ -356,7 +358,8 @@ const handle_revealed = async (ev:CustomEvent) => {
 		viewel.render();
 
 		for (const subel of ( [..._viewparts.get(viewname)] as ( HTMLElement & CMechViewPartT )[] )) { // may or may not have viewparts
-			const viewpartdata = DataHodlGetViewPartData(viewname, subel.tagName.toLowerCase()) // may or may not have data
+			const viewpartname = subel.tagName.toLowerCase().split("-")[1]
+			const viewpartdata = DataHodlGetViewPartData(viewname, viewpartname) // may or may not have data
 			subel.ingest(viewpartdata?.loadeddata || d.loadeddata, d.pathparams, d.searchparams, 'postload');
 			subel.render();
 		}

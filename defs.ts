@@ -31,7 +31,8 @@ export type FetchLassieOptsT = {
 	is_fetchonbrowserfocus?: boolean,
 	background?: boolean,
 	animate?: boolean,
-	cacheit?: boolean|string
+	cacheit?: boolean|string,
+	force_reload_cache?: boolean
 }
 export type FetchResultT = {
 	headers: Headers,

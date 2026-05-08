@@ -103,7 +103,7 @@ const Init = (localdb_objectstores_tosync: {name:str,indexes?:str[]}[], db_name:
 
 const RunSyncFromEvent = async (eventname: DataHodlEvents, event?: any) => new Promise<void>(async (res,rej)=> {
 
-	if (eventname === "visible" || eventname === "15interval") { 
+	if (eventname === "visible" || eventname === "15interval" || eventname === "backonline") { 
 		if (_activepaths.length === 0) { res(); return; }
 
 		const r = await datasetter(_activepaths, {  }, true).catch(()=>null)

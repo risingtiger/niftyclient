@@ -88,8 +88,11 @@ const LoadViewPartData = (viewname: str, viewpart_tagname: str, viewpart_attrs: 
 	
 	try { loadr = await viewpart_class.load(viewdata.pathparams, viewdata.searchparams, viewpart_attrs) }
 	catch { rej(); return; }
+
+	try { throw_if_viewpart_refreshon(viewpart_tagname, 'load', loadr.refreshon) }
+	catch (err) { rej(err); return; }
 	
-	viewdata.viewparts.set(viewpart_tagname, { loadeddata: loadr.d, refreshon: loadr.refreshon || [], attrs: viewpart_attrs })
+	viewdata.viewparts.set(viewpart_tagname, { loadeddata: loadr.d, refreshon: [], attrs: viewpart_attrs })
 	
 	res()
 })
@@ -136,12 +139,12 @@ const PostLoadViewPartData = (viewname: str, viewpartname: str, viewpart_attrs: 
 			viewdata.searchparams,
 			attrs,
 		)
+		throw_if_viewpart_refreshon(viewpartname, 'post_load', loadr.refreshon)
 	}
-	catch { rej(); return }
+	catch (err) { rej(err); return }
 
 	const vp = viewdata.viewparts.get(viewpartname)
 	for (const [key, value] of loadr.d) vp.loadeddata.set(key, value)
-	if (loadr.refreshon) for (const r of loadr.refreshon) vp.refreshon.push(r)
 
 	res(true)
 })
@@ -215,15 +218,17 @@ const ReloadAllViewData = (viewname:str, pathparams: GenericRowT, searchparams: 
 		// Viewpart load data
 		if (vpInfo.loadIndex !== -1 && r[vpInfo.loadIndex]) {
 			const loadResult = r[vpInfo.loadIndex]
+			try { throw_if_viewpart_refreshon(vpInfo.vpname, 'load', loadResult.refreshon) }
+			catch (err) { rej(err); return }
 			if (loadResult.d) for (const [key, value] of loadResult.d) vpLoadeddata.set(key, value)
-			if (loadResult.refreshon) for (const ro of loadResult.refreshon) vpRefreshon.push(ro)
 		}
 
 		// Viewpart post load data
 		if (vpInfo.postLoadIndex !== null && r[vpInfo.postLoadIndex]) {
 			const postResult = r[vpInfo.postLoadIndex]
+			try { throw_if_viewpart_refreshon(vpInfo.vpname, 'post_load', postResult.refreshon) }
+			catch (err) { rej(err); return }
 			if (postResult.d) for (const [key, value] of postResult.d) vpLoadeddata.set(key, value)
-			if (postResult.refreshon) for (const ro of postResult.refreshon) vpRefreshon.push(ro)
 		}
 
 		newViewparts.set(vpInfo.vpname, { loadeddata: vpLoadeddata, refreshon: vpRefreshon, attrs: vpInfo.attrs })
@@ -382,6 +387,20 @@ const update_affected_views = async (paths:string[]) => {
 
 	return true;
 }
+
+
+
+
+const throw_if_viewpart_refreshon = (viewpartname:str, funcname:str, refreshon?:str[]) => {
+	if (!refreshon || !refreshon.length) return
+
+	const msg = `Viewpart "${viewpartname}" cannot define refreshon in static ${funcname}. Move refreshon to the parent view.`
+	console.error(msg, refreshon)
+	throw new Error(msg)
+}
+
+
+
 
 
 
