@@ -6,12 +6,11 @@
 		"test:ui": "playwright test --ui"
 	},
 	"dependencies": {
-		"chartist": "^1.4.0",
-		"lit": "^3.3.1"
+		"chartist": "^1.5.0",
+		"lit": "^3.3.3"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.57.0",
-		"fantasticon": "^3.0.0",
-		"typescript": "^5.9.2"
+		"@playwright/test": "^1.60.0",
+		"typescript": "^6.0.3"
 	}
 }
