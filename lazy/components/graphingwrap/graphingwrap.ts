@@ -13,6 +13,8 @@ type MeasurementT = {
 	name: str,
 	selected: bool,
 	type: "line" | "bar",
+	lowhigh?: str,
+	unitterms?: str,
 	fields: { name: str, selected: bool }[],
 }
 
@@ -40,6 +42,8 @@ type StateT = {
 	measurement: str,
 	fields: str,
 	type: "line" | "bar",
+	lowhigh: str,
+	unitterms: str,
 	colors: str, // comma-separated hex colors matching the selected fields, passed to c-graphing
 	final_unixtimestamp: num, // computed from datestr and timezonecity or (if not set) directly from unixtimestamp
 	datestr: str,
@@ -85,6 +89,8 @@ class CGraphingWrap extends HTMLElement {
 			measurement: "",
 			fields: "",
 			type: "bar", // default
+			lowhigh: "",
+			unitterms: "",
 			colors: "",
 			final_unixtimestamp: 0,
 			datestr: "",
@@ -153,12 +159,14 @@ class CGraphingWrap extends HTMLElement {
 
     sc() {   
 		this.s.final_unixtimestamp = this.get_midnight_UTC_time(this.s.datestr, this.s.timezonecity)
-		this.s.measurement = this.s.measurements.find(m => m.selected)?.name || ""
 
 		const selectedMeasurement = this.s.measurements.find(m => m.selected)
 		const allFields = selectedMeasurement?.fields || []
+		this.s.measurement = selectedMeasurement?.name || ""
 		this.s.fields = allFields.filter(f => f.selected).map(f => f.name).join(',')
 		this.s.type = selectedMeasurement?.type || "line"
+		this.s.lowhigh = selectedMeasurement?.lowhigh || this.a.lowhigh
+		this.s.unitterms = selectedMeasurement?.unitterms || this.a.unitterms
 		this.s.colors = allFields.map((f, i) => f.selected ? (COLORS[i] || '#999') : null).filter(c => c !== null).join(',')
 
 		render(this.template(this.s, this.m, this.a), this.shadow);   

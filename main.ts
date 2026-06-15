@@ -1,4 +1,4 @@
-import { $NT, ToastLevelT, ViewHeaderT } from "./defs.js";
+import { $NT, ToastLevelT, ViewHeaderT, InstallStatusT } from "./defs.js";
 
 
 declare var $N: $NT;
@@ -28,6 +28,21 @@ import './alwaysload/utils.js';
 let _serviceworker_reg: ServiceWorkerRegistration|null;
 //let _shared_worker: SharedWorker|null = null;
 //let _worker_port: MessagePort|null = null;
+
+
+// captured as early as possible -- the browser fires beforeinstallprompt once, and only
+// when the app meets installability criteria and is not already installed
+let _deferred_install_prompt: any = null;
+
+window.addEventListener('beforeinstallprompt', (e: Event) => {
+	e.preventDefault();
+	_deferred_install_prompt = e;
+	document.dispatchEvent(new Event('installavailable'));
+});
+
+window.addEventListener('appinstalled', () => {
+	_deferred_install_prompt = null;
+});
 
 
 
@@ -222,6 +237,35 @@ async function Unrecoverable(subj: string, msg: string, btnmsg: string, logsubj:
 	$N.Logger.log(40, logsubj, logerrmsg||"");
 }
 $N.Unrecoverable = Unrecoverable;
+
+
+
+
+function GetInstallStatus(): InstallStatusT {
+
+	const is_standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+	if (is_standalone) return 'installed';
+
+	if (_deferred_install_prompt) return 'available';
+
+	const is_ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+	if (is_ios) return 'ios_manual'; // ios safari has no beforeinstallprompt; user must use Share -> Add to Home Screen
+
+	return 'unavailable';
+}
+
+async function InstallPrompt(): Promise<'accepted' | 'dismissed' | 'unavailable'> {
+
+	if (!_deferred_install_prompt) return 'unavailable';
+
+	_deferred_install_prompt.prompt();
+	const choice = await _deferred_install_prompt.userChoice;
+	if (choice.outcome === 'accepted') _deferred_install_prompt = null;
+
+	return choice.outcome;
+}
+
+$N.Install = { GetStatus: GetInstallStatus, Prompt: InstallPrompt };
 
 
 

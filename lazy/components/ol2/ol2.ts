@@ -12,6 +12,7 @@ enum BrowserScreenSizeCategoryE { SMALL, MEDIUM, LARGE }
 
 type AttributesT = {
 	close: str,
+	actionterm: str,
 }
 
 type StateT = {
@@ -27,7 +28,7 @@ type ModelT = {
 	actionterm: str,
 }
 
-const ATTRIBUTES: AttributesT = { close: "" };
+const ATTRIBUTES: AttributesT = { close: "", actionterm: "" };
 
 
 
@@ -125,10 +126,18 @@ class COl2 extends HTMLElement {
 
 
 
-	async attributeChangedCallback(name: str) {
+	async attributeChangedCallback(name: str, _old_val: str, new_val: str) {
 
 		if (name === "close") {
 			this.close()
+			return
+		}
+
+		if (name === "actionterm") {
+			this.m.actionterm = new_val || ""
+			if (!this.isConnected) return
+			this.sc()
+			return
 		}
 	}
 
@@ -153,7 +162,7 @@ class COl2 extends HTMLElement {
 		this.backdrop_el           = document.createElement('div')
 		this.backdrop_el.classList.add('backdrop')
 		this.backdrop_el.style.height = '10000px'
-		thisviewshadow.appendChild(this.backdrop_el)
+		thisviewshadow!.appendChild(this.backdrop_el)
 
 		await Ol2Animate.animate_in(this as any, this.content_el)
 	}
@@ -185,6 +194,16 @@ class COl2 extends HTMLElement {
 	closed() {
 		this.dispatchEvent(new Event('close'));
 	}
+
+
+
+
+	action_clicked(e: MouseEvent) {
+		e.preventDefault()
+		e.stopPropagation()
+		this.dispatchEvent(new CustomEvent("actionclicked", { detail: { actionterm: this.m.actionterm } }))
+	}
+
 
 
 

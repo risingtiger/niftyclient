@@ -111,7 +111,9 @@ export type CMechViewPartT = {
 }
 export type CMechLoadedDataT = Map<string, GenericRowT[]>
 
-export type ToastLevelT = 'info' | 'saved' | 'success' | 'warning' | 'error' 
+export type ToastLevelT = 'info' | 'saved' | 'success' | 'warning' | 'error'
+
+export type InstallStatusT = 'installed' | 'available' | 'ios_manual' | 'unavailable'
 
 
 
@@ -169,6 +171,11 @@ export type $NT = {
 	ToastShow: (msg: str|{title:string,sub:string}, level?: ToastLevelT, duration?: num|null ) => void
 	Unrecoverable: (subj: string, msg: string, btnmsg:string, logsubj:string, logerrmsg:string, redirectionurl:string|null) => void
 	GetConnectedState: () => Promise<'online' | 'offline'>
+
+	Install: {
+		GetStatus: () => InstallStatusT,
+		Prompt: () => Promise<'accepted' | 'dismissed' | 'unavailable'>,
+	}
 	//GetSharedWorkerPort:() => MessagePort
 
 	SwitchStation: {

@@ -100,7 +100,7 @@ self.addEventListener('fetch', (e:FetchEvent) => {
 		return;
 	}
 
-	if (pathname.startsWith('/assets/') || pathname.startsWith('/favicon.ico') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
+	if (pathname.startsWith('/assets/') || pathname.startsWith('/app.webmanifest') || pathname.startsWith('/shared_worker.js')) {
 		requesturltype = RequestURLType.FILE;
 		e.respondWith(handle_file_call(e.request, pathname, requesturltype)) // always returns a response
 		return;

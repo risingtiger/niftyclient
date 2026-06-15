@@ -1,0 +1,90 @@
+:host {
+	display: block;
+}
+
+.hidden {
+	display: none !important;
+}
+
+#wrapper {
+	display: block;
+}
+
+#installbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 9px 16px 10px;
+	font-size: 14px;
+	font-family: var(--fontfamily);
+	border: none;
+	background: var(--actioncolor);
+	color: #fff;
+	cursor: pointer;
+	border-radius: 10px;
+}
+
+#ios_overlay {
+	display: block;
+	position: fixed;
+	box-sizing: border-box;
+	padding-top: 132px;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(241, 241, 241, 0.75);
+	z-index: 9999;
+}
+
+#ios_overlay .sheet {
+	background: #fff;
+	width: 90%;
+	max-width: 450px;
+	margin: auto;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.17);
+	display: flex;
+	flex-direction: column;
+	padding: 0 20px 20px;
+	border-radius: 12px;
+	border: 1px solid #cccccc;
+	color: var(--textcolor);
+	font-family: var(--fontfamily);
+}
+
+#ios_overlay h2 {
+	margin: 0;
+	font-size: 19px;
+	padding: 14px 0 11px;
+	text-align: center;
+	border-bottom: 1px solid #e7e7e7;
+}
+
+#ios_overlay ol {
+	margin: 18px 0 8px;
+	padding-left: 22px;
+}
+
+#ios_overlay li {
+	display: list-item;
+	margin-bottom: 14px;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+#ios_overlay li svg {
+	vertical-align: middle;
+	margin-left: 5px;
+	color: var(--actioncolor);
+}
+
+#ios_close {
+	padding: 10px 20px 12px;
+	font-size: 16px;
+	border: none;
+	background: var(--actioncolor);
+	color: #fff;
+	cursor: pointer;
+	border-radius: 10px;
+	margin-top: 12px;
+}

@@ -143,6 +143,13 @@
 	  },
 	  {
 		"type": "component",
+		"name": "installprompt",
+		"is_instance": false,
+		"dependencies": [],
+		"auth": []
+	  },
+	  {
+		"type": "component",
 		"name": "btn",
 		"is_instance": false,
 		"dependencies": [

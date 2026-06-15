@@ -13,7 +13,7 @@
 		flex: 1 1 0;
 	}
 	> div:nth-child(1) > c-btn {
-		width: 97px;
+		width: fit-content;
 	}
 	> div:nth-child(2) {
 		display: flex;

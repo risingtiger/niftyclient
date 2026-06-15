@@ -1,7 +1,10 @@
 {
+  "id": "/",
   "name": "to be filled in by build process according to app",
   "short_name": "to be filled in by build process according to app",
   "description": "to be filled in by build process according to app",
+  "lang": "en",
+  "dir": "ltr",
   "theme_color": "to be filled in by build process according to app",
   "background_color": "to be filled in by build process according to app",
     "icons": [
@@ -20,7 +23,10 @@
 		}
 	],
   "scope": "/",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone"],
+  "orientation": "any",
+  "launch_handler": { "client_mode": "navigate-existing" },
   "version":"0"
 }

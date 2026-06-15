@@ -213,7 +213,7 @@ class VLogin extends HTMLElement {
     async ResetPassword() {
         // Read current email value directly from DOM input
         const emailInput = this.shadow.getElementById('emailinput') as HTMLInputElement;
-        this.s.email = emailInput?.value || "";
+        this.s.email = emailInput?.value.trim() || "";
 
         if (!this.s.email || !this.s.email.includes('@')) {
             this.s.errorMessage = "Please enter your email address to reset your password";
@@ -245,22 +245,17 @@ class VLogin extends HTMLElement {
 
         try {
             const response = await fetch(url, opts);
-            const data = await response.json();
+            await response.json().catch(()=>null);
 
             this.s.isLoading = false;
-
-            if (!response.ok) {
-                this.s.errorMessage = data.error?.message || "Password reset failed. Please try again.";
-                this.render();
-                return;
-            }
-
-            this.s.successMessage = "Done. Check your inbox (SPAM box too).";
+            this.s.errorMessage = "";
+            this.s.successMessage = "If an account exists for that email, a reset link has been sent.";
             this.render();
 
         } catch (error) {
             this.s.isLoading = false;
-            this.s.errorMessage = "Password reset failed. Please try again.";
+            this.s.successMessage = "";
+            this.s.errorMessage = "Unable to request password reset. Please try again.";
             this.render();
         }
     }
